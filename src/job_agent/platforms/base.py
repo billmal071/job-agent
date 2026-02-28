@@ -1,12 +1,43 @@
-"""Abstract base classes for platform drivers."""
+"""Abstract base classes and shared utilities for platform drivers."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
+from job_agent.browser.humanizer import human_delay
 from job_agent.db.models import Platform
+from job_agent.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
+
+log = get_logger(__name__)
+
+
+def safe_text(page: Page, selector: str) -> str:
+    """Safely extract text from the first element matching *selector*."""
+    try:
+        el = page.locator(selector).first
+        if el.count() > 0:
+            return el.inner_text().strip()
+    except Exception:
+        pass
+    return ""
+
+
+def safe_goto(page: Page, url: str, *, retries: int = 2) -> None:
+    """Navigate to *url* with retry on network failure."""
+    for attempt in range(1 + retries):
+        try:
+            page.goto(url)
+            return
+        except Exception:
+            if attempt >= retries:
+                raise
+            log.warning("safe_goto_retry", url=url, attempt=attempt + 1)
+            human_delay(2000, 4000)
 
 
 @dataclass

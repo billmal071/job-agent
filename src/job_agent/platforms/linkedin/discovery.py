@@ -9,7 +9,7 @@ from playwright.sync_api import Page
 
 from job_agent.browser.humanizer import human_click, human_delay, human_scroll
 from job_agent.db.models import Platform
-from job_agent.platforms.base import JobPosting
+from job_agent.platforms.base import JobPosting, safe_text
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
 
@@ -201,18 +201,18 @@ class LinkedInDiscovery:
         self.page.wait_for_load_state("networkidle")
         human_delay(2000, 4000)
 
-        title = self._safe_text(".t-24.job-details-jobs-unified-top-card__job-title, h1")
-        company = self._safe_text(
+        title = safe_text(self.page,".t-24.job-details-jobs-unified-top-card__job-title, h1")
+        company = safe_text(self.page,
             ".job-details-jobs-unified-top-card__company-name, "
             ".jobs-unified-top-card__company-name"
         )
-        location = self._safe_text(
+        location = safe_text(self.page,
             ".job-details-jobs-unified-top-card__primary-description-container span, "
             ".jobs-unified-top-card__bullet"
         )
 
         # Get full description
-        description = self._safe_text(
+        description = safe_text(self.page,
             ".jobs-description__content, "
             ".jobs-box__html-content"
         )
@@ -226,7 +226,7 @@ class LinkedInDiscovery:
             ".jobs-apply-button, [data-is-easy-apply-button]"
         ).count() > 0
 
-        salary = self._safe_text(
+        salary = safe_text(self.page,
             ".job-details-jobs-unified-top-card__job-insight--highlight span"
         )
 
@@ -257,13 +257,3 @@ class LinkedInDiscovery:
         ).count() > 0
         self.rate_limiter.success()
         return applied
-
-    def _safe_text(self, selector: str) -> str:
-        """Safely extract text from a selector."""
-        try:
-            el = self.page.locator(selector).first
-            if el.count() > 0:
-                return el.inner_text().strip()
-        except Exception:
-            pass
-        return ""

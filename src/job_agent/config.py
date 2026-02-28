@@ -26,6 +26,10 @@ class MatchingConfig(BaseModel):
 class ResumeConfig(BaseModel):
     master_resume: str = "config/resumes/master.md"
     cover_letter_tone: str = "professional"
+    default_cover_note: str = (
+        "I'm excited about this opportunity and believe my skills "
+        "are a strong match. Please see my attached resume for details."
+    )
 
 
 class PlatformConfig(BaseModel):
@@ -55,6 +59,24 @@ class PlatformsConfig(BaseModel):
         max_requests_per_minute=4,
         max_applications_per_day=30,
         session_duration_minutes=60,
+    )
+    ziprecruiter: PlatformConfig = PlatformConfig(
+        max_requests_per_minute=5,
+        max_applications_per_day=40,
+        session_duration_minutes=60,
+        cooldown_minutes=20,
+    )
+    dice: PlatformConfig = PlatformConfig(
+        max_requests_per_minute=4,
+        max_applications_per_day=35,
+        session_duration_minutes=60,
+        cooldown_minutes=20,
+    )
+    wellfound: PlatformConfig = PlatformConfig(
+        max_requests_per_minute=3,
+        max_applications_per_day=20,
+        session_duration_minutes=45,
+        cooldown_minutes=25,
     )
 
 
@@ -93,8 +115,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # API keys from environment
+    # AI provider: anthropic, gemini, groq, openrouter, ollama
+    ai_provider: str = "gemini"
+
+    # API keys from environment (set the one for your chosen provider)
     anthropic_api_key: str = ""
+    gemini_api_key: str = ""
+    groq_api_key: str = ""
+    openrouter_api_key: str = ""
+
     flask_secret_key: str = "change-me"
     database_url: str = ""
 

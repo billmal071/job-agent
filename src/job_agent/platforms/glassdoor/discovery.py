@@ -9,7 +9,7 @@ from playwright.sync_api import Page
 
 from job_agent.browser.humanizer import human_delay
 from job_agent.db.models import Platform
-from job_agent.platforms.base import JobPosting
+from job_agent.platforms.base import JobPosting, safe_text
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
 
@@ -136,10 +136,10 @@ class GlassdoorDiscovery:
         self.page.wait_for_load_state("networkidle")
         human_delay(2000, 4000)
 
-        title = self._safe_text('[data-test="jobTitle"], .e1tk4kwz5')
-        company = self._safe_text('[data-test="employerName"], .e1tk4kwz4')
-        location = self._safe_text('[data-test="location"], .e1tk4kwz1')
-        description = self._safe_text('[data-test="jobDescriptionContent"], .jobDescriptionContent')
+        title = safe_text(self.page,'[data-test="jobTitle"], .e1tk4kwz5')
+        company = safe_text(self.page,'[data-test="employerName"], .e1tk4kwz4')
+        location = safe_text(self.page,'[data-test="location"], .e1tk4kwz1')
+        description = safe_text(self.page,'[data-test="jobDescriptionContent"], .jobDescriptionContent')
 
         match = re.search(r"jobListingId=(\d+)", job_url)
         external_id = match.group(1) if match else ""
@@ -155,12 +155,3 @@ class GlassdoorDiscovery:
             url=job_url,
             remote="remote" in location.lower(),
         )
-
-    def _safe_text(self, selector: str) -> str:
-        try:
-            el = self.page.locator(selector).first
-            if el.count() > 0:
-                return el.inner_text().strip()
-        except Exception:
-            pass
-        return ""

@@ -9,7 +9,7 @@ from playwright.sync_api import Page
 
 from job_agent.browser.humanizer import human_delay
 from job_agent.db.models import Platform
-from job_agent.platforms.base import JobPosting
+from job_agent.platforms.base import JobPosting, safe_text
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
 
@@ -137,10 +137,10 @@ class IndeedDiscovery:
         self.page.wait_for_load_state("networkidle")
         human_delay(2000, 4000)
 
-        title = self._safe_text(".jobsearch-JobInfoHeader-title, h1")
-        company = self._safe_text('[data-testid="inlineHeader-companyName"], .jobsearch-InlineCompanyRating-companyHeader')
-        location = self._safe_text('[data-testid="inlineHeader-companyLocation"], .jobsearch-InlineCompanyRating > div:last-child')
-        description = self._safe_text("#jobDescriptionText, .jobsearch-jobDescriptionText")
+        title = safe_text(self.page,".jobsearch-JobInfoHeader-title, h1")
+        company = safe_text(self.page,'[data-testid="inlineHeader-companyName"], .jobsearch-InlineCompanyRating-companyHeader')
+        location = safe_text(self.page,'[data-testid="inlineHeader-companyLocation"], .jobsearch-InlineCompanyRating > div:last-child')
+        description = safe_text(self.page,"#jobDescriptionText, .jobsearch-jobDescriptionText")
 
         match = re.search(r"jk=([a-f0-9]+)", job_url)
         external_id = match.group(1) if match else ""
@@ -156,12 +156,3 @@ class IndeedDiscovery:
             url=job_url,
             remote="remote" in location.lower(),
         )
-
-    def _safe_text(self, selector: str) -> str:
-        try:
-            el = self.page.locator(selector).first
-            if el.count() > 0:
-                return el.inner_text().strip()
-        except Exception:
-            pass
-        return ""
