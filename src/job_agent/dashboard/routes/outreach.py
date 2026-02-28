@@ -32,17 +32,20 @@ def index():
             round((accepted + replied) / sent * 100, 1) if sent > 0 else 0.0
         )
 
+        stats = {
+            "total": total,
+            "sent": sent,
+            "accepted": accepted,
+            "replied": replied,
+            "follow_ups": follow_ups,
+            "failed": failed,
+            "response_rate": response_rate,
+        }
+
         return render_template(
             "outreach/index.html",
             messages=messages,
-            total=total,
-            sent=sent,
-            accepted=accepted,
-            replied=replied,
-            follow_ups=follow_ups,
-            failed=failed,
-            response_rate=response_rate,
-            statuses=OutreachStatus,
+            stats=stats,
         )
     finally:
         session.close()
