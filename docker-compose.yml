@@ -1,0 +1,23 @@
+services:
+  dashboard:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ~/.job-agent:/home/agent/.job-agent
+      - ./config:/app/config:ro
+    env_file:
+      - .env
+    command: ["dashboard"]
+    restart: unless-stopped
+
+  agent:
+    build: .
+    volumes:
+      - ~/.job-agent:/home/agent/.job-agent
+      - ./config:/app/config:ro
+    env_file:
+      - .env
+    command: ["run", "--profile", "config/profiles/myprofile.yaml", "--once"]
+    profiles:
+      - agent

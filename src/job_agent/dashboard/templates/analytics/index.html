@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Analytics - Job Agent{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-graph-up"></i> Analytics</h2>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Score Distribution</h5></div>
+            <div class="card-body">
+                <canvas id="scoreChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Activity Timeline</h5></div>
+            <div class="card-body">
+                <canvas id="timelineChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCharts() {
+    // Score distribution
+    const scoreResp = await fetch('/analytics/data/scores');
+    const scoreData = await scoreResp.json();
+
+    new Chart(document.getElementById('scoreChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(scoreData.distribution),
+            datasets: [{
+                label: 'Jobs',
+                data: Object.values(scoreData.distribution),
+                backgroundColor: Object.keys(scoreData.distribution).map(k => {
+                    const val = parseFloat(k);
+                    if (val >= 0.9) return 'rgba(25, 135, 84, 0.7)';
+                    if (val >= 0.7) return 'rgba(255, 193, 7, 0.7)';
+                    return 'rgba(220, 53, 69, 0.7)';
+                }),
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+
+    // Timeline
+    const timeResp = await fetch('/analytics/data/timeline');
+    const timeData = await timeResp.json();
+
+    const labels = [...new Set([
+        ...timeData.applications.map(d => d.date),
+        ...timeData.discoveries.map(d => d.date)
+    ])].sort();
+
+    const appMap = Object.fromEntries(timeData.applications.map(d => [d.date, d.count]));
+    const discMap = Object.fromEntries(timeData.discoveries.map(d => [d.date, d.count]));
+
+    new Chart(document.getElementById('timelineChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Discovered',
+                    data: labels.map(l => discMap[l] || 0),
+                    borderColor: 'rgba(13, 110, 253, 0.8)',
+                    fill: false,
+                    tension: 0.3,
+                },
+                {
+                    label: 'Applied',
+                    data: labels.map(l => appMap[l] || 0),
+                    borderColor: 'rgba(25, 135, 84, 0.8)',
+                    fill: false,
+                    tension: 0.3,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+
+loadCharts();
+</script>
+{% endblock %}

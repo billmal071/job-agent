@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Jobs - Job Agent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Jobs</h2>
+    <span class="text-muted">{{ jobs|length }} results</span>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label">Platform</label>
+                <select name="platform" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="linkedin" {{ 'selected' if request.args.get('platform') == 'linkedin' }}>LinkedIn</option>
+                    <option value="indeed" {{ 'selected' if request.args.get('platform') == 'indeed' }}>Indeed</option>
+                    <option value="glassdoor" {{ 'selected' if request.args.get('platform') == 'glassdoor' }}>Glassdoor</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="discovered" {{ 'selected' if request.args.get('status') == 'discovered' }}>Discovered</option>
+                    <option value="matched" {{ 'selected' if request.args.get('status') == 'matched' }}>Matched</option>
+                    <option value="queued" {{ 'selected' if request.args.get('status') == 'queued' }}>Queued</option>
+                    <option value="applied" {{ 'selected' if request.args.get('status') == 'applied' }}>Applied</option>
+                    <option value="skipped" {{ 'selected' if request.args.get('status') == 'skipped' }}>Skipped</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Jobs Table -->
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Company</th>
+                <th>Platform</th>
+                <th>Score</th>
+                <th>Status</th>
+                <th>Discovered</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr style="cursor:pointer" onclick="window.location='/jobs/{{ job.id }}'">
+                <td>{{ job.title }}</td>
+                <td>{{ job.company }}</td>
+                <td><span class="badge bg-secondary">{{ job.platform.value }}</span></td>
+                <td>
+                    {% if job.match_result %}
+                        {% set score = job.match_result.score %}
+                        {% if score >= 0.9 %}
+                        <span class="badge bg-success score-badge">{{ "%.2f"|format(score) }}</span>
+                        {% elif score >= 0.7 %}
+                        <span class="badge bg-warning text-dark score-badge">{{ "%.2f"|format(score) }}</span>
+                        {% else %}
+                        <span class="badge bg-danger score-badge">{{ "%.2f"|format(score) }}</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set status_colors = {'discovered': 'secondary', 'matched': 'info', 'queued': 'warning', 'applied': 'success', 'skipped': 'dark', 'rejected': 'danger', 'apply_failed': 'danger'} %}
+                    <span class="badge bg-{{ status_colors.get(job.status.value, 'secondary') }}">{{ job.status.value }}</span>
+                </td>
+                <td>{{ job.discovered_at.strftime('%m/%d %H:%M') if job.discovered_at else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if not jobs %}
+<p class="text-center text-muted mt-4">No jobs found. Run a search first.</p>
+{% endif %}
+{% endblock %}

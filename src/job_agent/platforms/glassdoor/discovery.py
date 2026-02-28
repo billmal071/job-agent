@@ -1,0 +1,166 @@
+"""Glassdoor job search and discovery."""
+
+from __future__ import annotations
+
+import re
+from urllib.parse import urlencode
+
+from playwright.sync_api import Page
+
+from job_agent.browser.humanizer import human_delay
+from job_agent.db.models import Platform
+from job_agent.platforms.base import JobPosting
+from job_agent.utils.logging import get_logger
+from job_agent.utils.rate_limiter import RateLimiter
+
+log = get_logger(__name__)
+
+
+class GlassdoorDiscovery:
+    """Handles Glassdoor job search and detail extraction."""
+
+    BASE_URL = "https://www.glassdoor.com/Job/jobs.htm"
+
+    def __init__(self, page: Page, rate_limiter: RateLimiter):
+        self.page = page
+        self.rate_limiter = rate_limiter
+
+    def search(
+        self,
+        query: str,
+        location: str = "",
+        limit: int = 25,
+    ) -> list[JobPosting]:
+        """Search Glassdoor for jobs."""
+        params = {"sc.keyword": query}
+        if location:
+            params["locT"] = "C"
+            params["locKeyword"] = location
+
+        url = f"{self.BASE_URL}?{urlencode(params)}"
+        log.info("glassdoor_search", query=query, location=location)
+
+        self.rate_limiter.wait()
+        self.page.goto(url)
+        self.page.wait_for_load_state("networkidle")
+        human_delay(2000, 4000)
+
+        jobs: list[JobPosting] = []
+        page_num = 0
+
+        while len(jobs) < limit:
+            new_jobs = self._extract_job_cards()
+            if not new_jobs:
+                break
+            jobs.extend(new_jobs)
+            self.rate_limiter.success()
+
+            if len(jobs) >= limit:
+                break
+            if not self._next_page():
+                break
+            page_num += 1
+
+        return jobs[:limit]
+
+    def _extract_job_cards(self) -> list[JobPosting]:
+        """Extract job listings from current page."""
+        jobs: list[JobPosting] = []
+
+        self.page.wait_for_selector(
+            '[data-test="jobListing"], .react-job-listing',
+            timeout=10000,
+        )
+        human_delay(1000, 2000)
+
+        cards = self.page.locator('[data-test="jobListing"], .react-job-listing').all()
+        for card in cards:
+            try:
+                title_el = card.locator('[data-test="job-title"], .job-title').first
+                title = title_el.inner_text().strip() if title_el.count() > 0 else ""
+
+                company_el = card.locator('[data-test="emp-name"], .employer-name').first
+                company = company_el.inner_text().strip() if company_el.count() > 0 else ""
+
+                location_el = card.locator('[data-test="emp-location"], .location').first
+                location = location_el.inner_text().strip() if location_el.count() > 0 else ""
+
+                link_el = card.locator("a[href*='/job-listing/']").first
+                url = ""
+                external_id = ""
+                if link_el.count() > 0:
+                    href = link_el.get_attribute("href") or ""
+                    url = href if href.startswith("http") else f"https://www.glassdoor.com{href}"
+                    match = re.search(r"jobListingId=(\d+)", url)
+                    if match:
+                        external_id = match.group(1)
+
+                if not external_id or not title:
+                    continue
+
+                salary_el = card.locator('[data-test="detailSalary"], .salary-estimate').first
+                salary = salary_el.inner_text().strip() if salary_el.count() > 0 else None
+
+                jobs.append(JobPosting(
+                    external_id=external_id,
+                    platform=Platform.GLASSDOOR,
+                    title=title,
+                    company=company,
+                    location=location,
+                    url=url,
+                    salary=salary,
+                    remote="remote" in location.lower(),
+                ))
+            except Exception as e:
+                log.debug("glassdoor_card_error", error=str(e))
+
+        return jobs
+
+    def _next_page(self) -> bool:
+        try:
+            self.rate_limiter.wait()
+            next_btn = self.page.locator('button[data-test="pagination-next"], a.nextButton')
+            if next_btn.count() > 0 and next_btn.is_enabled():
+                next_btn.click()
+                self.page.wait_for_load_state("networkidle")
+                human_delay(2000, 4000)
+                return True
+        except Exception:
+            pass
+        return False
+
+    def get_details(self, job_url: str) -> JobPosting:
+        """Get full job details."""
+        self.rate_limiter.wait()
+        self.page.goto(job_url)
+        self.page.wait_for_load_state("networkidle")
+        human_delay(2000, 4000)
+
+        title = self._safe_text('[data-test="jobTitle"], .e1tk4kwz5')
+        company = self._safe_text('[data-test="employerName"], .e1tk4kwz4')
+        location = self._safe_text('[data-test="location"], .e1tk4kwz1')
+        description = self._safe_text('[data-test="jobDescriptionContent"], .jobDescriptionContent')
+
+        match = re.search(r"jobListingId=(\d+)", job_url)
+        external_id = match.group(1) if match else ""
+
+        self.rate_limiter.success()
+        return JobPosting(
+            external_id=external_id,
+            platform=Platform.GLASSDOOR,
+            title=title,
+            company=company,
+            location=location,
+            description=description,
+            url=job_url,
+            remote="remote" in location.lower(),
+        )
+
+    def _safe_text(self, selector: str) -> str:
+        try:
+            el = self.page.locator(selector).first
+            if el.count() > 0:
+                return el.inner_text().strip()
+        except Exception:
+            pass
+        return ""

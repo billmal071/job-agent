@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} - Job Agent{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/jobs">Jobs</a></li>
+        <li class="breadcrumb-item active">{{ job.title }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-8">
+        <h2>{{ job.title }}</h2>
+        <p class="lead text-muted">
+            {{ job.company }} &bull; {{ job.location }}
+            {% if job.salary %} &bull; {{ job.salary }}{% endif %}
+        </p>
+
+        <div class="mb-3">
+            <span class="badge bg-secondary">{{ job.platform.value }}</span>
+            {% if job.easy_apply %}<span class="badge bg-primary">Easy Apply</span>{% endif %}
+            {% if job.remote %}<span class="badge bg-info">Remote</span>{% endif %}
+            {% set status_colors = {'discovered': 'secondary', 'matched': 'info', 'queued': 'warning', 'applied': 'success', 'skipped': 'dark', 'rejected': 'danger', 'apply_failed': 'danger'} %}
+            <span class="badge bg-{{ status_colors.get(job.status.value, 'secondary') }}">{{ job.status.value }}</span>
+        </div>
+
+        {% if job.url %}
+        <a href="{{ job.url }}" target="_blank" class="btn btn-outline-primary btn-sm mb-3">
+            <i class="bi bi-box-arrow-up-right"></i> View on {{ job.platform.value|capitalize }}
+        </a>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Job Description</h5></div>
+            <div class="card-body">
+                <div style="white-space: pre-wrap;">{{ job.description or 'No description available.' }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        {% if match %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Match Score:
+                    {% if match.score >= 0.9 %}
+                    <span class="badge bg-success">{{ "%.2f"|format(match.score) }}</span>
+                    {% elif match.score >= 0.7 %}
+                    <span class="badge bg-warning text-dark">{{ "%.2f"|format(match.score) }}</span>
+                    {% else %}
+                    <span class="badge bg-danger">{{ "%.2f"|format(match.score) }}</span>
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>{{ match.reasoning }}</p>
+
+                <h6>Role Fit</h6>
+                <p>{{ match.role_fit or 'N/A' }}</p>
+
+                {% if matched_skills %}
+                <h6>Matched Skills</h6>
+                <div class="mb-2">
+                    {% for skill in matched_skills %}
+                    <span class="badge bg-success me-1 mb-1">{{ skill }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if missing_skills %}
+                <h6>Missing Skills</h6>
+                <div class="mb-2">
+                    {% for skill in missing_skills %}
+                    <span class="badge bg-danger me-1 mb-1">{{ skill }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if red_flags %}
+                <h6>Red Flags</h6>
+                <div>
+                    {% for flag in red_flags %}
+                    <span class="badge bg-warning text-dark me-1 mb-1">{{ flag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if job.status.value == 'queued' %}
+        <div class="d-grid gap-2">
+            <button class="btn btn-success"
+                    hx-post="/queue/approve/{{ job.id }}"
+                    hx-target="#queue-action-result"
+                    hx-swap="innerHTML">
+                <i class="bi bi-check-circle"></i> Approve
+            </button>
+            <button class="btn btn-danger"
+                    hx-post="/queue/reject/{{ job.id }}"
+                    hx-target="#queue-action-result"
+                    hx-swap="innerHTML">
+                <i class="bi bi-x-circle"></i> Reject
+            </button>
+            <div id="queue-action-result"></div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

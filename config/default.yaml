@@ -1,0 +1,65 @@
+# Job Agent Default Configuration
+
+agent:
+  # Activity window (only run during these hours)
+  activity_start_hour: 8
+  activity_end_hour: 23
+  # Schedule interval in minutes
+  schedule_interval: 60
+  # Dry run mode (no actual applications)
+  dry_run: false
+
+matching:
+  # Score >= this: auto-apply
+  auto_apply_threshold: 0.90
+  # Score >= this: queue for review
+  review_threshold: 0.70
+  # Model for AI operations
+  model: "claude-sonnet-4-20250514"
+
+resume:
+  # Path to master resume (Markdown)
+  master_resume: "config/resumes/master.md"
+  # Cover letter tone
+  cover_letter_tone: "professional"
+
+platforms:
+  linkedin:
+    enabled: true
+    max_requests_per_minute: 3
+    max_applications_per_day: 25
+    max_connections_per_day: 20
+    session_duration_minutes: 45
+    cooldown_minutes: 30
+  indeed:
+    enabled: false
+    max_requests_per_minute: 5
+    max_applications_per_day: 40
+    session_duration_minutes: 60
+    cooldown_minutes: 20
+  glassdoor:
+    enabled: false
+    max_requests_per_minute: 4
+    max_applications_per_day: 30
+    session_duration_minutes: 60
+    cooldown_minutes: 20
+
+browser:
+  headless: true
+  # Persistent browser state directory
+  state_dir: "~/.job-agent/browser_state"
+  # Optional proxy
+  proxy: null
+
+notifications:
+  # Triggers: auto_applied, queued, failed, outreach_response
+  email:
+    enabled: false
+    triggers: ["failed"]
+  webhook:
+    enabled: false
+    triggers: ["auto_applied", "queued", "failed"]
+
+dashboard:
+  host: "127.0.0.1"
+  port: 5000

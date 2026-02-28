@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Review Queue - Job Agent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-inbox"></i> Review Queue</h2>
+    <span class="text-muted">{{ queue|length }} jobs awaiting review</span>
+</div>
+
+{% if queue %}
+<div class="row">
+    {% for item in queue %}
+    <div class="col-md-6 mb-3" id="queue-item-{{ item.job.id }}">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between">
+                <div>
+                    <strong>{{ item.job.title }}</strong>
+                    <br><small class="text-muted">{{ item.job.company }} &bull; {{ item.job.location }}</small>
+                </div>
+                {% if item.match_result %}
+                <span class="badge bg-warning text-dark score-badge align-self-start">
+                    {{ "%.2f"|format(item.match_result.score) }}
+                </span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if item.match_result %}
+                <p>{{ item.match_result.reasoning }}</p>
+
+                {% if item.match_result.role_fit %}
+                <p><strong>Role Fit:</strong> {{ item.match_result.role_fit }}</p>
+                {% endif %}
+                {% endif %}
+
+                <div class="mb-2">
+                    <span class="badge bg-secondary">{{ item.job.platform.value }}</span>
+                    {% if item.job.easy_apply %}<span class="badge bg-primary">Easy Apply</span>{% endif %}
+                    {% if item.job.remote %}<span class="badge bg-info">Remote</span>{% endif %}
+                </div>
+
+                {% if item.job.url %}
+                <a href="{{ item.job.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-box-arrow-up-right"></i> View Posting
+                </a>
+                <a href="/jobs/{{ item.job.id }}" class="btn btn-outline-secondary btn-sm">Details</a>
+                {% endif %}
+            </div>
+            <div class="card-footer d-flex gap-2">
+                <button class="btn btn-success btn-sm flex-fill"
+                        hx-post="/queue/approve/{{ item.job.id }}"
+                        hx-target="#queue-item-{{ item.job.id }}"
+                        hx-swap="outerHTML">
+                    <i class="bi bi-check-circle"></i> Approve
+                </button>
+                <button class="btn btn-danger btn-sm flex-fill"
+                        hx-post="/queue/reject/{{ item.job.id }}"
+                        hx-target="#queue-item-{{ item.job.id }}"
+                        hx-swap="outerHTML">
+                    <i class="bi bi-x-circle"></i> Reject
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted mt-5">
+    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+    <p class="mt-2">No jobs in the review queue.</p>
+</div>
+{% endif %}
+{% endblock %}

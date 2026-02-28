@@ -1,0 +1,41 @@
+# Example Job Search Profile
+# Copy this file and customize for your search
+
+name: "Senior Python Developer"
+
+search:
+  keywords:
+    - "Senior Python Developer"
+    - "Backend Engineer Python"
+    - "Python Software Engineer"
+  locations:
+    - "Remote"
+    - "San Francisco, CA"
+    - "New York, NY"
+  experience_level: "senior"  # entry, mid, senior, lead
+  remote_preference: "remote_first"  # onsite, hybrid, remote_only, remote_first
+  salary_minimum: 150000
+
+skills:
+  required:
+    - "Python"
+    - "SQL"
+    - "REST APIs"
+  preferred:
+    - "FastAPI"
+    - "Django"
+    - "PostgreSQL"
+    - "Docker"
+    - "AWS"
+    - "Kubernetes"
+
+exclusions:
+  companies:
+    - "SpamCorp"
+  keywords:
+    - "unpaid"
+    - "intern"
+    - "junior"
+
+resume_template: "master"
+cover_letter_tone: "professional"

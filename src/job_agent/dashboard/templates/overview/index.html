@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Overview - Job Agent{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Dashboard Overview</h2>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-bg-primary">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2">Total Jobs</h6>
+                <div class="card-stat">{{ total_jobs }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-success">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2">Applications</h6>
+                <div class="card-stat">{{ total_applications }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-warning">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2">Review Queue</h6>
+                <div class="card-stat">{{ queue_size }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-info">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2">Success Rate</h6>
+                <div class="card-stat">{{ "%.0f"|format(success_rate) }}%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Agent Runs</h5>
+    </div>
+    <div class="card-body">
+        {% if recent_runs %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Started</th>
+                        <th>Status</th>
+                        <th>Profile</th>
+                        <th>Discovered</th>
+                        <th>Applied</th>
+                        <th>Queued</th>
+                        <th>Skipped</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in recent_runs %}
+                    <tr>
+                        <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else '-' }}</td>
+                        <td>
+                            {% if run.status.value == 'completed' %}
+                            <span class="badge bg-success">{{ run.status.value }}</span>
+                            {% elif run.status.value == 'running' %}
+                            <span class="badge bg-primary">{{ run.status.value }}</span>
+                            {% elif run.status.value == 'failed' %}
+                            <span class="badge bg-danger">{{ run.status.value }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ run.status.value }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ run.profile_name }}</td>
+                        <td>{{ run.jobs_discovered }}</td>
+                        <td>{{ run.jobs_applied }}</td>
+                        <td>{{ run.jobs_queued }}</td>
+                        <td>{{ run.jobs_skipped }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No agent runs yet. Start the agent with: <code>job-agent run --profile your_profile.yaml</code></p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
