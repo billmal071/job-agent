@@ -1,11 +1,12 @@
 # Job Agent
 
-Autonomous job application agent that automates the entire job search lifecycle: discovering jobs on LinkedIn/Indeed/Glassdoor, scoring them against configurable profiles using Claude API, tailoring CVs for ATS optimization, auto-applying to high-confidence matches, queuing medium matches for review, and conducting LinkedIn recruiter outreach.
+Autonomous job application agent that automates the entire job search lifecycle: discovering jobs on LinkedIn/Indeed/Glassdoor, scoring them against configurable profiles using AI, tailoring CVs for ATS optimization, auto-applying to high-confidence matches, queuing medium matches for review, and conducting LinkedIn recruiter outreach.
 
 ## Features
 
 - **Multi-Platform Support** — LinkedIn, Indeed, Glassdoor
-- **AI-Powered Matching** — Claude API scores jobs 0.0–1.0 against your profile
+- **Multi-AI Provider** — Google Gemini (free), Groq (free), OpenRouter, Ollama (local), Anthropic Claude
+- **AI-Powered Matching** — Scores jobs 0.0–1.0 against your profile
 - **Resume Tailoring** — Auto-generates ATS-optimized resumes per job (PDF)
 - **Cover Letters** — AI-generated, customizable tone
 - **Tiered Autonomy** — Auto-apply (≥0.90), queue for review (0.70–0.89), skip (<0.70)
@@ -36,7 +37,8 @@ uv run playwright install chromium
 
 # Copy and configure environment
 cp .env.example .env
-# Edit .env with your ANTHROPIC_API_KEY
+# Edit .env — choose your AI provider and set the API key
+# Free options: Gemini (default), Groq, Ollama (local)
 
 # Run the setup wizard
 uv run job-agent setup
@@ -85,6 +87,24 @@ docker compose up dashboard
 
 # Run the agent once
 docker compose run --rm agent
+```
+
+## AI Providers
+
+Job Agent supports multiple AI providers. Choose the one that works best for you:
+
+| Provider | Cost | Setup |
+|----------|------|-------|
+| **Google Gemini** (default) | Free (15 RPM) | Get key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| **Groq** | Free tier | Get key at [console.groq.com](https://console.groq.com) |
+| **Ollama** | Free (local) | Install from [ollama.com](https://ollama.com), then `ollama pull llama3.1` |
+| **OpenRouter** | Some free models | Get key at [openrouter.ai/keys](https://openrouter.ai/keys) |
+| **Anthropic Claude** | Paid | Get key at [console.anthropic.com](https://console.anthropic.com) |
+
+Set in `.env`:
+```bash
+JOB_AGENT_AI_PROVIDER=gemini          # or groq, ollama, openrouter, anthropic
+JOB_AGENT_GEMINI_API_KEY=your-key     # set the key for your chosen provider
 ```
 
 ## Configuration
@@ -136,7 +156,7 @@ job-agent/
 ├── config/              # Default config + profile templates
 ├── migrations/          # Alembic database migrations
 ├── src/job_agent/
-│   ├── ai/              # Claude API: matching, resume tailoring, cover letters
+│   ├── ai/              # Multi-provider AI: matching, resume tailoring, cover letters
 │   ├── browser/         # Playwright: manager, stealth, humanizer, auth
 │   ├── dashboard/       # Flask web UI: routes, templates, static
 │   ├── db/              # SQLAlchemy models, session, repositories

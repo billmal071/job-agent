@@ -23,6 +23,9 @@ class AuthManager:
             Platform.LINKEDIN: self._login_linkedin,
             Platform.INDEED: self._login_indeed,
             Platform.GLASSDOOR: self._login_glassdoor,
+            Platform.ZIPRECRUITER: self._login_ziprecruiter,
+            Platform.DICE: self._login_dice,
+            Platform.WELLFOUND: self._login_wellfound,
         }
         handler = handlers.get(platform)
         if not handler:
@@ -36,6 +39,9 @@ class AuthManager:
             or p.locator(".global-nav__me").count() > 0,
             Platform.INDEED: lambda p: p.locator('[data-gnav-element-name="AccountMenu"]').count() > 0,
             Platform.GLASSDOOR: lambda p: p.locator('[data-test="header-profile"]').count() > 0,
+            Platform.ZIPRECRUITER: lambda p: p.locator('.navbar-user-menu, [data-testid="user-menu"]').count() > 0,
+            Platform.DICE: lambda p: p.locator('[data-testid="header-user-menu"], .user-menu').count() > 0,
+            Platform.WELLFOUND: lambda p: p.locator('[data-test="UserMenu"], .styles_component__NavBarAvatar').count() > 0,
         }
         check = checks.get(platform)
         if not check:
@@ -108,4 +114,55 @@ class AuthManager:
         human_delay(2000, 4000)
 
         log.info("glassdoor_login_complete")
+        return page
+
+    def _login_ziprecruiter(self, username: str, password: str) -> Page:
+        page = self.context.new_page()
+        page.goto("https://www.ziprecruiter.com/authn/login")
+        page.wait_for_load_state("networkidle")
+        human_delay(1000, 2000)
+
+        human_type(page, '[name="email"], #email', username)
+        human_type(page, '[name="password"], #password', password)
+        human_delay(500, 1000)
+        human_click(page, '[type="submit"]')
+
+        page.wait_for_load_state("networkidle")
+        human_delay(2000, 4000)
+
+        log.info("ziprecruiter_login_complete")
+        return page
+
+    def _login_dice(self, username: str, password: str) -> Page:
+        page = self.context.new_page()
+        page.goto("https://www.dice.com/dashboard/login")
+        page.wait_for_load_state("networkidle")
+        human_delay(1000, 2000)
+
+        human_type(page, '[name="email"], #email', username)
+        human_type(page, '[name="password"], #password', password)
+        human_delay(500, 1000)
+        human_click(page, '[type="submit"], button:has-text("Sign In")')
+
+        page.wait_for_load_state("networkidle")
+        human_delay(2000, 4000)
+
+        log.info("dice_login_complete")
+        return page
+
+    def _login_wellfound(self, username: str, password: str) -> Page:
+        page = self.context.new_page()
+        page.goto("https://wellfound.com/login")
+        page.wait_for_load_state("networkidle")
+        human_delay(1000, 2000)
+
+        human_type(page, '[name="email"], #user_email', username)
+        human_type(page, '[name="password"], #user_password', password)
+        human_delay(500, 1000)
+        human_click(page, '[type="submit"], button:has-text("Log in")')
+
+        page.wait_for_load_state("networkidle")
+        human_delay(2000, 4000)
+
+        log.info("wellfound_login_complete")
         return page

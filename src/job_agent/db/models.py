@@ -26,6 +26,9 @@ class Platform(PyEnum):
     LINKEDIN = "linkedin"
     INDEED = "indeed"
     GLASSDOOR = "glassdoor"
+    ZIPRECRUITER = "ziprecruiter"
+    DICE = "dice"
+    WELLFOUND = "wellfound"
 
 
 class JobStatus(PyEnum):

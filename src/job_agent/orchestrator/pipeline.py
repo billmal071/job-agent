@@ -28,11 +28,17 @@ def get_platform_driver(
     """Factory for platform drivers."""
     from job_agent.platforms.indeed.driver import IndeedDriver
     from job_agent.platforms.glassdoor.driver import GlassdoorDriver
+    from job_agent.platforms.ziprecruiter.driver import ZipRecruiterDriver
+    from job_agent.platforms.dice.driver import DiceDriver
+    from job_agent.platforms.wellfound.driver import WellfoundDriver
 
     drivers = {
         "linkedin": lambda: LinkedInDriver(settings, browser_manager),
         "indeed": lambda: IndeedDriver(settings, browser_manager),
         "glassdoor": lambda: GlassdoorDriver(settings, browser_manager),
+        "ziprecruiter": lambda: ZipRecruiterDriver(settings, browser_manager),
+        "dice": lambda: DiceDriver(settings, browser_manager),
+        "wellfound": lambda: WellfoundDriver(settings, browser_manager),
     }
     factory = drivers.get(platform_name)
     if not factory:
@@ -114,7 +120,7 @@ def run_pipeline(
     if platform_name:
         platforms_to_run = [platform_name]
     else:
-        for p in ["linkedin", "indeed", "glassdoor"]:
+        for p in ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound"]:
             cfg = getattr(settings.platforms, p)
             if cfg.enabled:
                 platforms_to_run.append(p)
