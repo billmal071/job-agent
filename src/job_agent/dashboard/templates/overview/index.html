@@ -68,14 +68,14 @@
             <button type="submit" class="btn btn-primary"
                     hx-post="/actions/run-pipeline"
                     hx-target="#action-status"
-                    hx-swap="innerHTML"
+                    hx-swap="outerHTML"
                     hx-include="closest form">
                 <i class="bi bi-play-fill"></i> Run Pipeline
             </button>
             <button type="button" class="btn btn-success"
                     hx-post="/actions/apply-approved"
                     hx-target="#action-status"
-                    hx-swap="innerHTML"
+                    hx-swap="outerHTML"
                     hx-include="closest form">
                 <i class="bi bi-check2-square"></i> Apply Approved
             </button>
