@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from job_agent.ai.screening import FormField, ScreeningAnswerer
 from job_agent.browser.humanizer import human_click, human_delay
 from job_agent.platforms.base import JobPosting
 from job_agent.platforms.base_applicator import BaseApplicator
@@ -14,6 +15,19 @@ log = get_logger(__name__)
 
 class LinkedInApplicator(BaseApplicator):
     """Handles LinkedIn Easy Apply form filling and submission."""
+
+    _answerer: ScreeningAnswerer | None = None
+
+    def _get_answerer(self) -> ScreeningAnswerer | None:
+        """Create a ScreeningAnswerer from AI client and profile, if available."""
+        if self._answerer:
+            return self._answerer
+        if not self._ai_client or not self._profile:
+            return None
+        summary = self._build_candidate_summary(self._profile)
+        salary = str(self._profile.get("search", {}).get("salary_minimum", ""))
+        self._answerer = ScreeningAnswerer(self._ai_client, summary, salary)
+        return self._answerer
 
     def _do_apply(
         self,
@@ -68,9 +82,8 @@ class LinkedInApplicator(BaseApplicator):
             # Handle contact info (usually pre-filled)
             self._handle_contact_info()
 
-            # Handle screening questions
-            if answers:
-                self._handle_screening_questions(answers)
+            # Handle screening questions (AI-powered or dict-based)
+            self._handle_screening_questions(answers)
 
             # Check for submit button
             submit_btn = self.page.locator(
@@ -158,41 +171,145 @@ class LinkedInApplicator(BaseApplicator):
                 if not value:
                     log.warning("empty_contact_field", field=selector)
 
-    def _handle_screening_questions(self, answers: dict[str, str]) -> None:
-        """Answer screening questions using provided answers."""
+    def _handle_screening_questions(self, answers: dict[str, str] | None) -> None:
+        """Answer screening questions using AI or provided answers dict."""
         questions = self.page.locator(
             ".jobs-easy-apply-form-section__grouping"
         ).all()
 
-        for question in questions:
+        if not questions:
+            return
+
+        answerer = self._get_answerer()
+
+        for question_group in questions:
             try:
-                label_el = question.locator("label, legend, span.t-14").first
+                label_el = question_group.locator("label, legend, span.t-14").first
                 if label_el.count() == 0:
                     continue
-                label = label_el.inner_text().strip().lower()
+                label = label_el.inner_text().strip()
+                if not label:
+                    continue
 
-                for key, value in answers.items():
-                    if key.lower() in label:
-                        # Try text input
-                        text_input = question.locator(
-                            'input[type="text"], textarea'
-                        ).first
-                        if text_input.count() > 0:
-                            text_input.fill(value)
-                            break
+                # Try dict-based answers first (backward compatible)
+                if answers:
+                    matched = self._try_dict_answer(question_group, label, answers)
+                    if matched:
+                        continue
 
-                        # Try select dropdown
-                        select_el = question.locator("select").first
-                        if select_el.count() > 0:
-                            select_el.select_option(label=value)
-                            break
-
-                        # Try radio buttons
-                        radio = question.locator(
-                            f'input[type="radio"][value="{value}"]'
-                        ).first
-                        if radio.count() > 0:
-                            radio.click()
-                            break
+                # Use AI-powered answering
+                if answerer:
+                    field = self._parse_linkedin_field_group(question_group, label)
+                    if field:
+                        try:
+                            answer = answerer.answer_field(field)
+                            self._fill_field(field, answer)
+                        except Exception as e:
+                            log.warning(
+                                "screening_fill_error",
+                                label=field.label,
+                                error=str(e),
+                            )
             except Exception as e:
                 log.debug("screening_question_error", error=str(e))
+
+    def _try_dict_answer(
+        self, group, label: str, answers: dict[str, str]
+    ) -> bool:
+        """Try to answer a question from the static answers dict. Returns True if matched."""
+        label_lower = label.lower()
+        for key, value in answers.items():
+            if key.lower() in label_lower:
+                # Try text input
+                text_input = group.locator('input[type="text"], textarea').first
+                if text_input.count() > 0:
+                    text_input.fill(value)
+                    return True
+
+                # Try select dropdown
+                select_el = group.locator("select").first
+                if select_el.count() > 0:
+                    select_el.select_option(label=value)
+                    return True
+
+                # Try radio buttons
+                radio = group.locator(
+                    f'input[type="radio"][value="{value}"]'
+                ).first
+                if radio.count() > 0:
+                    radio.click()
+                    return True
+        return False
+
+    def _parse_linkedin_field_group(self, group, label: str) -> FormField | None:
+        """Parse a LinkedIn form group into a FormField."""
+        # Check for select
+        select = group.locator("select").first
+        if select.count() > 0:
+            options = []
+            for opt in group.locator("select option").all():
+                text = opt.inner_text().strip()
+                val = opt.get_attribute("value") or ""
+                if text and val:
+                    options.append(text)
+            el_id = select.get_attribute("id") or ""
+            selector = f"#{el_id}" if el_id else ""
+            return FormField(
+                label=label,
+                field_type="select",
+                options=options,
+                selector=selector,
+            )
+
+        # Check for radio buttons
+        radios = group.locator('input[type="radio"]')
+        if radios.count() > 0:
+            options = []
+            for radio in radios.all():
+                radio_id = radio.get_attribute("id") or ""
+                if radio_id:
+                    assoc = group.locator(f'label[for="{radio_id}"]')
+                    if assoc.count() > 0:
+                        options.append(assoc.inner_text().strip())
+                        continue
+                val = radio.get_attribute("value") or ""
+                if val:
+                    options.append(val)
+            # Use parent fieldset or group as selector for radios
+            fieldset_id = group.get_attribute("id") or ""
+            selector = f"#{fieldset_id}" if fieldset_id else ""
+            return FormField(
+                label=label,
+                field_type="radio",
+                options=options,
+                selector=selector,
+            )
+
+        # Check for textarea
+        textarea = group.locator("textarea").first
+        if textarea.count() > 0:
+            el_id = textarea.get_attribute("id") or ""
+            selector = f"#{el_id}" if el_id else ""
+            return FormField(
+                label=label,
+                field_type="textarea",
+                selector=selector,
+                current_value=textarea.input_value(),
+            )
+
+        # Check for text/number input
+        text_input = group.locator(
+            'input[type="text"], input[type="number"], input:not([type])'
+        ).first
+        if text_input.count() > 0:
+            input_type = text_input.get_attribute("type") or "text"
+            el_id = text_input.get_attribute("id") or ""
+            selector = f"#{el_id}" if el_id else ""
+            return FormField(
+                label=label,
+                field_type="number" if input_type == "number" else "text",
+                selector=selector,
+                current_value=text_input.input_value(),
+            )
+
+        return None

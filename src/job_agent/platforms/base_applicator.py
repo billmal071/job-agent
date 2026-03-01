@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from playwright.sync_api import Page
 
@@ -13,6 +14,10 @@ from job_agent.config import Settings
 from job_agent.platforms.base import JobPosting, safe_goto
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
+
+if TYPE_CHECKING:
+    from job_agent.ai.client import AIClient
+    from job_agent.ai.screening import FieldAnswer, FormField
 
 log = get_logger(__name__)
 
@@ -34,10 +39,19 @@ class BaseApplicator(ABC):
     ``_navigate_to_job`` for platform-specific navigation.
     """
 
-    def __init__(self, page: Page, rate_limiter: RateLimiter, settings: Settings):
+    def __init__(
+        self,
+        page: Page,
+        rate_limiter: RateLimiter,
+        settings: Settings,
+        ai_client: "AIClient | None" = None,
+        profile: dict | None = None,
+    ):
         self.page = page
         self.rate_limiter = rate_limiter
         self.settings = settings
+        self._ai_client = ai_client
+        self._profile = profile
 
     # ------------------------------------------------------------------
     # Public entry point (template method)
@@ -141,3 +155,158 @@ class BaseApplicator(ABC):
         """Return True if the error is transient and worth retrying."""
         msg = str(exc).lower()
         return any(p in msg for p in _RETRYABLE_PATTERNS)
+
+    # ------------------------------------------------------------------
+    # AI-powered form filling helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_candidate_summary(profile: dict) -> str:
+        """Build a candidate summary string from a profile dict."""
+        parts: list[str] = []
+        if name := profile.get("name"):
+            parts.append(f"Target Role: {name}")
+        search = profile.get("search", {})
+        if exp := search.get("experience_level"):
+            parts.append(f"Experience Level: {exp}")
+        if locs := search.get("locations"):
+            parts.append(f"Locations: {', '.join(locs)}")
+        if remote := search.get("remote_preference"):
+            parts.append(f"Remote Preference: {remote}")
+        skills = profile.get("skills", {})
+        if req := skills.get("required"):
+            parts.append(f"Required Skills: {', '.join(req)}")
+        if pref := skills.get("preferred"):
+            parts.append(f"Preferred Skills: {', '.join(pref)}")
+        if salary := search.get("salary_minimum"):
+            parts.append(f"Minimum Salary: ${salary:,}")
+        return "\n".join(parts)
+
+    def _fill_field(self, field: FormField, answer: FieldAnswer) -> None:
+        """Dispatch to the appropriate field filler based on type."""
+        fillers = {
+            "text": self._fill_text_field,
+            "number": self._fill_text_field,
+            "textarea": self._fill_text_field,
+            "select": self._fill_select_field,
+            "radio": self._fill_radio_field,
+            "checkbox": self._fill_checkbox_field,
+        }
+        filler = fillers.get(field.field_type, self._fill_text_field)
+        try:
+            filler(field, answer)
+        except Exception as e:
+            log.warning(
+                "fill_field_error",
+                label=field.label,
+                field_type=field.field_type,
+                error=str(e),
+            )
+
+    def _fill_text_field(self, field: FormField, answer: FieldAnswer) -> None:
+        """Fill a text/textarea/number input, skipping if pre-filled."""
+        el = self.page.locator(field.selector)
+        if el.count() == 0:
+            return
+        current = el.first.input_value()
+        if current and current.strip():
+            log.debug("field_prefilled", label=field.label, value=current)
+            return
+        el.first.fill(answer.answer)
+        human_delay(300, 600)
+
+    def _fill_select_field(self, field: FormField, answer: FieldAnswer) -> None:
+        """Fill a select dropdown, using fuzzy matching if exact match fails."""
+        el = self.page.locator(field.selector)
+        if el.count() == 0:
+            return
+        # Try exact match first
+        try:
+            el.first.select_option(label=answer.answer)
+            human_delay(300, 600)
+            return
+        except Exception:
+            pass
+        # Fuzzy match
+        matched = self._fuzzy_match_option(answer.answer, field.options)
+        if matched:
+            try:
+                el.first.select_option(label=matched)
+                human_delay(300, 600)
+            except Exception as e:
+                log.warning("select_option_failed", label=field.label, error=str(e))
+
+    def _fill_radio_field(self, field: FormField, answer: FieldAnswer) -> None:
+        """Click the matching radio button."""
+        # Try by value attribute
+        container = self.page.locator(field.selector)
+        if container.count() == 0:
+            return
+        # Try matching label text
+        labels = container.locator("label").all()
+        for label_el in labels:
+            text = label_el.inner_text().strip()
+            if text.lower() == answer.answer.lower():
+                label_el.click()
+                human_delay(300, 600)
+                return
+        # Fuzzy match on labels
+        label_texts = [l.inner_text().strip() for l in labels]
+        matched = self._fuzzy_match_option(answer.answer, label_texts)
+        if matched:
+            for label_el in labels:
+                if label_el.inner_text().strip() == matched:
+                    label_el.click()
+                    human_delay(300, 600)
+                    return
+        # Try by input value
+        radio = container.locator(f'input[type="radio"][value="{answer.answer}"]')
+        if radio.count() > 0:
+            radio.first.click()
+            human_delay(300, 600)
+
+    def _fill_checkbox_field(self, field: FormField, answer: FieldAnswer) -> None:
+        """Check or uncheck a checkbox based on yes/no answer."""
+        el = self.page.locator(field.selector)
+        if el.count() == 0:
+            return
+        should_check = answer.answer.strip().lower() in ("yes", "true", "1", "checked")
+        is_checked = el.first.is_checked()
+        if should_check and not is_checked:
+            el.first.click()
+            human_delay(300, 600)
+        elif not should_check and is_checked:
+            el.first.click()
+            human_delay(300, 600)
+
+    @staticmethod
+    def _fuzzy_match_option(answer: str, options: list[str]) -> str | None:
+        """3-tier fuzzy matching: exact → substring → word overlap."""
+        answer_lower = answer.strip().lower()
+
+        # Tier 1: exact (case-insensitive)
+        for opt in options:
+            if opt.strip().lower() == answer_lower:
+                return opt
+
+        # Tier 2: substring match
+        for opt in options:
+            opt_lower = opt.strip().lower()
+            if answer_lower in opt_lower or opt_lower in answer_lower:
+                return opt
+
+        # Tier 3: word overlap
+        answer_words = set(answer_lower.split())
+        best_opt = None
+        best_overlap = 0
+        for opt in options:
+            opt_words = set(opt.strip().lower().split())
+            overlap = len(answer_words & opt_words)
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_opt = opt
+
+        if best_overlap > 0:
+            return best_opt
+
+        return None

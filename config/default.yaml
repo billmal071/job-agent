@@ -18,8 +18,8 @@ matching:
   model: ""
 
 resume:
-  # Path to master resume (Markdown)
-  master_resume: "config/resumes/master.md"
+  # Path to master resume (PDF or Markdown)
+  master_resume: "config/resumes/master.pdf"
   # Cover letter tone
   cover_letter_tone: "professional"
 
@@ -45,7 +45,7 @@ platforms:
     cooldown_minutes: 20
 
 browser:
-  headless: true
+  headless: false
   # Persistent browser state directory
   state_dir: "~/.job-agent/browser_state"
   # Optional proxy

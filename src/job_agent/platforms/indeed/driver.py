@@ -82,6 +82,12 @@ class IndeedDriver(PlatformDriver):
     def is_already_applied(self, job: JobPosting) -> bool:
         return False  # Indeed doesn't easily show applied status
 
+    def set_ai_context(self, ai_client, profile: dict) -> None:
+        """Pass AI client and profile to the applicator for screening questions."""
+        if self._applicator:
+            self._applicator._ai_client = ai_client
+            self._applicator._profile = profile
+
     def close(self) -> None:
         self.browser.save_state("indeed")
         if self._page and not self._page.is_closed():

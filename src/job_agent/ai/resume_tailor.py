@@ -101,13 +101,19 @@ class ResumeTailor:
         return self.generate_pdf(tailored_md, pdf_path)
 
     def _load_master_resume(self) -> str:
-        """Load the master resume from config."""
+        """Load the master resume from config (supports .md and .pdf)."""
         resume_path = Path(self.settings.resume.master_resume)
         if not resume_path.exists():
             raise FileNotFoundError(
                 f"Master resume not found: {resume_path}. "
-                "Create it at config/resumes/master.md"
+                f"Create it at {resume_path}"
             )
+        if resume_path.suffix.lower() == ".pdf":
+            import pymupdf
+            doc = pymupdf.open(str(resume_path))
+            text = "\n".join(page.get_text() for page in doc)
+            doc.close()
+            return text
         return resume_path.read_text()
 
     def _markdown_to_html(self, markdown: str) -> str:

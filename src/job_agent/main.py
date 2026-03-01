@@ -94,6 +94,18 @@ def cmd_run(
         engine.start(profile_path=profile, platform=platform)
 
 
+@cli.command("apply-approved")
+@click.pass_context
+def cmd_apply_approved(ctx: click.Context) -> None:
+    """Apply to all approved jobs from the review queue (skips discovery)."""
+    from job_agent.orchestrator.pipeline import apply_approved
+
+    settings = ctx.obj["settings"]
+    init_db(settings)
+    stats = apply_approved(settings)
+    click.echo(f"Done: {stats['applied']} applied, {stats['failed']} failed, {stats['skipped']} skipped")
+
+
 @cli.command("search")
 @click.option("--platform", "-P", default="linkedin", type=click.Choice(["linkedin", "indeed", "glassdoor"]))
 @click.option("--query", "-q", required=True, help="Search query.")

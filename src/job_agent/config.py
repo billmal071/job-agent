@@ -24,7 +24,7 @@ class MatchingConfig(BaseModel):
 
 
 class ResumeConfig(BaseModel):
-    master_resume: str = "config/resumes/master.md"
+    master_resume: str = "config/resumes/master.pdf"
     cover_letter_tone: str = "professional"
     default_cover_note: str = (
         "I'm excited about this opportunity and believe my skills "

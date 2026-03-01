@@ -91,6 +91,12 @@ class LinkedInDriver(PlatformDriver):
             self._discovery = LinkedInDiscovery(page, self.rate_limiter)
         return self._discovery.is_already_applied(job.url)
 
+    def set_ai_context(self, ai_client, profile: dict) -> None:
+        """Pass AI client and profile to the applicator for screening questions."""
+        if self._applicator:
+            self._applicator._ai_client = ai_client
+            self._applicator._profile = profile
+
     def close(self) -> None:
         self.browser.save_state("linkedin")
         if self._page and not self._page.is_closed():
