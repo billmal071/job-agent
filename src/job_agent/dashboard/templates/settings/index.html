@@ -10,8 +10,72 @@
 </div>
 
 <div class="settings-grid">
-    <!-- Credentials -->
+    <!-- AI Provider -->
     <div class="card animate-in delay-2">
+        <div class="card-header">
+            <h5>AI Provider</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="/settings/ai-provider">
+                <div style="margin-bottom: 1rem;">
+                    <label class="form-label">Active Provider</label>
+                    <select name="ai_provider" class="form-select" id="ai-provider-select">
+                        {% for p in ai_config.providers %}
+                        <option value="{{ p }}" {% if ai_config.provider == p %}selected{% endif %}>
+                            {{ p | capitalize }}{% if p == 'ollama' %} (Local){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="ai-key-group" data-provider="gemini">
+                    <label class="form-label">Gemini API Key
+                        <a href="https://aistudio.google.com/apikey" target="_blank" class="text-sm" style="margin-left: 0.5rem;">Get free key</a>
+                    </label>
+                    <input type="password" name="gemini_api_key" class="form-control"
+                           placeholder="{{ ai_config.gemini_key or 'Not set' }}">
+                </div>
+
+                <div class="ai-key-group" data-provider="groq">
+                    <label class="form-label">Groq API Key
+                        <a href="https://console.groq.com" target="_blank" class="text-sm" style="margin-left: 0.5rem;">Get free key</a>
+                    </label>
+                    <input type="password" name="groq_api_key" class="form-control"
+                           placeholder="{{ ai_config.groq_key or 'Not set' }}">
+                </div>
+
+                <div class="ai-key-group" data-provider="openrouter">
+                    <label class="form-label">OpenRouter API Key
+                        <a href="https://openrouter.ai/keys" target="_blank" class="text-sm" style="margin-left: 0.5rem;">Get key</a>
+                    </label>
+                    <input type="password" name="openrouter_api_key" class="form-control"
+                           placeholder="{{ ai_config.openrouter_key or 'Not set' }}">
+                </div>
+
+                <div class="ai-key-group" data-provider="anthropic">
+                    <label class="form-label">Anthropic API Key
+                        <a href="https://console.anthropic.com" target="_blank" class="text-sm" style="margin-left: 0.5rem;">Get key (paid)</a>
+                    </label>
+                    <input type="password" name="anthropic_api_key" class="form-control"
+                           placeholder="{{ ai_config.anthropic_key or 'Not set' }}">
+                </div>
+
+                <div class="ai-key-group" data-provider="ollama" style="margin-bottom: 1rem;">
+                    <div class="text-sm text-muted">
+                        Ollama runs locally &mdash; no API key needed.
+                        <a href="https://ollama.com" target="_blank">Install Ollama</a>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-cpu"></i> Save AI Settings
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Credentials -->
+    <div class="card animate-in delay-3">
         <div class="card-header">
             <h5>Platform Credentials</h5>
         </div>
@@ -41,6 +105,9 @@
                         <option value="linkedin">LinkedIn</option>
                         <option value="indeed">Indeed</option>
                         <option value="glassdoor">Glassdoor</option>
+                        <option value="ziprecruiter">ZipRecruiter</option>
+                        <option value="dice">Dice</option>
+                        <option value="wellfound">Wellfound</option>
                     </select>
                     <input type="text" name="username" class="form-control" placeholder="Username or email" required>
                     <input type="password" name="password" class="form-control" placeholder="Password" required>
@@ -51,36 +118,36 @@
             </form>
         </div>
     </div>
+</div>
 
-    <!-- Thresholds -->
-    <div class="card animate-in delay-3">
-        <div class="card-header">
-            <h5>Matching Thresholds</h5>
-        </div>
-        <div class="card-body">
-            <form method="post" action="/settings/thresholds">
-                <div style="margin-bottom: 1rem;">
-                    <label class="form-label">Auto-Apply Threshold</label>
-                    <input type="number" name="auto_apply_threshold" class="form-control"
-                           value="{{ thresholds.auto_apply }}" min="0" max="1" step="0.05">
-                    <div class="text-sm text-muted" style="margin-top: 0.25rem;">Jobs scoring above this are applied to automatically.</div>
-                </div>
-                <div style="margin-bottom: 1rem;">
-                    <label class="form-label">Review Queue Threshold</label>
-                    <input type="number" name="review_threshold" class="form-control"
-                           value="{{ thresholds.review }}" min="0" max="1" step="0.05">
-                    <div class="text-sm text-muted" style="margin-top: 0.25rem;">Jobs scoring above this go to the review queue.</div>
-                </div>
-                <button type="submit" class="btn btn-primary btn-sm">
-                    <i class="bi bi-check"></i> Save Thresholds
-                </button>
-            </form>
-        </div>
+<!-- Thresholds -->
+<div class="card animate-in delay-4">
+    <div class="card-header">
+        <h5>Matching Thresholds</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/settings/thresholds">
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">Auto-Apply Threshold</label>
+                <input type="number" name="auto_apply_threshold" class="form-control"
+                       value="{{ thresholds.auto_apply }}" min="0" max="1" step="0.05">
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">Jobs scoring above this are applied to automatically.</div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">Review Queue Threshold</label>
+                <input type="number" name="review_threshold" class="form-control"
+                       value="{{ thresholds.review }}" min="0" max="1" step="0.05">
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">Jobs scoring above this go to the review queue.</div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-check"></i> Save Thresholds
+            </button>
+        </form>
     </div>
 </div>
 
 <!-- Agent Config -->
-<div class="card animate-in delay-4">
+<div class="card animate-in delay-5">
     <div class="card-header">
         <h5>Agent Configuration</h5>
     </div>
@@ -105,4 +172,19 @@
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    var select = document.getElementById('ai-provider-select');
+    function updateKeyGroups() {
+        var provider = select.value;
+        document.querySelectorAll('.ai-key-group').forEach(function(el) {
+            el.style.display = el.dataset.provider === provider ? 'block' : 'none';
+            el.style.marginBottom = el.dataset.provider === provider ? '1rem' : '0';
+        });
+    }
+    select.addEventListener('change', updateKeyGroups);
+    updateKeyGroups();
+})();
+</script>
 {% endblock %}
