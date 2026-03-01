@@ -2,10 +2,17 @@
 {% block title %}{{ job.title }} - Job Agent{% endblock %}
 
 {% block content %}
-<ol class="breadcrumb animate-in delay-1">
-    <li><a href="/jobs">Jobs</a></li>
-    <li>{{ job.title }}</li>
-</ol>
+<div class="page-header animate-in delay-1">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <a href="javascript:history.back()" class="btn btn-ghost btn-sm" title="Go back">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+        <ol class="breadcrumb" style="margin: 0;">
+            <li><a href="/jobs">Jobs</a></li>
+            <li>{{ job.title }}</li>
+        </ol>
+    </div>
+</div>
 
 <div style="display: grid; grid-template-columns: 1fr 380px; gap: 1.25rem;" class="animate-in delay-2">
     <!-- Left: Job Details -->
