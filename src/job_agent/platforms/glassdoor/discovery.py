@@ -25,6 +25,34 @@ class GlassdoorDiscovery:
         self.page = page
         self.rate_limiter = rate_limiter
 
+    def _dismiss_one_tap(self) -> None:
+        """Dismiss Google One Tap auth popup if present."""
+        try:
+            one_tap = self.page.locator('iframe[src*="accounts.google.com/gsi"], #credential_picker_container')
+            if one_tap.count() > 0:
+                self.page.evaluate("document.querySelector('#credential_picker_container')?.remove()")
+                self.page.evaluate("document.querySelector('iframe[src*=\"accounts.google.com/gsi\"]')?.remove()")
+        except Exception:
+            pass
+
+    def _safe_goto(self, url: str) -> None:
+        """Navigate to URL, handling OAuth redirect interruptions."""
+        try:
+            self._dismiss_one_tap()
+            self.page.goto(url)
+            self.page.wait_for_load_state("domcontentloaded")
+        except Exception as e:
+            if "interrupted by another navigation" in str(e):
+                log.warning("glassdoor_nav_interrupted", url=url)
+                self.page.wait_for_load_state("domcontentloaded")
+                human_delay(2000, 3000)
+                # Retry the original navigation
+                self._dismiss_one_tap()
+                self.page.goto(url)
+                self.page.wait_for_load_state("domcontentloaded")
+            else:
+                raise
+
     def search(
         self,
         query: str,
@@ -41,8 +69,7 @@ class GlassdoorDiscovery:
         log.info("glassdoor_search", query=query, location=location)
 
         self.rate_limiter.wait()
-        self.page.goto(url)
-        self.page.wait_for_load_state("networkidle")
+        self._safe_goto(url)
         human_delay(2000, 4000)
 
         jobs: list[JobPosting] = []
@@ -122,7 +149,7 @@ class GlassdoorDiscovery:
             next_btn = self.page.locator('button[data-test="pagination-next"], a.nextButton')
             if next_btn.count() > 0 and next_btn.is_enabled():
                 next_btn.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 human_delay(2000, 4000)
                 return True
         except Exception:
@@ -132,8 +159,7 @@ class GlassdoorDiscovery:
     def get_details(self, job_url: str) -> JobPosting:
         """Get full job details."""
         self.rate_limiter.wait()
-        self.page.goto(job_url)
-        self.page.wait_for_load_state("networkidle")
+        self._safe_goto(job_url)
         human_delay(2000, 4000)
 
         title = safe_text(self.page,'[data-test="jobTitle"], .e1tk4kwz5')

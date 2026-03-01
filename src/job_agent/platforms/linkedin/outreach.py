@@ -46,7 +46,7 @@ class LinkedInOutreach:
         query = f"{title} {company}"
         url = f"https://www.linkedin.com/search/results/people/?keywords={query}&origin=GLOBAL_SEARCH_HEADER"
         self.page.goto(url)
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         people: list[dict] = []
@@ -113,7 +113,7 @@ class LinkedInOutreach:
             # Navigate to profile
             self.rate_limiter.wait()
             self.page.goto(profile_url)
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
             human_delay(2000, 4000)
 
             # Click Connect button
@@ -208,7 +208,7 @@ class LinkedInOutreach:
 
             self.rate_limiter.wait()
             self.page.goto(profile_url)
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
             human_delay(2000, 4000)
 
             # Click Message button

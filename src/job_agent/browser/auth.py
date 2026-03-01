@@ -58,7 +58,7 @@ class AuthManager:
     def _login_linkedin(self, username: str, password: str) -> Page:
         page = self.context.new_page()
         page.goto("https://www.linkedin.com/feed/")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 3000)
 
         # Already logged in from saved session
@@ -70,7 +70,7 @@ class AuthManager:
 
         # Not logged in — go to login page
         page.goto("https://www.linkedin.com/login")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(1000, 2000)
 
         human_type(page, "#username", username)
@@ -78,7 +78,7 @@ class AuthManager:
         human_delay(500, 1000)
         human_click(page, '[type="submit"]')
 
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         # Check for security challenge — wait for manual resolution
@@ -124,7 +124,7 @@ class AuthManager:
     def _login_indeed(self, username: str, password: str) -> Page:
         page = self.context.new_page()
         page.goto("https://secure.indeed.com/auth")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(1000, 2000)
 
         # Try Google auth button first, fall back to email/password
@@ -135,12 +135,12 @@ class AuthManager:
         else:
             human_type(page, '[name="__email"]', username)
             human_click(page, '[data-tn-element="auth-page-email-submit"]')
-            page.wait_for_load_state("networkidle")
+            page.wait_for_load_state("domcontentloaded")
             human_delay(1000, 2000)
 
             human_type(page, '[name="__password"]', password)
             human_click(page, '[data-tn-element="auth-page-sign-in-submit"]')
-            page.wait_for_load_state("networkidle")
+            page.wait_for_load_state("domcontentloaded")
             human_delay(2000, 4000)
 
         log.info("indeed_login_complete")
@@ -149,7 +149,7 @@ class AuthManager:
     def _login_glassdoor(self, username: str, password: str) -> Page:
         page = self.context.new_page()
         page.goto("https://www.glassdoor.com/profile/login_input.htm")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(1000, 2000)
 
         # Try Google auth button first, fall back to email/password
@@ -162,7 +162,7 @@ class AuthManager:
             human_type(page, '[name="password"]', password)
             human_delay(500, 1000)
             human_click(page, '[type="submit"]')
-            page.wait_for_load_state("networkidle")
+            page.wait_for_load_state("domcontentloaded")
             human_delay(2000, 4000)
 
         log.info("glassdoor_login_complete")
@@ -171,7 +171,7 @@ class AuthManager:
     def _login_ziprecruiter(self, username: str, password: str) -> Page:
         page = self.context.new_page()
         page.goto("https://www.ziprecruiter.com/authn/login")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(1000, 2000)
 
         human_type(page, '[name="email"], #email', username)
@@ -179,7 +179,7 @@ class AuthManager:
         human_delay(500, 1000)
         human_click(page, '[type="submit"]')
 
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         log.info("ziprecruiter_login_complete")
@@ -188,7 +188,7 @@ class AuthManager:
     def _login_dice(self, username: str, password: str) -> Page:
         page = self.context.new_page()
         page.goto("https://www.dice.com/dashboard/login")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(1000, 2000)
 
         human_type(page, '[name="email"], #email', username)
@@ -196,7 +196,7 @@ class AuthManager:
         human_delay(500, 1000)
         human_click(page, '[type="submit"], button:has-text("Sign In")')
 
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         log.info("dice_login_complete")
@@ -205,7 +205,7 @@ class AuthManager:
     def _login_wellfound(self, username: str, password: str) -> Page:
         page = self.context.new_page()
         page.goto("https://wellfound.com/login")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(1000, 2000)
 
         human_type(page, '[name="email"], #user_email', username)
@@ -213,7 +213,7 @@ class AuthManager:
         human_delay(500, 1000)
         human_click(page, '[type="submit"], button:has-text("Log in")')
 
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         log.info("wellfound_login_complete")

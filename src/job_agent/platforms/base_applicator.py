@@ -99,7 +99,7 @@ class BaseApplicator(ABC):
     def _navigate_to_job(self, job: JobPosting) -> None:
         """Navigate to the job page. Override for platform-specific waits."""
         safe_goto(self.page, job.url)
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
 
     @abstractmethod
     def _do_apply(

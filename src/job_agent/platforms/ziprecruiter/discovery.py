@@ -47,7 +47,7 @@ class ZipRecruiterDiscovery:
 
         self.rate_limiter.wait()
         safe_goto(self.page, url)
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
         self.page.wait_for_selector(
             ".job_result_item, article.job_result, .job-listing", timeout=10000
         )
@@ -158,7 +158,7 @@ class ZipRecruiterDiscovery:
             )
             if next_link.count() > 0:
                 next_link.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 human_delay(2000, 4000)
                 return True
         except Exception as e:
@@ -169,7 +169,7 @@ class ZipRecruiterDiscovery:
         """Get full job details from ZipRecruiter."""
         self.rate_limiter.wait()
         safe_goto(self.page, job_url)
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         title = safe_text(self.page,

@@ -41,7 +41,7 @@ class IndeedDiscovery:
 
         self.rate_limiter.wait()
         self.page.goto(url)
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         jobs: list[JobPosting] = []
@@ -123,7 +123,7 @@ class IndeedDiscovery:
             next_link = self.page.locator('a[data-testid="pagination-page-next"], a[aria-label="Next Page"]')
             if next_link.count() > 0:
                 next_link.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 human_delay(2000, 4000)
                 return True
         except Exception as e:
@@ -134,7 +134,7 @@ class IndeedDiscovery:
         """Get full job details from Indeed."""
         self.rate_limiter.wait()
         self.page.goto(job_url)
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         title = safe_text(self.page,".jobsearch-JobInfoHeader-title, h1")
