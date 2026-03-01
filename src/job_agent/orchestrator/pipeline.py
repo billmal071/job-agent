@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import json
+
 from job_agent.ai.client import AIClient
+from job_agent.ai.cold_email import ColdEmailGenerator
 from job_agent.ai.job_matcher import JobMatcher
 from job_agent.ai.resume_tailor import ResumeTailor
 from job_agent.browser.manager import BrowserManager
 from job_agent.config import Settings, load_profile
-from job_agent.db.models import JobStatus, Platform
+from job_agent.db.models import JobStatus, OutreachStatus, Platform
 from job_agent.db.repository import (
     ApplicationRepository,
     JobRepository,
     MatchResultRepository,
+    OutreachRepository,
 )
 from job_agent.db.session import get_session
 from job_agent.platforms.base import JobPosting, PlatformDriver
@@ -44,6 +48,73 @@ def get_platform_driver(
     if not factory:
         raise ValueError(f"Unsupported platform: {platform_name}")
     return factory()
+
+
+def _generate_cold_email_draft(
+    job,
+    ai_client: AIClient,
+    settings: Settings,
+    profile: dict,
+    session,
+) -> None:
+    """Generate a cold email draft for a successfully applied job. Non-fatal on failure."""
+    try:
+        outreach_repo = OutreachRepository(session)
+
+        # Build candidate summary from profile
+        parts: list[str] = []
+        if name := profile.get("name"):
+            parts.append(f"Target Role: {name}")
+        search = profile.get("search", {})
+        if exp := search.get("experience_level"):
+            parts.append(f"Experience Level: {exp}")
+        skills = profile.get("skills", {})
+        if req := skills.get("required"):
+            parts.append(f"Required Skills: {', '.join(req)}")
+        if pref := skills.get("preferred"):
+            parts.append(f"Preferred Skills: {', '.join(pref)}")
+        candidate_summary = "\n".join(parts)
+
+        # Get matched skills
+        matched_skills: list[str] = []
+        if job.match_result and job.match_result.matched_skills:
+            try:
+                matched_skills = json.loads(job.match_result.matched_skills)
+            except (ValueError, TypeError):
+                pass
+
+        # Default recipient — use "Hiring Manager" as placeholder
+        recipient_name = "Hiring Manager"
+        recipient_title = "Recruiter"
+
+        # Skip if draft already exists
+        if outreach_repo.exists_email_for_job(job.id, recipient_name):
+            return
+
+        generator = ColdEmailGenerator(ai_client, settings)
+        email_data = generator.generate(
+            job_title=job.title,
+            company=job.company,
+            recipient_name=recipient_name,
+            recipient_title=recipient_title,
+            matched_skills=matched_skills,
+            candidate_summary=candidate_summary,
+        )
+
+        outreach_repo.create(
+            platform=job.platform,
+            recipient_name=recipient_name,
+            recipient_title=recipient_title,
+            recipient_company=job.company,
+            recipient_profile_url="",
+            message_type="email",
+            message_text=json.dumps(email_data),
+            status=OutreachStatus.DRAFTED,
+            related_job_id=job.id,
+        )
+        log.info("cold_email_draft_generated", job_id=job.id, company=job.company)
+    except Exception as e:
+        log.warning("cold_email_draft_failed", job_id=job.id, error=str(e))
 
 
 def discover_jobs(
@@ -148,6 +219,9 @@ def run_pipeline(
 
                 driver.login(cred.username, decrypt(cred.encrypted_password))
 
+                if hasattr(driver, "set_ai_context"):
+                    driver.set_ai_context(ai_client, profile)
+
                 # Discover
                 for kw in search.get("keywords", []):
                     for loc in search.get("locations", [""]):
@@ -222,6 +296,9 @@ def run_pipeline(
                                                 resume_path=resume_path,
                                             )
                                             stats["applied"] += 1
+                                            _generate_cold_email_draft(
+                                                job, ai_client, settings, profile, session
+                                            )
                                         else:
                                             job.status = JobStatus.APPLY_FAILED
                                     except Exception as e:
@@ -263,6 +340,9 @@ def run_pipeline(
                         driver = get_platform_driver(plat, settings, browser)
                         driver.login(cred.username, decrypt(cred.encrypted_password))
 
+                        if hasattr(driver, "set_ai_context"):
+                            driver.set_ai_context(ai_client, profile)
+
                         for job in jobs:
                             if settings.agent.dry_run:
                                 log.info("dry_run_approved", job_id=job.id, title=job.title)
@@ -281,15 +361,18 @@ def run_pipeline(
                                     location=job.location,
                                     description=job.description or "",
                                     url=job.url,
-                                    easy_apply=job.easy_apply,
+                                    easy_apply=True,  # User explicitly approved
                                     remote=job.remote,
                                     salary=job.salary,
                                 )
 
                                 # Tailor resume
-                                matched_skills = ""
-                                if job.match_result:
-                                    matched_skills = job.match_result.matched_skills
+                                matched_skills: list[str] = []
+                                if job.match_result and job.match_result.matched_skills:
+                                    try:
+                                        matched_skills = json.loads(job.match_result.matched_skills)
+                                    except (ValueError, TypeError):
+                                        matched_skills = []
                                 resume_path = resume_tailor.tailor_and_save(
                                     posting, matched_skills
                                 )
@@ -303,6 +386,9 @@ def run_pipeline(
                                     )
                                     stats["applied"] += 1
                                     log.info("approved_job_applied", job_id=job.id, title=job.title)
+                                    _generate_cold_email_draft(
+                                        job, ai_client, settings, profile, session
+                                    )
                                 else:
                                     job.status = JobStatus.APPLY_FAILED
                                     log.warning("approved_job_apply_failed", job_id=job.id)
@@ -322,6 +408,107 @@ def run_pipeline(
     except Exception as e:
         session.rollback()
         log.error("pipeline_failed", error=str(e))
+        raise
+    finally:
+        session.close()
+
+
+def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]:
+    """Apply to all APPROVED jobs from the review queue (skips discovery)."""
+    stats = {"applied": 0, "failed": 0, "skipped": 0}
+
+    session = get_session(settings)
+    job_repo = JobRepository(session)
+    app_repo = ApplicationRepository(session)
+    ai_client = AIClient(settings)
+    resume_tailor = ResumeTailor(ai_client, settings)
+    profile = load_profile(profile_path) if profile_path else {}
+
+    try:
+        approved_jobs = job_repo.list_by_status(JobStatus.APPROVED)
+        if not approved_jobs:
+            log.info("no_approved_jobs")
+            return stats
+
+        log.info("applying_approved_jobs", count=len(approved_jobs))
+
+        # Group by platform
+        by_platform: dict[str, list] = {}
+        for job in approved_jobs:
+            by_platform.setdefault(job.platform.value, []).append(job)
+
+        with BrowserManager(settings) as browser:
+            for plat, jobs in by_platform.items():
+                from job_agent.db.repository import CredentialRepository
+
+                cred = CredentialRepository(session).get(Platform(plat))
+                if not cred:
+                    log.warning("no_credentials_for_approved", platform=plat)
+                    continue
+
+                try:
+                    driver = get_platform_driver(plat, settings, browser)
+                    driver.login(cred.username, decrypt(cred.encrypted_password))
+
+                    if profile and hasattr(driver, "set_ai_context"):
+                        driver.set_ai_context(ai_client, profile)
+
+                    for job in jobs:
+                        try:
+                            posting = JobPosting(
+                                external_id=job.external_id,
+                                platform=job.platform,
+                                title=job.title,
+                                company=job.company,
+                                location=job.location,
+                                description=job.description or "",
+                                url=job.url,
+                                easy_apply=True,  # User explicitly approved
+                                remote=job.remote,
+                                salary=job.salary,
+                            )
+
+                            matched_skills: list[str] = []
+                            if job.match_result and job.match_result.matched_skills:
+                                try:
+                                    matched_skills = json.loads(job.match_result.matched_skills)
+                                except (ValueError, TypeError):
+                                    matched_skills = []
+
+                            resume_path = resume_tailor.tailor_and_save(
+                                posting, matched_skills
+                            )
+
+                            success = driver.apply(posting, resume_path)
+                            if success:
+                                job.status = JobStatus.APPLIED
+                                app_repo.create(job_id=job.id, resume_path=resume_path)
+                                stats["applied"] += 1
+                                log.info("approved_job_applied", job_id=job.id, title=job.title)
+                                _generate_cold_email_draft(
+                                    job, ai_client, settings, profile, session
+                                )
+                            else:
+                                job.status = JobStatus.APPLY_FAILED
+                                stats["failed"] += 1
+                                log.warning("approved_job_apply_failed", job_id=job.id)
+                        except Exception as e:
+                            log.error("approved_job_error", job_id=job.id, error=str(e))
+                            job.status = JobStatus.APPLY_FAILED
+                            stats["failed"] += 1
+
+                        session.commit()
+
+                    driver.close()
+                except Exception as e:
+                    log.error("approved_platform_error", platform=plat, error=str(e))
+
+        log.info("apply_approved_complete", **stats)
+        return stats
+
+    except Exception as e:
+        session.rollback()
+        log.error("apply_approved_failed", error=str(e))
         raise
     finally:
         session.close()

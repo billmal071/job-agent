@@ -10,6 +10,9 @@
             Outreach
         </h2>
     </div>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('generateModal').style.display='flex'">
+        <i class="bi bi-envelope-plus"></i> Generate Email
+    </button>
 </div>
 
 <!-- Stats with icon circles -->
@@ -17,88 +20,238 @@
     <div class="stat-card animate-in delay-1">
         <div class="stat-info">
             <div class="stat-value">{{ stats.total }}</div>
-            <div class="stat-label">Total Sent</div>
+            <div class="stat-label">Total</div>
         </div>
         <div class="stat-icon blue"><i class="bi bi-send"></i></div>
     </div>
     <div class="stat-card animate-in delay-2">
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.drafted }}</div>
+            <div class="stat-label">Drafts</div>
+        </div>
+        <div class="stat-icon amber"><i class="bi bi-pencil-square"></i></div>
+    </div>
+    <div class="stat-card animate-in delay-3">
         <div class="stat-info">
             <div class="stat-value">{{ stats.accepted }}</div>
             <div class="stat-label">Accepted</div>
         </div>
         <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
     </div>
-    <div class="stat-card animate-in delay-3">
-        <div class="stat-info">
-            <div class="stat-value">{{ stats.replied }}</div>
-            <div class="stat-label">Replied</div>
-        </div>
-        <div class="stat-icon purple"><i class="bi bi-chat-dots"></i></div>
-    </div>
     <div class="stat-card animate-in delay-4">
         <div class="stat-info">
             <div class="stat-value">{{ "%.0f"|format(stats.response_rate) }}%</div>
             <div class="stat-label">Response Rate</div>
         </div>
-        <div class="stat-icon amber"><i class="bi bi-percent"></i></div>
+        <div class="stat-icon purple"><i class="bi bi-percent"></i></div>
     </div>
 </div>
 
-<!-- Messages Table -->
+<!-- Tab Navigation -->
 <div class="card animate-in delay-5">
-    <div class="card-header">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="{{ url_for('outreach.index', tab='all') }}" class="btn btn-sm {{ 'btn-primary' if current_tab == 'all' else 'btn-ghost' }}">All</a>
+            <a href="{{ url_for('outreach.index', tab='emails') }}" class="btn btn-sm {{ 'btn-primary' if current_tab == 'emails' else 'btn-ghost' }}">Emails</a>
+            <a href="{{ url_for('outreach.index', tab='connections') }}" class="btn btn-sm {{ 'btn-primary' if current_tab == 'connections' else 'btn-ghost' }}">Connections</a>
+        </div>
         <h5>Messages</h5>
     </div>
     <div class="card-body" style="padding: 0;">
         {% if messages %}
-        <div style="overflow-x: auto;">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Recipient</th>
-                        <th>Title</th>
-                        <th>Company</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Sent</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for msg in messages %}
-                    <tr>
-                        <td>
-                            {% if msg.recipient_profile_url %}
-                            <a href="{{ msg.recipient_profile_url }}" target="_blank" style="font-weight: 600;">{{ msg.recipient_name }}</a>
-                            {% else %}
-                            <span style="font-weight: 600; color: var(--text-primary);">{{ msg.recipient_name }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ msg.recipient_title }}</td>
-                        <td>{{ msg.recipient_company }}</td>
-                        <td><span class="badge badge-neutral">{{ msg.message_type }}</span></td>
-                        <td>
-                            {% set status_map = {
-                                'pending': 'badge-amber',
-                                'sent': 'badge-blue',
-                                'accepted': 'badge-green',
-                                'replied': 'badge-purple',
-                                'follow_up_sent': 'badge-amber',
-                                'failed': 'badge-red'
-                            } %}
-                            <span class="badge {{ status_map.get(msg.status.value, 'badge-neutral') }}">{{ msg.status.value }}</span>
-                        </td>
-                        <td class="mono" style="font-size: 0.78rem;">{{ msg.sent_at.strftime('%m/%d %H:%M') if msg.sent_at else '-' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            {# Email drafts displayed as expandable cards #}
+            {% set email_drafts = messages | selectattr('message_type', 'equalto', 'email') | selectattr('status', 'equalto', OutreachStatus.DRAFTED) | list %}
+            {% if email_drafts and current_tab in ['all', 'emails'] %}
+            <div style="padding: 1rem;">
+                <h6 style="margin-bottom: 0.75rem; color: var(--text-secondary);">Email Drafts</h6>
+                {% for msg in email_drafts %}
+                <div class="card" style="margin-bottom: 0.75rem; border: 1px solid var(--border-color);">
+                    <div class="card-header" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="toggleDraft('draft-{{ msg.id }}')">
+                        <div>
+                            <span style="font-weight: 600;">{{ msg.recipient_name }}</span>
+                            <span style="color: var(--text-secondary);"> - {{ msg.recipient_title }}</span>
+                            <span style="color: var(--text-muted);"> @ {{ msg.recipient_company }}</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <span class="badge badge-amber">drafted</span>
+                            <i class="bi bi-chevron-down" id="draft-icon-{{ msg.id }}"></i>
+                        </div>
+                    </div>
+                    <div id="draft-{{ msg.id }}" style="display: none;">
+                        <div class="card-body">
+                            <div style="margin-bottom: 0.75rem;">
+                                <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary);">To:</label>
+                                <span>{{ msg.recipient_profile_url }}</span>
+                            </div>
+                            <div style="margin-bottom: 0.75rem;">
+                                <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary);">Subject:</label>
+                                <span id="subject-{{ msg.id }}">{{ msg.email_subject }}</span>
+                                <button class="btn btn-ghost btn-sm" onclick="copyToClipboard('subject-{{ msg.id }}')" title="Copy subject"><i class="bi bi-clipboard"></i></button>
+                            </div>
+                            <div style="margin-bottom: 0.75rem;">
+                                <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); display: block;">Body:</label>
+                                <div id="body-{{ msg.id }}" style="white-space: pre-wrap; background: var(--bg-secondary); padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.25rem; font-size: 0.9rem;">{{ msg.email_body }}</div>
+                                <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+                                    <button class="btn btn-ghost btn-sm" onclick="copyToClipboard('body-{{ msg.id }}')" title="Copy body"><i class="bi bi-clipboard"></i> Copy Body</button>
+                                    <button class="btn btn-ghost btn-sm" onclick="copyAll('subject-{{ msg.id }}', 'body-{{ msg.id }}')" title="Copy all"><i class="bi bi-clipboard2-check"></i> Copy All</button>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+                                <form action="{{ url_for('outreach.mark_sent', message_id=msg.id) }}" method="post" style="display: inline;">
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg"></i> Mark as Sent</button>
+                                </form>
+                                <form action="{{ url_for('outreach.delete_message', message_id=msg.id) }}" method="post" style="display: inline;" onsubmit="return confirm('Delete this draft?')">
+                                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Standard messages table #}
+            {% set table_messages = messages | rejectattr('status', 'equalto', OutreachStatus.DRAFTED) | list if current_tab in ['all', 'emails'] else messages %}
+            {% if current_tab == 'connections' %}
+                {% set table_messages = messages %}
+            {% endif %}
+            {% if table_messages %}
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Recipient</th>
+                            <th>Title</th>
+                            <th>Company</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Sent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for msg in table_messages %}
+                        {% if msg.status != OutreachStatus.DRAFTED %}
+                        <tr>
+                            <td>
+                                {% if msg.recipient_profile_url and msg.message_type != 'email' %}
+                                <a href="{{ msg.recipient_profile_url }}" target="_blank" style="font-weight: 600;">{{ msg.recipient_name }}</a>
+                                {% else %}
+                                <span style="font-weight: 600; color: var(--text-primary);">{{ msg.recipient_name }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ msg.recipient_title }}</td>
+                            <td>{{ msg.recipient_company }}</td>
+                            <td><span class="badge badge-neutral">{{ msg.message_type }}</span></td>
+                            <td>
+                                {% set status_map = {
+                                    'pending': 'badge-amber',
+                                    'drafted': 'badge-amber',
+                                    'sent': 'badge-blue',
+                                    'accepted': 'badge-green',
+                                    'replied': 'badge-purple',
+                                    'follow_up_sent': 'badge-amber',
+                                    'failed': 'badge-red'
+                                } %}
+                                <span class="badge {{ status_map.get(msg.status.value, 'badge-neutral') }}">{{ msg.status.value }}</span>
+                            </td>
+                            <td class="mono" style="font-size: 0.78rem;">{{ msg.sent_at.strftime('%m/%d %H:%M') if msg.sent_at else '-' }}</td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
         {% else %}
         <div class="empty-state">
             <div class="empty-icon"><i class="bi bi-people"></i></div>
-            <p>No outreach messages yet. The agent will send personalized connection requests to recruiters at target companies.</p>
+            <p>No outreach messages yet. Click "Generate Email" to create a cold email draft, or the agent will send personalized connection requests to recruiters.</p>
         </div>
         {% endif %}
     </div>
 </div>
+
+<!-- Generate Email Modal -->
+<div id="generateModal" style="display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);" onclick="if(event.target===this)this.style.display='none'">
+    <div class="card" style="width: 100%; max-width: 500px; margin: 1rem;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h5>Generate Cold Email</h5>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('generateModal').style.display='none'">&times;</button>
+        </div>
+        <div class="card-body">
+            <form id="generateForm" method="post">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem;">Job</label>
+                    <select name="job_id" id="jobSelect" required style="width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                        <option value="">Select an applied job...</option>
+                        {% for job in applied_jobs %}
+                        <option value="{{ job.id }}">{{ job.title }} @ {{ job.company }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem;">Recipient Name</label>
+                    <input type="text" name="recipient_name" required placeholder="Jane Smith" style="width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem;">Recipient Title</label>
+                    <input type="text" name="recipient_title" placeholder="Engineering Manager" style="width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem;">Recipient Email</label>
+                    <input type="email" name="recipient_email" placeholder="jane@company.com" style="width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                </div>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('generateModal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-sparkles"></i> Generate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleDraft(id) {
+    var el = document.getElementById(id);
+    var icon = document.getElementById('draft-icon-' + id.replace('draft-', ''));
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+        if (icon) icon.className = 'bi bi-chevron-up';
+    } else {
+        el.style.display = 'none';
+        if (icon) icon.className = 'bi bi-chevron-down';
+    }
+}
+
+function copyToClipboard(elementId) {
+    var el = document.getElementById(elementId);
+    var text = el.innerText || el.textContent;
+    navigator.clipboard.writeText(text).then(function() {
+        // Brief visual feedback
+        var origColor = el.style.backgroundColor;
+        el.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+        setTimeout(function() { el.style.backgroundColor = origColor; }, 500);
+    });
+}
+
+function copyAll(subjectId, bodyId) {
+    var subject = document.getElementById(subjectId).innerText;
+    var body = document.getElementById(bodyId).innerText;
+    var text = 'Subject: ' + subject + '\n\n' + body;
+    navigator.clipboard.writeText(text);
+}
+
+// Update form action when job is selected
+document.getElementById('jobSelect').addEventListener('change', function() {
+    var form = document.getElementById('generateForm');
+    if (this.value) {
+        form.action = '/outreach/generate-email/' + this.value;
+    } else {
+        form.action = '';
+    }
+});
+</script>
 {% endblock %}

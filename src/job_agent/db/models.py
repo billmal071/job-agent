@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
 
@@ -53,6 +54,7 @@ class ApplicationStatus(PyEnum):
 
 class OutreachStatus(PyEnum):
     PENDING = "pending"
+    DRAFTED = "drafted"
     SENT = "sent"
     ACCEPTED = "accepted"
     REPLIED = "replied"
@@ -168,6 +170,28 @@ class OutreachMessage(Base):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     follow_up_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    @property
+    def email_subject(self) -> str:
+        """Parse subject from JSON message_text for email-type messages."""
+        if self.message_type != "email":
+            return ""
+        try:
+            data = json.loads(self.message_text)
+            return data.get("subject", "")
+        except (json.JSONDecodeError, TypeError):
+            return ""
+
+    @property
+    def email_body(self) -> str:
+        """Parse body from JSON message_text for email-type messages."""
+        if self.message_type != "email":
+            return ""
+        try:
+            data = json.loads(self.message_text)
+            return data.get("body", self.message_text)
+        except (json.JSONDecodeError, TypeError):
+            return self.message_text
 
     def __repr__(self) -> str:
         return f"<OutreachMessage {self.recipient_name} ({self.status.value})>"

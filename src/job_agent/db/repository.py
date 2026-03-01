@@ -190,6 +190,45 @@ class OutreachRepository:
         )
         return list(self.session.scalars(stmt).all())
 
+    def get_by_id(self, message_id: int) -> OutreachMessage | None:
+        return self.session.get(OutreachMessage, message_id)
+
+    def list_drafted_emails(self, limit: int = 100) -> list[OutreachMessage]:
+        stmt = (
+            select(OutreachMessage)
+            .where(
+                OutreachMessage.message_type == "email",
+                OutreachMessage.status == OutreachStatus.DRAFTED,
+            )
+            .order_by(OutreachMessage.created_at.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(stmt).all())
+
+    def mark_as_sent(self, message_id: int) -> OutreachMessage | None:
+        msg = self.get_by_id(message_id)
+        if msg:
+            msg.status = OutreachStatus.SENT
+            msg.sent_at = datetime.now(timezone.utc)
+            self.session.flush()
+        return msg
+
+    def exists_email_for_job(self, job_id: int, recipient_name: str) -> bool:
+        stmt = select(OutreachMessage).where(
+            OutreachMessage.related_job_id == job_id,
+            OutreachMessage.recipient_name == recipient_name,
+            OutreachMessage.message_type == "email",
+        )
+        return self.session.scalars(stmt).first() is not None
+
+    def delete(self, message_id: int) -> bool:
+        msg = self.get_by_id(message_id)
+        if msg:
+            self.session.delete(msg)
+            self.session.flush()
+            return True
+        return False
+
     def list_all(self, limit: int = 100) -> list[OutreachMessage]:
         stmt = (
             select(OutreachMessage)

@@ -121,6 +121,49 @@ The note should be:
 Output ONLY the connection note text.
 """)
 
+COLD_EMAIL_TEMPLATE = _env.from_string("""\
+Write a concise, personalized cold email to {{ recipient_name }}, {{ recipient_title }} at {{ company }}, regarding the {{ job_title }} position.
+
+## Candidate Summary
+{{ candidate_summary }}
+
+## Matched Skills
+{{ matched_skills | join(', ') }}
+
+## Instructions
+- Keep the email brief (3-4 short paragraphs, under 200 words)
+- Be professional but personable
+- Reference the specific role and company
+- Highlight 2-3 most relevant matched skills
+- Include a clear but non-pushy call to action
+- Do NOT fabricate experiences not in the candidate summary
+- Respond in the following JSON format ONLY (no markdown, no code fences):
+{"subject": "<email subject line>", "body": "<full email body text>"}
+""")
+
+SCREENING_CHOICE_TEMPLATE = _env.from_string("""\
+Answer the following job application screening question by selecting the best option.
+
+## Question
+{{ question }}
+
+## Available Options
+{% for option in options %}- {{ option }}
+{% endfor %}
+
+## Candidate Profile
+{{ candidate_summary }}
+
+{% if salary_expectation %}- **Salary Expectation**: {{ salary_expectation }}{% endif %}
+
+## Instructions
+- You MUST respond with EXACTLY one of the available options listed above
+- Do not add any explanation, just the exact option text
+- Pick the option that best represents the candidate's qualifications
+- If none of the options are a perfect fit, pick the closest match
+- Output ONLY the exact option text, nothing else
+""")
+
 SCREENING_ANSWER_TEMPLATE = _env.from_string("""\
 Answer the following job application screening question based on the candidate's profile.
 
