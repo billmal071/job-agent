@@ -52,13 +52,18 @@ uv run job-agent init-db
 
 # Add platform credentials (encrypted)
 uv run job-agent add-credential linkedin
+# Or add via the dashboard at http://127.0.0.1:5000/settings
 
 # Create your profile
 cp config/profiles/example.yaml config/profiles/myprofile.yaml
 # Edit myprofile.yaml with your preferences
 
-# Add your master resume
-# Place your resume at config/resumes/master.md
+# Add your master resume (PDF or Markdown)
+# Place your resume at config/resumes/master.pdf (or master.md)
+
+# Start the web dashboard
+uv run job-agent dashboard
+# Visit http://127.0.0.1:5000 to manage everything from the UI
 
 # Search for jobs (no applying)
 uv run job-agent search --platform linkedin --query "Python Developer"
@@ -66,15 +71,56 @@ uv run job-agent search --platform linkedin --query "Python Developer"
 # Run the full pipeline once
 uv run job-agent run --profile config/profiles/myprofile.yaml --once
 
-# Run with dry-run (discover + match only)
+# Run with dry-run (discover + match only, no applications)
 uv run job-agent run --profile config/profiles/myprofile.yaml --once --dry-run
 
-# Run on a schedule
+# Run on a schedule (uses activity window from config)
 uv run job-agent run --profile config/profiles/myprofile.yaml
-
-# Start the web dashboard
-uv run job-agent dashboard
 ```
+
+### First-Time Login
+
+On the first run for each platform, you'll need to log in manually in the browser window:
+
+1. Set `headless: false` in `config/default.yaml` under `browser:`
+2. Run the pipeline — a Chromium window will open
+3. Complete the login (including any 2FA/CAPTCHA challenges)
+4. The agent waits up to 120 seconds for you to finish
+5. Your session is saved to `~/.job-agent/browser_state/` and reused on future runs
+
+**Indeed & Glassdoor** use Google OAuth — when the "Sign in with Google" button appears, click it and complete the Google login flow in the popup. The agent detects this automatically.
+
+Once sessions are saved, you can switch back to `headless: true` for unattended runs.
+
+### Dashboard Workflow
+
+The web dashboard at `http://127.0.0.1:5000` provides:
+
+- **Overview** — Stats and recent activity at a glance
+- **Jobs** — All discovered jobs with match scores and details
+- **Review Queue** — Medium-scoring jobs (0.70–0.89) awaiting your approval. Click column headers to sort. Approve or reject jobs, and they'll be applied to on the next pipeline run.
+- **Applications** — Track all submitted applications with status. Export to CSV.
+- **Outreach** — LinkedIn connection requests and InMail tracking
+- **Analytics** — Score distribution and activity timeline charts
+- **Settings** — Configure AI provider + API keys, platform credentials, and matching thresholds. All changes persist to `.env` and survive restarts.
+
+### Multiple Profiles
+
+You can create multiple profiles for different job searches:
+
+```bash
+# Fullstack profile
+config/profiles/fullstack.yaml    → config/resumes/master.pdf
+
+# DevOps profile
+config/profiles/devops.yaml       → config/resumes/master-devops.pdf
+
+# Run each independently
+uv run job-agent run --profile config/profiles/fullstack.yaml --once
+uv run job-agent run --profile config/profiles/devops.yaml --once
+```
+
+Each profile specifies its own keywords, locations, skills, salary expectations, and resume template.
 
 ### Docker
 
