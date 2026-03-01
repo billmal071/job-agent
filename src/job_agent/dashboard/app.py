@@ -44,6 +44,10 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(analytics_bp, url_prefix="/analytics")
     app.register_blueprint(settings_bp, url_prefix="/settings")
 
+    from job_agent.dashboard.routes.actions import bp as actions_bp
+
+    app.register_blueprint(actions_bp, url_prefix="/actions")
+
     # Teardown session
     @app.teardown_appcontext
     def shutdown_session(exception=None):

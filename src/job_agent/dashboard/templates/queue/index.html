@@ -10,8 +10,27 @@
             Review Queue
         </h2>
     </div>
-    <span class="text-sm text-muted mono">{{ queue|length }} awaiting review</span>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span class="text-sm text-muted mono">{{ queue|length }} awaiting review</span>
+        {% if queue %}
+        <button class="btn btn-success btn-sm"
+                hx-post="/queue/approve-all"
+                hx-target="#action-status"
+                hx-swap="innerHTML"
+                hx-confirm="Approve all {{ queue|length }} queued jobs?">
+            <i class="bi bi-check-all"></i> Approve All
+        </button>
+        <button class="btn btn-primary btn-sm"
+                hx-post="/actions/apply-approved"
+                hx-target="#action-status"
+                hx-swap="innerHTML">
+            <i class="bi bi-play-fill"></i> Apply Approved
+        </button>
+        {% endif %}
+    </div>
 </div>
+
+<div id="action-status" class="animate-in delay-1"></div>
 
 {% if queue %}
 <div class="card animate-in delay-2" style="overflow-x: auto;">

@@ -73,6 +73,30 @@ def approve(job_id: int):
         session.close()
 
 
+@bp.route("/approve-all", methods=["POST"])
+def approve_all():
+    """Approve all queued jobs at once. Returns an HTMX HTML snippet."""
+    session = get_session(current_app.config["SETTINGS"])
+    try:
+        job_repo = JobRepository(session)
+        queued_jobs = job_repo.list_queued(limit=1000)
+        count = 0
+        for job in queued_jobs:
+            job_repo.update_status(job.id, JobStatus.APPROVED)
+            count += 1
+        session.commit()
+        return (
+            f'<div class="alert alert-success">'
+            f"Approved {count} job{'s' if count != 1 else ''}"
+            f"</div>"
+        )
+    except Exception:
+        session.rollback()
+        return '<div class="alert alert-danger">Failed to approve jobs</div>', 500
+    finally:
+        session.close()
+
+
 @bp.route("/reject/<int:job_id>", methods=["POST"])
 def reject(job_id: int):
     """Reject a queued job. Returns an HTMX HTML snippet."""

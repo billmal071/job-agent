@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from flask import Blueprint, render_template, current_app
 
@@ -13,6 +14,8 @@ from job_agent.db.repository import (
     JobRepository,
 )
 from job_agent.db.models import ApplicationStatus, JobStatus
+
+PROFILES_DIR = Path("config/profiles")
 
 bp = Blueprint("overview", __name__)
 
@@ -51,6 +54,13 @@ def index():
         # Recent activity from agent runs
         recent_runs = run_repo.get_latest(limit=20)
 
+        # Available profiles for pipeline actions
+        profiles = sorted(
+            f.name
+            for f in PROFILES_DIR.glob("*.yaml")
+            if f.name != "example.yaml"
+        ) if PROFILES_DIR.is_dir() else []
+
         return render_template(
             "overview/index.html",
             total_jobs=total_jobs,
@@ -62,6 +72,7 @@ def index():
             failed=failed,
             status_counts=status_counts,
             recent_runs=recent_runs,
+            profiles=profiles,
         )
     finally:
         session.close()

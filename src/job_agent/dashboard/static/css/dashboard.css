@@ -1038,3 +1038,18 @@ code, pre, .mono {
   .filter-bar { flex-wrap: wrap; }
   .settings-grid { grid-template-columns: 1fr; }
 }
+
+/* Spinner for background task status */
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--blue-400);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

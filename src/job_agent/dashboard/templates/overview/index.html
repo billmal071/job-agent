@@ -38,6 +38,52 @@
     </div>
 </div>
 
+<!-- Pipeline Actions -->
+<div class="card animate-in delay-5">
+    <div class="card-header">
+        <h5><i class="bi bi-play-circle" style="margin-right: 0.3rem; opacity: 0.5;"></i> Actions</h5>
+    </div>
+    <div class="card-body">
+        <form style="display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap;">
+            <div>
+                <label class="text-sm text-muted" style="display: block; margin-bottom: 0.25rem;">Profile</label>
+                <select name="profile" class="form-control" style="min-width: 180px;">
+                    {% for p in profiles %}
+                    <option value="{{ p }}">{{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-muted" style="display: block; margin-bottom: 0.25rem;">Platform (optional)</label>
+                <select name="platform" class="form-control" style="min-width: 150px;">
+                    <option value="">All platforms</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="indeed">Indeed</option>
+                    <option value="glassdoor">Glassdoor</option>
+                    <option value="ziprecruiter">ZipRecruiter</option>
+                    <option value="dice">Dice</option>
+                    <option value="wellfound">Wellfound</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary"
+                    hx-post="/actions/run-pipeline"
+                    hx-target="#action-status"
+                    hx-swap="innerHTML"
+                    hx-include="closest form">
+                <i class="bi bi-play-fill"></i> Run Pipeline
+            </button>
+            <button type="button" class="btn btn-success"
+                    hx-post="/actions/apply-approved"
+                    hx-target="#action-status"
+                    hx-swap="innerHTML"
+                    hx-include="closest form">
+                <i class="bi bi-check2-square"></i> Apply Approved
+            </button>
+        </form>
+        <div id="action-status" style="margin-top: 0.75rem;"></div>
+    </div>
+</div>
+
 <!-- Recent Activity -->
 <div class="card animate-in delay-5">
     <div class="card-header">
