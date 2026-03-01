@@ -14,7 +14,7 @@ from job_agent.db.repository import (
     MatchResultRepository,
 )
 from job_agent.db.session import get_session
-from job_agent.platforms.base import PlatformDriver
+from job_agent.platforms.base import JobPosting, PlatformDriver
 from job_agent.platforms.linkedin.driver import LinkedInDriver
 from job_agent.utils.crypto import decrypt
 from job_agent.utils.logging import get_logger
@@ -239,6 +239,82 @@ def run_pipeline(
                             session.commit()
 
                 driver.close()
+
+            # Process approved jobs from the review queue
+            approved_jobs = job_repo.list_by_status(JobStatus.APPROVED)
+            if approved_jobs:
+                log.info("processing_approved_jobs", count=len(approved_jobs))
+
+                # Group by platform
+                by_platform: dict[str, list] = {}
+                for job in approved_jobs:
+                    plat_name = job.platform.value
+                    by_platform.setdefault(plat_name, []).append(job)
+
+                for plat, jobs in by_platform.items():
+                    from job_agent.db.repository import CredentialRepository
+
+                    cred = CredentialRepository(session).get(Platform(plat))
+                    if not cred:
+                        log.warning("no_credentials_for_approved", platform=plat)
+                        continue
+
+                    try:
+                        driver = get_platform_driver(plat, settings, browser)
+                        driver.login(cred.username, decrypt(cred.encrypted_password))
+
+                        for job in jobs:
+                            if settings.agent.dry_run:
+                                log.info("dry_run_approved", job_id=job.id, title=job.title)
+                                job.status = JobStatus.APPLIED
+                                app_repo.create(job_id=job.id, resume_path="")
+                                stats["applied"] += 1
+                                session.commit()
+                                continue
+
+                            try:
+                                posting = JobPosting(
+                                    external_id=job.external_id,
+                                    platform=job.platform,
+                                    title=job.title,
+                                    company=job.company,
+                                    location=job.location,
+                                    description=job.description or "",
+                                    url=job.url,
+                                    easy_apply=job.easy_apply,
+                                    remote=job.remote,
+                                    salary=job.salary,
+                                )
+
+                                # Tailor resume
+                                matched_skills = ""
+                                if job.match_result:
+                                    matched_skills = job.match_result.matched_skills
+                                resume_path = resume_tailor.tailor_and_save(
+                                    posting, matched_skills
+                                )
+
+                                success = driver.apply(posting, resume_path)
+                                if success:
+                                    job.status = JobStatus.APPLIED
+                                    app_repo.create(
+                                        job_id=job.id,
+                                        resume_path=resume_path,
+                                    )
+                                    stats["applied"] += 1
+                                    log.info("approved_job_applied", job_id=job.id, title=job.title)
+                                else:
+                                    job.status = JobStatus.APPLY_FAILED
+                                    log.warning("approved_job_apply_failed", job_id=job.id)
+                            except Exception as e:
+                                log.error("approved_job_error", job_id=job.id, error=str(e))
+                                job.status = JobStatus.APPLY_FAILED
+
+                            session.commit()
+
+                        driver.close()
+                    except Exception as e:
+                        log.error("approved_platform_error", platform=plat, error=str(e))
 
         log.info("pipeline_complete", **stats)
         return stats
