@@ -11,62 +11,129 @@
 </div>
 
 {% if queue %}
-<div class="queue-grid">
-    {% for item in queue %}
-    <div id="queue-item-{{ item.job.id }}" class="queue-card animate-in delay-{{ loop.index % 6 + 1 }}">
-        <div class="queue-card-header">
-            <div>
-                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.15rem;">{{ item.job.title }}</div>
-                <div class="text-muted text-sm">{{ item.job.company }} &middot; {{ item.job.location }}</div>
-            </div>
-            {% if item.match_result %}
-            <span class="badge badge-amber score-badge">{{ "%.2f"|format(item.match_result.score) }}</span>
-            {% endif %}
-        </div>
-        <div class="queue-card-body">
-            {% if item.match_result %}
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">{{ item.match_result.reasoning }}</p>
-
-            {% if item.match_result.role_fit %}
-            <div class="form-label mb-1">Role Fit</div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">{{ item.match_result.role_fit }}</p>
-            {% endif %}
-            {% endif %}
-
-            <div class="d-flex gap-1 flex-wrap">
-                <span class="badge badge-neutral">{{ item.job.platform.value }}</span>
-                {% if item.job.easy_apply %}<span class="badge badge-blue">Easy Apply</span>{% endif %}
-                {% if item.job.remote %}<span class="badge badge-purple">Remote</span>{% endif %}
-            </div>
-
-            {% if item.job.url %}
-            <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">
-                <a href="{{ item.job.url }}" target="_blank" class="btn btn-ghost btn-sm">
-                    <i class="bi bi-box-arrow-up-right"></i> Posting
-                </a>
-                <a href="/jobs/{{ item.job.id }}" class="btn btn-ghost btn-sm">
-                    <i class="bi bi-eye"></i> Details
-                </a>
-            </div>
-            {% endif %}
-        </div>
-        <div class="queue-card-footer">
-            <button class="btn btn-success btn-sm"
-                    hx-post="/queue/approve/{{ item.job.id }}"
-                    hx-target="#queue-item-{{ item.job.id }}"
-                    hx-swap="outerHTML">
-                <i class="bi bi-check-circle"></i> Approve
-            </button>
-            <button class="btn btn-danger btn-sm"
-                    hx-post="/queue/reject/{{ item.job.id }}"
-                    hx-target="#queue-item-{{ item.job.id }}"
-                    hx-swap="outerHTML">
-                <i class="bi bi-x-circle"></i> Reject
-            </button>
-        </div>
-    </div>
-    {% endfor %}
+<div class="card animate-in delay-2" style="overflow-x: auto;">
+    <table class="data-table sortable-table" id="queue-table">
+        <thead>
+            <tr>
+                <th data-sort="string" class="sortable">Title <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th data-sort="string" class="sortable">Company <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th data-sort="string" class="sortable">Location <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th data-sort="number" class="sortable">Score <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th data-sort="string" class="sortable">Platform <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th>Tags</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in queue %}
+            <tr id="queue-item-{{ item.job.id }}">
+                <td>
+                    <a href="{{ item.job.url }}" target="_blank" style="font-weight: 600; color: var(--text-primary);">
+                        {{ item.job.title }}
+                    </a>
+                    {% if item.job.match_result and item.job.match_result.reasoning %}
+                    <div class="text-sm text-muted" style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                         title="{{ item.job.match_result.reasoning }}">
+                        {{ item.job.match_result.reasoning }}
+                    </div>
+                    {% endif %}
+                </td>
+                <td>{{ item.job.company }}</td>
+                <td>{{ item.job.location }}</td>
+                <td data-value="{{ item.job.match_result.score if item.job.match_result else 0 }}">
+                    {% if item.job.match_result %}
+                    <span class="badge badge-amber score-badge">{{ "%.2f"|format(item.job.match_result.score) }}</span>
+                    {% else %}
+                    <span class="badge badge-neutral">N/A</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.job.platform.value }}</td>
+                <td>
+                    <div class="d-flex gap-1 flex-wrap">
+                        {% if item.job.easy_apply %}<span class="badge badge-blue">Easy Apply</span>{% endif %}
+                        {% if item.job.remote %}<span class="badge badge-purple">Remote</span>{% endif %}
+                        {% for skill in item.matched_skills[:3] %}
+                        <span class="badge badge-green">{{ skill }}</span>
+                        {% endfor %}
+                        {% for flag in item.red_flags[:2] %}
+                        <span class="badge badge-red">{{ flag }}</span>
+                        {% endfor %}
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.25rem;">
+                        <button class="btn btn-success btn-sm"
+                                hx-post="/queue/approve/{{ item.job.id }}"
+                                hx-target="#queue-item-{{ item.job.id }}"
+                                hx-swap="outerHTML"
+                                title="Approve">
+                            <i class="bi bi-check-circle"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm"
+                                hx-post="/queue/reject/{{ item.job.id }}"
+                                hx-target="#queue-item-{{ item.job.id }}"
+                                hx-swap="outerHTML"
+                                title="Reject">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                        <a href="/jobs/{{ item.job.id }}" class="btn btn-ghost btn-sm" title="Details">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+
+<script>
+(function() {
+    var table = document.getElementById('queue-table');
+    var headers = table.querySelectorAll('th.sortable');
+    var currentSort = { col: -1, asc: true };
+
+    headers.forEach(function(header, index) {
+        header.style.cursor = 'pointer';
+        header.style.userSelect = 'none';
+        header.addEventListener('click', function() {
+            var sortType = header.getAttribute('data-sort');
+            var asc = currentSort.col === index ? !currentSort.asc : true;
+            currentSort = { col: index, asc: asc };
+
+            // Update sort icons
+            headers.forEach(function(h) {
+                h.querySelector('.sort-icon').className = 'bi bi-chevron-expand sort-icon';
+            });
+            header.querySelector('.sort-icon').className =
+                'bi bi-chevron-' + (asc ? 'up' : 'down') + ' sort-icon';
+
+            var tbody = table.querySelector('tbody');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+
+            rows.sort(function(a, b) {
+                var cellA = a.children[index];
+                var cellB = b.children[index];
+                var valA, valB;
+
+                if (sortType === 'number') {
+                    valA = parseFloat(cellA.getAttribute('data-value') || cellA.textContent) || 0;
+                    valB = parseFloat(cellB.getAttribute('data-value') || cellB.textContent) || 0;
+                } else {
+                    valA = cellA.textContent.trim().toLowerCase();
+                    valB = cellB.textContent.trim().toLowerCase();
+                }
+
+                if (valA < valB) return asc ? -1 : 1;
+                if (valA > valB) return asc ? 1 : -1;
+                return 0;
+            });
+
+            rows.forEach(function(row) { tbody.appendChild(row); });
+        });
+    });
+})();
+</script>
 {% else %}
 <div class="empty-state animate-in delay-2">
     <div class="empty-icon"><i class="bi bi-inbox"></i></div>

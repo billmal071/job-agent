@@ -42,7 +42,7 @@ def index():
 
         return render_template(
             "queue/index.html",
-            queue_items=queue_items,
+            queue=queue_items,
             queue_count=len(queue_items),
         )
     finally:

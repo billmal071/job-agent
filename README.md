@@ -4,7 +4,7 @@ Autonomous job application agent that automates the entire job search lifecycle:
 
 ## Features
 
-- **Multi-Platform Support** — LinkedIn, Indeed, Glassdoor
+- **Multi-Platform Support** — LinkedIn, Indeed, Glassdoor, ZipRecruiter, Dice, Wellfound
 - **Multi-AI Provider** — Google Gemini (free), Groq (free), OpenRouter, Ollama (local), Anthropic Claude
 - **AI-Powered Matching** — Scores jobs 0.0–1.0 against your profile
 - **Resume Tailoring** — Auto-generates ATS-optimized resumes per job (PDF)
@@ -101,7 +101,7 @@ Job Agent supports multiple AI providers. Choose the one that works best for you
 | **OpenRouter** | Some free models | Get key at [openrouter.ai/keys](https://openrouter.ai/keys) |
 | **Anthropic Claude** | Paid | Get key at [console.anthropic.com](https://console.anthropic.com) |
 
-Set in `.env`:
+Set in `.env` or via the **dashboard Settings page** at `http://127.0.0.1:5000/settings`:
 ```bash
 JOB_AGENT_AI_PROVIDER=gemini          # or groq, ollama, openrouter, anthropic
 JOB_AGENT_GEMINI_API_KEY=your-key     # set the key for your chosen provider
@@ -133,11 +133,14 @@ exclusions:
 
 Configurable per platform in `config/default.yaml`:
 
-| Platform   | Requests/min | Apps/day | Session  | Cooldown |
-|------------|-------------|----------|----------|----------|
-| LinkedIn   | 3           | 25       | 45 min   | 30 min   |
-| Indeed     | 5           | 40       | 60 min   | 20 min   |
-| Glassdoor  | 4           | 30       | 60 min   | 20 min   |
+| Platform      | Requests/min | Apps/day | Session  | Cooldown |
+|---------------|-------------|----------|----------|----------|
+| LinkedIn      | 3           | 25       | 45 min   | 30 min   |
+| Indeed        | 5           | 40       | 60 min   | 20 min   |
+| Glassdoor     | 4           | 30       | 60 min   | 20 min   |
+| ZipRecruiter  | 5           | 40       | 60 min   | 20 min   |
+| Dice          | 4           | 35       | 60 min   | 20 min   |
+| Wellfound     | 3           | 20       | 45 min   | 25 min   |
 
 ### Autonomy Thresholds
 
@@ -147,7 +150,7 @@ Configurable per platform in `config/default.yaml`:
 | 0.70 – 0.89 | Queue for manual review   |
 | < 0.70      | Skip                      |
 
-All thresholds are configurable in `config/default.yaml` or via the dashboard.
+All thresholds are configurable in `config/default.yaml` or via the dashboard. Changes made through the dashboard are persisted to `.env` and survive restarts.
 
 ## Project Structure
 
@@ -162,7 +165,7 @@ job-agent/
 │   ├── db/              # SQLAlchemy models, session, repositories
 │   ├── notifications/   # Email + webhook notifiers
 │   ├── orchestrator/    # Pipeline engine, scheduler, review queue
-│   ├── platforms/       # LinkedIn, Indeed, Glassdoor drivers
+│   ├── platforms/       # LinkedIn, Indeed, Glassdoor, ZipRecruiter, Dice, Wellfound drivers
 │   └── utils/           # Crypto, logging, rate limiter
 └── tests/               # Unit and integration tests
 ```

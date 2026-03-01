@@ -164,12 +164,17 @@ def run_pipeline(
                             if job_repo.exists(posting.external_id, posting.platform):
                                 continue
 
-                            # Get full details
-                            try:
-                                detailed = driver.get_job_details(posting.url)
-                                posting.description = detailed.description
-                            except Exception:
-                                pass
+                            # Get full details if not already fetched
+                            if not posting.description:
+                                try:
+                                    detailed = driver.get_job_details(posting.url)
+                                    posting.description = detailed.description
+                                except Exception as e:
+                                    log.warning(
+                                        "detail_fetch_failed",
+                                        url=posting.url,
+                                        error=str(e),
+                                    )
 
                             job = job_repo.create(
                                 external_id=posting.external_id,

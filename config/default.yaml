@@ -45,7 +45,7 @@ platforms:
     cooldown_minutes: 20
 
 browser:
-  headless: true
+  headless: false
   # Persistent browser state directory
   state_dir: "~/.job-agent/browser_state"
   # Optional proxy

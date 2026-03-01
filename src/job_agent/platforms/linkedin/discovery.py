@@ -56,7 +56,7 @@ class LinkedInDiscovery:
 
         self.rate_limiter.wait()
         self.page.goto(url)
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         jobs: list[JobPosting] = []
@@ -100,6 +100,19 @@ class LinkedInDiscovery:
             try:
                 job = self._parse_card(card)
                 if job:
+                    # Click card to load description in side panel
+                    try:
+                        card.click()
+                        human_delay(1500, 2500)
+                        desc_el = self.page.locator(
+                            ".jobs-description__content, "
+                            ".jobs-box__html-content, "
+                            ".jobs-description-content__text"
+                        ).first
+                        if desc_el.count() > 0:
+                            job.description = desc_el.inner_text().strip()
+                    except Exception:
+                        pass
                     jobs.append(job)
             except Exception as e:
                 log.warning("linkedin_card_parse_error", error=str(e))
@@ -187,7 +200,7 @@ class LinkedInDiscovery:
                 human_scroll(self.page, "down", 500)
                 human_delay(500, 1000)
                 human_click(self.page, 'button[aria-label="Next"]')
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 human_delay(2000, 4000)
                 return True
         except Exception as e:
@@ -198,7 +211,7 @@ class LinkedInDiscovery:
         """Navigate to a job posting and extract full details."""
         self.rate_limiter.wait()
         self.page.goto(job_url)
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
         title = safe_text(self.page,".t-24.job-details-jobs-unified-top-card__job-title, h1")
@@ -249,7 +262,7 @@ class LinkedInDiscovery:
         """Check if already applied to a job by looking for the applied badge."""
         self.rate_limiter.wait()
         self.page.goto(job_url)
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
         human_delay(1500, 3000)
         applied = self.page.locator(
             ".jobs-apply-button--applied, "

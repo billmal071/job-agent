@@ -35,8 +35,12 @@ class AuthManager:
     def is_logged_in(self, platform: Platform, page: Page) -> bool:
         """Check if currently logged into a platform."""
         checks = {
-            Platform.LINKEDIN: lambda p: p.locator('[data-control-name="identity_welcome_message"]').count() > 0
-            or p.locator(".global-nav__me").count() > 0,
+            Platform.LINKEDIN: lambda p: (
+                p.locator(".global-nav__me").count() > 0
+                or p.locator('[data-control-name="identity_welcome_message"]').count() > 0
+                or p.locator(".feed-identity-module").count() > 0
+                or p.locator('nav[aria-label="Primary"]').count() > 0
+            ),
             Platform.INDEED: lambda p: p.locator('[data-gnav-element-name="AccountMenu"]').count() > 0,
             Platform.GLASSDOOR: lambda p: p.locator('[data-test="header-profile"]').count() > 0,
             Platform.ZIPRECRUITER: lambda p: p.locator('.navbar-user-menu, [data-testid="user-menu"]').count() > 0,
@@ -53,6 +57,18 @@ class AuthManager:
 
     def _login_linkedin(self, username: str, password: str) -> Page:
         page = self.context.new_page()
+        page.goto("https://www.linkedin.com/feed/")
+        page.wait_for_load_state("networkidle")
+        human_delay(2000, 3000)
+
+        # Already logged in from saved session
+        if self.is_logged_in(Platform.LINKEDIN, page) or (
+            "login" not in page.url and "checkpoint" not in page.url
+        ):
+            log.info("linkedin_session_restored")
+            return page
+
+        # Not logged in — go to login page
         page.goto("https://www.linkedin.com/login")
         page.wait_for_load_state("networkidle")
         human_delay(1000, 2000)
@@ -65,20 +81,45 @@ class AuthManager:
         page.wait_for_load_state("networkidle")
         human_delay(2000, 4000)
 
-        # Check for security challenge
-        if "checkpoint" in page.url:
-            log.warning("linkedin_security_challenge", url=page.url)
-            raise RuntimeError(
-                "LinkedIn security challenge detected. "
-                "Please log in manually once to verify your account."
+        # Check for security challenge — wait for manual resolution
+        if "checkpoint" in page.url or not self.is_logged_in(Platform.LINKEDIN, page):
+            log.warning(
+                "linkedin_manual_intervention",
+                url=page.url,
+                message="Waiting up to 120s for manual login/verification...",
             )
+            # Wait until the page leaves login/checkpoint URLs
+            for _ in range(60):
+                human_delay(2000, 2500)
+                current = page.url
+                if "checkpoint" not in current and "login" not in current:
+                    break
+            human_delay(3000, 5000)
 
         if not self.is_logged_in(Platform.LINKEDIN, page):
-            log.error("linkedin_login_failed")
-            raise RuntimeError("LinkedIn login failed. Check credentials.")
+            # Fallback: if we're past login/checkpoint, trust it
+            current = page.url
+            if "checkpoint" not in current and "login" not in current:
+                log.info("linkedin_login_success_fallback", url=current)
+            else:
+                log.error("linkedin_login_failed", url=current)
+                raise RuntimeError("LinkedIn login failed. Check credentials.")
 
         log.info("linkedin_login_success")
         return page
+
+    def _wait_for_oauth_login(self, page: Page, platform: str, success_url_part: str) -> None:
+        """Wait for user to complete OAuth/Google login manually."""
+        log.warning(
+            f"{platform}_manual_oauth",
+            url=page.url,
+            message="Waiting up to 120s for manual Google login...",
+        )
+        for _ in range(60):
+            human_delay(2000, 2500)
+            if success_url_part in page.url:
+                break
+        human_delay(3000, 5000)
 
     def _login_indeed(self, username: str, password: str) -> Page:
         page = self.context.new_page()
@@ -86,15 +127,21 @@ class AuthManager:
         page.wait_for_load_state("networkidle")
         human_delay(1000, 2000)
 
-        human_type(page, '[name="__email"]', username)
-        human_click(page, '[data-tn-element="auth-page-email-submit"]')
-        page.wait_for_load_state("networkidle")
-        human_delay(1000, 2000)
+        # Try Google auth button first, fall back to email/password
+        google_btn = page.locator('button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]')
+        if google_btn.count() > 0:
+            human_click(page, 'button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]')
+            self._wait_for_oauth_login(page, "indeed", "indeed.com")
+        else:
+            human_type(page, '[name="__email"]', username)
+            human_click(page, '[data-tn-element="auth-page-email-submit"]')
+            page.wait_for_load_state("networkidle")
+            human_delay(1000, 2000)
 
-        human_type(page, '[name="__password"]', password)
-        human_click(page, '[data-tn-element="auth-page-sign-in-submit"]')
-        page.wait_for_load_state("networkidle")
-        human_delay(2000, 4000)
+            human_type(page, '[name="__password"]', password)
+            human_click(page, '[data-tn-element="auth-page-sign-in-submit"]')
+            page.wait_for_load_state("networkidle")
+            human_delay(2000, 4000)
 
         log.info("indeed_login_complete")
         return page
@@ -105,13 +152,18 @@ class AuthManager:
         page.wait_for_load_state("networkidle")
         human_delay(1000, 2000)
 
-        human_type(page, '[name="username"]', username)
-        human_type(page, '[name="password"]', password)
-        human_delay(500, 1000)
-        human_click(page, '[type="submit"]')
-
-        page.wait_for_load_state("networkidle")
-        human_delay(2000, 4000)
+        # Try Google auth button first, fall back to email/password
+        google_btn = page.locator('button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]')
+        if google_btn.count() > 0:
+            human_click(page, 'button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]')
+            self._wait_for_oauth_login(page, "glassdoor", "glassdoor.com")
+        else:
+            human_type(page, '[name="username"]', username)
+            human_type(page, '[name="password"]', password)
+            human_delay(500, 1000)
+            human_click(page, '[type="submit"]')
+            page.wait_for_load_state("networkidle")
+            human_delay(2000, 4000)
 
         log.info("glassdoor_login_complete")
         return page
