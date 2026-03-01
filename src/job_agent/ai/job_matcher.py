@@ -1,8 +1,9 @@
-"""Score jobs against profiles using Claude API."""
+"""Score jobs against profiles using AI."""
 
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -91,21 +92,50 @@ class JobMatcher:
 
     def _parse_response(self, response: str) -> MatchScore:
         """Parse the AI response into a MatchScore."""
-        # Strip markdown code fences if present
         text = response.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            text = "\n".join(lines[1:-1])
+
+        # Strip markdown code fences (```json ... ``` or ``` ... ```)
+        text = re.sub(r"^```(?:json)?\s*\n?", "", text)
+        text = re.sub(r"\n?```\s*$", "", text)
+
+        # Extract JSON object from surrounding text (Llama models sometimes wrap)
+        json_match = re.search(r"\{[\s\S]*\}", text)
+        if json_match:
+            text = json_match.group()
 
         try:
             data = json.loads(text)
+
+            # Type-validate and coerce
+            score = data.get("score", 0.5)
+            try:
+                score = float(score)
+            except (TypeError, ValueError):
+                score = 0.5
+            score = max(0.0, min(1.0, score))
+
+            matched = data.get("matched_skills", [])
+            if not isinstance(matched, list):
+                matched = []
+            matched = [str(s) for s in matched]
+
+            missing = data.get("missing_skills", [])
+            if not isinstance(missing, list):
+                missing = []
+            missing = [str(s) for s in missing]
+
+            flags = data.get("red_flags", [])
+            if not isinstance(flags, list):
+                flags = []
+            flags = [str(f) for f in flags]
+
             return MatchScore(
-                score=max(0.0, min(1.0, float(data.get("score", 0.5)))),
-                reasoning=data.get("reasoning", ""),
-                matched_skills=data.get("matched_skills", []),
-                missing_skills=data.get("missing_skills", []),
-                role_fit=data.get("role_fit", ""),
-                red_flags=data.get("red_flags", []),
+                score=score,
+                reasoning=str(data.get("reasoning", "")),
+                matched_skills=matched,
+                missing_skills=missing,
+                role_fit=str(data.get("role_fit", "")),
+                red_flags=flags,
             )
         except (json.JSONDecodeError, ValueError) as e:
             log.warning("match_parse_error", error=str(e), response=text[:200])

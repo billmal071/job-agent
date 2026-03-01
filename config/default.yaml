@@ -14,8 +14,8 @@ matching:
   auto_apply_threshold: 0.90
   # Score >= this: queue for review
   review_threshold: 0.70
-  # Model for AI operations
-  model: "claude-sonnet-4-20250514"
+  # Model for AI operations (empty = use provider default)
+  model: ""
 
 resume:
   # Path to master resume (Markdown)

@@ -20,7 +20,7 @@ class AgentConfig(BaseModel):
 class MatchingConfig(BaseModel):
     auto_apply_threshold: float = 0.90
     review_threshold: float = 0.70
-    model: str = "claude-sonnet-4-20250514"
+    model: str = ""
 
 
 class ResumeConfig(BaseModel):

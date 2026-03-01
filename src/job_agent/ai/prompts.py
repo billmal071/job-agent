@@ -32,7 +32,7 @@ You are an expert job matching system. Analyze the following job posting against
 {% endif %}
 
 ## Instructions
-Respond in the following JSON format ONLY (no markdown, no code fences):
+Respond in the following JSON format ONLY (no markdown, no code fences, no surrounding text):
 {
     "score": <float 0.0-1.0>,
     "reasoning": "<2-3 sentence explanation>",
@@ -41,6 +41,9 @@ Respond in the following JSON format ONLY (no markdown, no code fences):
     "role_fit": "<brief assessment of role alignment>",
     "red_flags": ["flag1", "flag2"]
 }
+
+## Example Output
+{"score": 0.82, "reasoning": "Strong match on backend skills. Missing React experience but has similar frontend frameworks.", "matched_skills": ["Python", "Django", "PostgreSQL", "Docker"], "missing_skills": ["React"], "role_fit": "Good fit for mid-level backend with some full-stack overlap", "red_flags": []}
 
 Scoring guide:
 - 0.90-1.00: Excellent match, all required skills, strong alignment
@@ -100,6 +103,7 @@ Write a {{ tone }} cover letter for the following job application.
 - Show enthusiasm for the specific company and role
 - Highlight the most relevant matched skills
 - Include a clear call to action
+- Do NOT fabricate experiences, projects, or accomplishments not present in the candidate summary
 - Output ONLY the cover letter text, no headers or formatting instructions
 """)
 
@@ -131,5 +135,6 @@ Answer the following job application screening question based on the candidate's
 - If it's a yes/no question, answer definitively
 - If it asks for years of experience, give a specific number
 - If it asks about salary expectations, use {{ salary_expectation }} as a guide
+- If the question asks about something not covered in the candidate profile, respond with "N/A"
 - Output ONLY the answer text
 """)

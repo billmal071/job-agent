@@ -2,66 +2,40 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
-from playwright.sync_api import Page
-
 from job_agent.browser.humanizer import human_click, human_delay
-from job_agent.config import Settings
 from job_agent.platforms.base import JobPosting
+from job_agent.platforms.base_applicator import BaseApplicator
 from job_agent.utils.logging import get_logger
-from job_agent.utils.rate_limiter import RateLimiter
 
 log = get_logger(__name__)
 
 
-class LinkedInApplicator:
+class LinkedInApplicator(BaseApplicator):
     """Handles LinkedIn Easy Apply form filling and submission."""
 
-    def __init__(self, page: Page, rate_limiter: RateLimiter, settings: Settings):
-        self.page = page
-        self.rate_limiter = rate_limiter
-        self.settings = settings
-
-    def apply(
+    def _do_apply(
         self,
         job: JobPosting,
         resume_path: str,
-        cover_letter_path: str = "",
-        answers: dict[str, str] | None = None,
+        cover_letter_path: str,
+        answers: dict[str, str] | None,
     ) -> bool:
-        """Apply to a job via Easy Apply. Returns True if successful."""
-        if self.settings.agent.dry_run:
-            log.info("dry_run_apply", job=job.title, company=job.company)
-            return True
-
-        try:
-            self.rate_limiter.wait()
-            self.page.goto(job.url)
-            self.page.wait_for_load_state("networkidle")
-            human_delay(2000, 4000)
-
-            # Click Easy Apply button
-            apply_btn = self.page.locator(
-                ".jobs-apply-button, "
-                'button[aria-label*="Easy Apply"]'
-            )
-            if apply_btn.count() == 0:
-                log.warning("no_easy_apply_button", job_id=job.external_id)
-                return False
-
-            human_click(self.page, ".jobs-apply-button")
-            human_delay(1500, 3000)
-
-            # Handle multi-step modal
-            return self._process_modal(resume_path, cover_letter_path, answers)
-
-        except Exception as e:
-            log.error("apply_failed", job_id=job.external_id, error=str(e))
-            self._take_screenshot(f"apply_error_{job.external_id}")
-            self.rate_limiter.failure()
+        # Click Easy Apply button
+        apply_btn = self.page.locator(
+            ".jobs-apply-button, "
+            'button[aria-label*="Easy Apply"]'
+        )
+        if apply_btn.count() == 0:
+            log.warning("no_easy_apply_button", job_id=job.external_id)
             return False
+
+        human_click(self.page, ".jobs-apply-button")
+        human_delay(1500, 3000)
+
+        # Handle multi-step modal
+        return self._process_modal(resume_path, cover_letter_path, answers)
 
     def _process_modal(
         self,
@@ -122,7 +96,6 @@ class LinkedInApplicator:
                         )
                         human_delay(2000, 4000)
                         log.info("application_submitted")
-                        self.rate_limiter.success()
                         return True
                 else:
                     human_click(
@@ -131,7 +104,6 @@ class LinkedInApplicator:
                     )
                     human_delay(2000, 4000)
                     log.info("application_submitted")
-                    self.rate_limiter.success()
                     return True
 
             # Click Next to proceed to next step
@@ -150,7 +122,6 @@ class LinkedInApplicator:
                 break
 
         log.error("max_steps_exceeded")
-        self._take_screenshot("apply_max_steps")
         return False
 
     def _handle_resume_upload(self, resume_path: str) -> None:
@@ -168,7 +139,6 @@ class LinkedInApplicator:
 
     def _handle_cover_letter_upload(self, cover_letter_path: str) -> None:
         """Upload cover letter if applicable."""
-        # Look for a second file input or cover letter section
         cover_section = self.page.locator(
             'text="Cover letter", text="cover letter"'
         )
@@ -181,12 +151,7 @@ class LinkedInApplicator:
 
     def _handle_contact_info(self) -> None:
         """Fill in contact information fields if empty."""
-        # These are usually pre-filled from LinkedIn profile
-        fields = {
-            'input[name="phone"]': None,
-            'input[name="email"]': None,
-        }
-        for selector in fields:
+        for selector in ('input[name="phone"]', 'input[name="email"]'):
             el = self.page.locator(selector)
             if el.count() > 0:
                 value = el.input_value()
@@ -195,7 +160,6 @@ class LinkedInApplicator:
 
     def _handle_screening_questions(self, answers: dict[str, str]) -> None:
         """Answer screening questions using provided answers."""
-        # Find all question labels and their associated inputs
         questions = self.page.locator(
             ".jobs-easy-apply-form-section__grouping"
         ).all()
@@ -207,7 +171,6 @@ class LinkedInApplicator:
                     continue
                 label = label_el.inner_text().strip().lower()
 
-                # Try to find a matching answer
                 for key, value in answers.items():
                     if key.lower() in label:
                         # Try text input
@@ -233,12 +196,3 @@ class LinkedInApplicator:
                             break
             except Exception as e:
                 log.debug("screening_question_error", error=str(e))
-
-    def _take_screenshot(self, name: str) -> str:
-        """Take a screenshot for debugging."""
-        screenshots_dir = self.settings.data_dir / "screenshots"
-        screenshots_dir.mkdir(parents=True, exist_ok=True)
-        path = screenshots_dir / f"{name}_{int(time.time())}.png"
-        self.page.screenshot(path=str(path))
-        log.info("screenshot_taken", path=str(path))
-        return str(path)
