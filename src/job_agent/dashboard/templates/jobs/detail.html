@@ -2,86 +2,93 @@
 {% block title %}{{ job.title }} - Job Agent{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/jobs">Jobs</a></li>
-        <li class="breadcrumb-item active">{{ job.title }}</li>
-    </ol>
-</nav>
+<ol class="breadcrumb animate-in delay-1">
+    <li><a href="/jobs">Jobs</a></li>
+    <li>{{ job.title }}</li>
+</ol>
 
-<div class="row">
-    <div class="col-md-8">
-        <h2>{{ job.title }}</h2>
-        <p class="lead text-muted">
-            {{ job.company }} &bull; {{ job.location }}
-            {% if job.salary %} &bull; {{ job.salary }}{% endif %}
+<div style="display: grid; grid-template-columns: 1fr 380px; gap: 1.25rem;" class="animate-in delay-2">
+    <!-- Left: Job Details -->
+    <div>
+        <h2 style="margin-bottom: 0.25rem;">{{ job.title }}</h2>
+        <p class="text-secondary" style="font-size: 0.9rem; margin-bottom: 1rem;">
+            {{ job.company }}
+            {% if job.location %} &middot; {{ job.location }}{% endif %}
+            {% if job.salary %} &middot; {{ job.salary }}{% endif %}
         </p>
 
-        <div class="mb-3">
-            <span class="badge bg-secondary">{{ job.platform.value }}</span>
-            {% if job.easy_apply %}<span class="badge bg-primary">Easy Apply</span>{% endif %}
-            {% if job.remote %}<span class="badge bg-info">Remote</span>{% endif %}
-            {% set status_colors = {'discovered': 'secondary', 'matched': 'info', 'queued': 'warning', 'applied': 'success', 'skipped': 'dark', 'rejected': 'danger', 'apply_failed': 'danger'} %}
-            <span class="badge bg-{{ status_colors.get(job.status.value, 'secondary') }}">{{ job.status.value }}</span>
+        <div class="d-flex gap-2 flex-wrap mb-3">
+            <span class="badge badge-neutral">{{ job.platform.value }}</span>
+            {% if job.easy_apply %}<span class="badge badge-blue">Easy Apply</span>{% endif %}
+            {% if job.remote %}<span class="badge badge-purple">Remote</span>{% endif %}
+            {% set status_map = {
+                'discovered': 'badge-neutral', 'matched': 'badge-blue',
+                'queued': 'badge-amber', 'applied': 'badge-green',
+                'auto_approved': 'badge-green', 'skipped': 'badge-neutral',
+                'rejected': 'badge-red', 'apply_failed': 'badge-red'
+            } %}
+            <span class="badge {{ status_map.get(job.status.value, 'badge-neutral') }}">{{ job.status.value }}</span>
         </div>
 
         {% if job.url %}
-        <a href="{{ job.url }}" target="_blank" class="btn btn-outline-primary btn-sm mb-3">
+        <a href="{{ job.url }}" target="_blank" class="btn btn-ghost btn-sm mb-3">
             <i class="bi bi-box-arrow-up-right"></i> View on {{ job.platform.value|capitalize }}
         </a>
         {% endif %}
 
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Job Description</h5></div>
+        <div class="card" style="margin-top: 1rem;">
+            <div class="card-header">
+                <h5>Job Description</h5>
+            </div>
             <div class="card-body">
-                <div style="white-space: pre-wrap;">{{ job.description or 'No description available.' }}</div>
+                <div class="description-text">{{ job.description or 'No description available.' }}</div>
             </div>
         </div>
     </div>
 
-    <div class="col-md-4">
+    <!-- Right: Match & Actions -->
+    <div>
         {% if match %}
-        <div class="card mb-3">
+        <div class="card" style="margin-bottom: 1rem;">
             <div class="card-header">
-                <h5 class="mb-0">Match Score:
-                    {% if match.score >= 0.9 %}
-                    <span class="badge bg-success">{{ "%.2f"|format(match.score) }}</span>
-                    {% elif match.score >= 0.7 %}
-                    <span class="badge bg-warning text-dark">{{ "%.2f"|format(match.score) }}</span>
-                    {% else %}
-                    <span class="badge bg-danger">{{ "%.2f"|format(match.score) }}</span>
-                    {% endif %}
-                </h5>
+                <h5>Match Analysis</h5>
+                {% if match.score >= 0.9 %}
+                <span class="badge badge-green score-badge">{{ "%.2f"|format(match.score) }}</span>
+                {% elif match.score >= 0.7 %}
+                <span class="badge badge-amber score-badge">{{ "%.2f"|format(match.score) }}</span>
+                {% else %}
+                <span class="badge badge-red score-badge">{{ "%.2f"|format(match.score) }}</span>
+                {% endif %}
             </div>
             <div class="card-body">
-                <p>{{ match.reasoning }}</p>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1rem;">{{ match.reasoning }}</p>
 
-                <h6>Role Fit</h6>
-                <p>{{ match.role_fit or 'N/A' }}</p>
+                <div class="form-label mb-1">Role Fit</div>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1rem;">{{ match.role_fit or 'N/A' }}</p>
 
                 {% if matched_skills %}
-                <h6>Matched Skills</h6>
-                <div class="mb-2">
+                <div class="form-label mb-1">Matched Skills</div>
+                <div class="d-flex gap-1 flex-wrap mb-3">
                     {% for skill in matched_skills %}
-                    <span class="badge bg-success me-1 mb-1">{{ skill }}</span>
+                    <span class="badge badge-green">{{ skill }}</span>
                     {% endfor %}
                 </div>
                 {% endif %}
 
                 {% if missing_skills %}
-                <h6>Missing Skills</h6>
-                <div class="mb-2">
+                <div class="form-label mb-1">Missing Skills</div>
+                <div class="d-flex gap-1 flex-wrap mb-3">
                     {% for skill in missing_skills %}
-                    <span class="badge bg-danger me-1 mb-1">{{ skill }}</span>
+                    <span class="badge badge-red">{{ skill }}</span>
                     {% endfor %}
                 </div>
                 {% endif %}
 
                 {% if red_flags %}
-                <h6>Red Flags</h6>
-                <div>
+                <div class="form-label mb-1">Red Flags</div>
+                <div class="d-flex gap-1 flex-wrap">
                     {% for flag in red_flags %}
-                    <span class="badge bg-warning text-dark me-1 mb-1">{{ flag }}</span>
+                    <span class="badge badge-amber">{{ flag }}</span>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -90,12 +97,12 @@
         {% endif %}
 
         {% if job.status.value == 'queued' %}
-        <div class="d-grid gap-2">
+        <div style="display: grid; gap: 0.5rem;">
             <button class="btn btn-success"
                     hx-post="/queue/approve/{{ job.id }}"
                     hx-target="#queue-action-result"
                     hx-swap="innerHTML">
-                <i class="bi bi-check-circle"></i> Approve
+                <i class="bi bi-check-circle"></i> Approve Application
             </button>
             <button class="btn btn-danger"
                     hx-post="/queue/reject/{{ job.id }}"

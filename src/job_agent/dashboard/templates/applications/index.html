@@ -2,42 +2,58 @@
 {% block title %}Applications - Job Agent{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-send"></i> Applications</h2>
-    <a href="/applications/export" class="btn btn-outline-secondary btn-sm">
+<div class="page-header animate-in delay-1">
+    <h2>
+        <span class="page-icon"><i class="bi bi-send-fill"></i></span>
+        Applications
+    </h2>
+    <a href="/applications/export" class="btn btn-ghost btn-sm">
         <i class="bi bi-download"></i> Export CSV
     </a>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Job</th>
-                <th>Company</th>
-                <th>Platform</th>
-                <th>Status</th>
-                <th>Applied</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for app in applications %}
-            <tr>
-                <td><a href="/jobs/{{ app.job.id }}">{{ app.job.title }}</a></td>
-                <td>{{ app.job.company }}</td>
-                <td><span class="badge bg-secondary">{{ app.job.platform.value }}</span></td>
-                <td>
-                    {% set status_colors = {'pending': 'warning', 'submitted': 'primary', 'confirmed': 'success', 'failed': 'danger', 'withdrawn': 'secondary'} %}
-                    <span class="badge bg-{{ status_colors.get(app.status.value, 'secondary') }}">{{ app.status.value }}</span>
-                </td>
-                <td>{{ app.applied_at.strftime('%m/%d %H:%M') if app.applied_at else app.created_at.strftime('%m/%d %H:%M') }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="card animate-in delay-2">
+    <div class="card-body" style="padding: 0;">
+        {% if applications %}
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Job Title</th>
+                        <th>Company</th>
+                        <th>Platform</th>
+                        <th>Status</th>
+                        <th>Applied</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td><a href="/jobs/{{ app.job.id }}" style="font-weight: 600;">{{ app.job.title }}</a></td>
+                        <td>{{ app.job.company }}</td>
+                        <td><span class="badge badge-neutral">{{ app.job.platform.value }}</span></td>
+                        <td>
+                            {% set status_map = {
+                                'pending': 'badge-amber',
+                                'submitted': 'badge-blue',
+                                'confirmed': 'badge-green',
+                                'failed': 'badge-red',
+                                'withdrawn': 'badge-neutral'
+                            } %}
+                            <span class="badge {{ status_map.get(app.status.value, 'badge-neutral') }}">{{ app.status.value }}</span>
+                        </td>
+                        <td class="mono" style="font-size: 0.78rem;">{{ app.applied_at.strftime('%m/%d %H:%M') if app.applied_at else app.created_at.strftime('%m/%d %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-send"></i></div>
+            <p>No applications submitted yet. The agent will auto-apply to high-scoring matches.</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
-
-{% if not applications %}
-<p class="text-center text-muted mt-4">No applications yet.</p>
-{% endif %}
 {% endblock %}

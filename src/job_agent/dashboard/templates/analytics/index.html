@@ -6,23 +6,28 @@
 {% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-graph-up"></i> Analytics</h2>
+<div class="page-header animate-in delay-1">
+    <h2>
+        <span class="page-icon"><i class="bi bi-graph-up"></i></span>
+        Analytics
+    </h2>
+</div>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Score Distribution</h5></div>
-            <div class="card-body">
-                <canvas id="scoreChart" height="250"></canvas>
-            </div>
+<div class="chart-grid">
+    <div class="card animate-in delay-2">
+        <div class="card-header">
+            <h5>Score Distribution</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="scoreChart" height="260"></canvas>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Activity Timeline</h5></div>
-            <div class="card-body">
-                <canvas id="timelineChart" height="250"></canvas>
-            </div>
+    <div class="card animate-in delay-3">
+        <div class="card-header">
+            <h5>Activity Timeline</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="timelineChart" height="260"></canvas>
         </div>
     </div>
 </div>
@@ -30,10 +35,31 @@
 
 {% block scripts %}
 <script>
+// Detect theme for chart colors
+function getThemeColors() {
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    return {
+        textColor: isDark ? '#636b80' : '#9ca3af',
+        gridColor: isDark ? 'rgba(42,46,63,0.5)' : 'rgba(229,231,235,0.8)',
+        green: isDark ? '#4ade80' : '#22c55e',
+        greenBg: isDark ? 'rgba(74,222,128,0.08)' : 'rgba(34,197,94,0.08)',
+        blue: isDark ? '#60a5fa' : '#3b82f6',
+        blueBg: isDark ? 'rgba(96,165,250,0.08)' : 'rgba(59,130,246,0.08)',
+        amber: isDark ? '#fbbf24' : '#f59e0b',
+        red: isDark ? '#f87171' : '#ef4444',
+    };
+}
+
 async function loadCharts() {
-    // Score distribution
-    const scoreResp = await fetch('/analytics/data/scores');
-    const scoreData = await scoreResp.json();
+    var C = getThemeColors();
+
+    Chart.defaults.color = C.textColor;
+    Chart.defaults.borderColor = C.gridColor;
+    Chart.defaults.font.family = "'JetBrains Mono', monospace";
+    Chart.defaults.font.size = 11;
+
+    var scoreResp = await fetch('/analytics/data/scores');
+    var scoreData = await scoreResp.json();
 
     new Chart(document.getElementById('scoreChart'), {
         type: 'bar',
@@ -42,32 +68,44 @@ async function loadCharts() {
             datasets: [{
                 label: 'Jobs',
                 data: Object.values(scoreData.distribution),
-                backgroundColor: Object.keys(scoreData.distribution).map(k => {
-                    const val = parseFloat(k);
-                    if (val >= 0.9) return 'rgba(25, 135, 84, 0.7)';
-                    if (val >= 0.7) return 'rgba(255, 193, 7, 0.7)';
-                    return 'rgba(220, 53, 69, 0.7)';
+                backgroundColor: Object.keys(scoreData.distribution).map(function(k) {
+                    var val = parseFloat(k);
+                    if (val >= 0.9) return 'rgba(34, 197, 94, 0.55)';
+                    if (val >= 0.7) return 'rgba(245, 158, 11, 0.55)';
+                    return 'rgba(239, 68, 68, 0.45)';
                 }),
+                borderColor: Object.keys(scoreData.distribution).map(function(k) {
+                    var val = parseFloat(k);
+                    if (val >= 0.9) return C.green;
+                    if (val >= 0.7) return C.amber;
+                    return C.red;
+                }),
+                borderWidth: 1,
+                borderRadius: 6,
             }]
         },
         options: {
             responsive: true,
             plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: C.gridColor } },
+                x: { grid: { display: false } }
+            }
         }
     });
 
-    // Timeline
-    const timeResp = await fetch('/analytics/data/timeline');
-    const timeData = await timeResp.json();
+    var timeResp = await fetch('/analytics/data/timeline');
+    var timeData = await timeResp.json();
 
-    const labels = [...new Set([
-        ...timeData.applications.map(d => d.date),
-        ...timeData.discoveries.map(d => d.date)
-    ])].sort();
+    var labels = [].concat(
+        timeData.applications.map(function(d) { return d.date; }),
+        timeData.discoveries.map(function(d) { return d.date; })
+    ).filter(function(v, i, a) { return a.indexOf(v) === i; }).sort();
 
-    const appMap = Object.fromEntries(timeData.applications.map(d => [d.date, d.count]));
-    const discMap = Object.fromEntries(timeData.discoveries.map(d => [d.date, d.count]));
+    var appMap = {};
+    timeData.applications.forEach(function(d) { appMap[d.date] = d.count; });
+    var discMap = {};
+    timeData.discoveries.forEach(function(d) { discMap[d.date] = d.count; });
 
     new Chart(document.getElementById('timelineChart'), {
         type: 'line',
@@ -76,23 +114,38 @@ async function loadCharts() {
             datasets: [
                 {
                     label: 'Discovered',
-                    data: labels.map(l => discMap[l] || 0),
-                    borderColor: 'rgba(13, 110, 253, 0.8)',
-                    fill: false,
-                    tension: 0.3,
+                    data: labels.map(function(l) { return discMap[l] || 0; }),
+                    borderColor: C.blue,
+                    backgroundColor: C.blueBg,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: C.blue,
+                    borderWidth: 2,
                 },
                 {
                     label: 'Applied',
-                    data: labels.map(l => appMap[l] || 0),
-                    borderColor: 'rgba(25, 135, 84, 0.8)',
-                    fill: false,
-                    tension: 0.3,
+                    data: labels.map(function(l) { return appMap[l] || 0; }),
+                    borderColor: C.green,
+                    backgroundColor: C.greenBg,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: C.green,
+                    borderWidth: 2,
                 }
             ]
         },
         options: {
             responsive: true,
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { labels: { usePointStyle: true, pointStyle: 'circle', padding: 16 } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: C.gridColor } },
+                x: { grid: { display: false } }
+            }
         }
     });
 }

@@ -2,87 +2,105 @@
 {% block title %}Jobs - Job Agent{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Jobs</h2>
-    <span class="text-muted">{{ jobs|length }} results</span>
+<div class="page-header animate-in delay-1">
+    <h2>
+        <span class="page-icon"><i class="bi bi-briefcase-fill"></i></span>
+        Jobs
+    </h2>
+    <span class="text-sm text-muted mono">{{ jobs|length }} results</span>
 </div>
 
 <!-- Filters -->
-<div class="card mb-3">
-    <div class="card-body">
-        <form method="get" class="row g-2 align-items-end">
-            <div class="col-md-2">
-                <label class="form-label">Platform</label>
-                <select name="platform" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    <option value="linkedin" {{ 'selected' if request.args.get('platform') == 'linkedin' }}>LinkedIn</option>
-                    <option value="indeed" {{ 'selected' if request.args.get('platform') == 'indeed' }}>Indeed</option>
-                    <option value="glassdoor" {{ 'selected' if request.args.get('platform') == 'glassdoor' }}>Glassdoor</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    <option value="discovered" {{ 'selected' if request.args.get('status') == 'discovered' }}>Discovered</option>
-                    <option value="matched" {{ 'selected' if request.args.get('status') == 'matched' }}>Matched</option>
-                    <option value="queued" {{ 'selected' if request.args.get('status') == 'queued' }}>Queued</option>
-                    <option value="applied" {{ 'selected' if request.args.get('status') == 'applied' }}>Applied</option>
-                    <option value="skipped" {{ 'selected' if request.args.get('status') == 'skipped' }}>Skipped</option>
-                </select>
-            </div>
-            <div class="col-md-1">
-                <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-            </div>
-        </form>
+<form method="get" class="filter-bar animate-in delay-2">
+    <div class="filter-group">
+        <label class="form-label">Platform</label>
+        <select name="platform" class="form-select">
+            <option value="">All Platforms</option>
+            <option value="linkedin" {{ 'selected' if request.args.get('platform') == 'linkedin' }}>LinkedIn</option>
+            <option value="indeed" {{ 'selected' if request.args.get('platform') == 'indeed' }}>Indeed</option>
+            <option value="glassdoor" {{ 'selected' if request.args.get('platform') == 'glassdoor' }}>Glassdoor</option>
+        </select>
     </div>
-</div>
+    <div class="filter-group">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+            <option value="">All Statuses</option>
+            <option value="discovered" {{ 'selected' if request.args.get('status') == 'discovered' }}>Discovered</option>
+            <option value="matched" {{ 'selected' if request.args.get('status') == 'matched' }}>Matched</option>
+            <option value="queued" {{ 'selected' if request.args.get('status') == 'queued' }}>Queued</option>
+            <option value="applied" {{ 'selected' if request.args.get('status') == 'applied' }}>Applied</option>
+            <option value="skipped" {{ 'selected' if request.args.get('status') == 'skipped' }}>Skipped</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="form-label">&nbsp;</label>
+        <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-funnel"></i> Filter
+        </button>
+    </div>
+</form>
 
 <!-- Jobs Table -->
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Company</th>
-                <th>Platform</th>
-                <th>Score</th>
-                <th>Status</th>
-                <th>Discovered</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for job in jobs %}
-            <tr style="cursor:pointer" onclick="window.location='/jobs/{{ job.id }}'">
-                <td>{{ job.title }}</td>
-                <td>{{ job.company }}</td>
-                <td><span class="badge bg-secondary">{{ job.platform.value }}</span></td>
-                <td>
-                    {% if job.match_result %}
-                        {% set score = job.match_result.score %}
-                        {% if score >= 0.9 %}
-                        <span class="badge bg-success score-badge">{{ "%.2f"|format(score) }}</span>
-                        {% elif score >= 0.7 %}
-                        <span class="badge bg-warning text-dark score-badge">{{ "%.2f"|format(score) }}</span>
-                        {% else %}
-                        <span class="badge bg-danger score-badge">{{ "%.2f"|format(score) }}</span>
-                        {% endif %}
-                    {% else %}
-                    <span class="text-muted">-</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% set status_colors = {'discovered': 'secondary', 'matched': 'info', 'queued': 'warning', 'applied': 'success', 'skipped': 'dark', 'rejected': 'danger', 'apply_failed': 'danger'} %}
-                    <span class="badge bg-{{ status_colors.get(job.status.value, 'secondary') }}">{{ job.status.value }}</span>
-                </td>
-                <td>{{ job.discovered_at.strftime('%m/%d %H:%M') if job.discovered_at else '-' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="card animate-in delay-3">
+    <div class="card-body" style="padding: 0;">
+        {% if jobs %}
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Company</th>
+                        <th>Platform</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Discovered</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr class="row-link" onclick="window.location='/jobs/{{ job.id }}'">
+                        <td style="color: var(--text-primary); font-weight: 600;">{{ job.title }}</td>
+                        <td>{{ job.company }}</td>
+                        <td><span class="badge badge-neutral">{{ job.platform.value }}</span></td>
+                        <td>
+                            {% if job.match_result %}
+                                {% set score = job.match_result.score %}
+                                {% if score >= 0.9 %}
+                                <span class="badge badge-green score-badge">{{ "%.2f"|format(score) }}</span>
+                                {% elif score >= 0.7 %}
+                                <span class="badge badge-amber score-badge">{{ "%.2f"|format(score) }}</span>
+                                {% else %}
+                                <span class="badge badge-red score-badge">{{ "%.2f"|format(score) }}</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted mono" style="font-size: 0.78rem;">--</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set status_map = {
+                                'discovered': 'badge-neutral',
+                                'matched': 'badge-blue',
+                                'queued': 'badge-amber',
+                                'applied': 'badge-green',
+                                'auto_approved': 'badge-green',
+                                'skipped': 'badge-neutral',
+                                'rejected': 'badge-red',
+                                'apply_failed': 'badge-red'
+                            } %}
+                            <span class="badge {{ status_map.get(job.status.value, 'badge-neutral') }}">{{ job.status.value }}</span>
+                        </td>
+                        <td class="mono" style="font-size: 0.78rem;">{{ job.discovered_at.strftime('%m/%d %H:%M') if job.discovered_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-briefcase"></i></div>
+            <p>No jobs found. Run a search to discover opportunities.</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
-
-{% if not jobs %}
-<p class="text-center text-muted mt-4">No jobs found. Run a search first.</p>
-{% endif %}
 {% endblock %}

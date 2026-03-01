@@ -2,53 +2,51 @@
 {% block title %}Overview - Job Agent{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Dashboard Overview</h2>
+<div class="page-header animate-in delay-1">
+    <h2>Dashboard</h2>
+</div>
 
-<!-- Summary Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-bg-primary">
-            <div class="card-body">
-                <h6 class="card-subtitle mb-2">Total Jobs</h6>
-                <div class="card-stat">{{ total_jobs }}</div>
-            </div>
+<!-- Stat Cards with icon circles -->
+<div class="stat-grid">
+    <div class="stat-card animate-in delay-1">
+        <div class="stat-info">
+            <div class="stat-value">{{ total_jobs }}</div>
+            <div class="stat-label">Total Jobs</div>
         </div>
+        <div class="stat-icon green"><i class="bi bi-briefcase"></i></div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-bg-success">
-            <div class="card-body">
-                <h6 class="card-subtitle mb-2">Applications</h6>
-                <div class="card-stat">{{ total_applications }}</div>
-            </div>
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-info">
+            <div class="stat-value">{{ total_applications }}</div>
+            <div class="stat-label">Applications</div>
         </div>
+        <div class="stat-icon blue"><i class="bi bi-send"></i></div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-bg-warning">
-            <div class="card-body">
-                <h6 class="card-subtitle mb-2">Review Queue</h6>
-                <div class="card-stat">{{ queue_size }}</div>
-            </div>
+    <div class="stat-card animate-in delay-3">
+        <div class="stat-info">
+            <div class="stat-value">{{ queue_size }}</div>
+            <div class="stat-label">Review Queue</div>
         </div>
+        <div class="stat-icon amber"><i class="bi bi-inbox"></i></div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-bg-info">
-            <div class="card-body">
-                <h6 class="card-subtitle mb-2">Success Rate</h6>
-                <div class="card-stat">{{ "%.0f"|format(success_rate) }}%</div>
-            </div>
+    <div class="stat-card animate-in delay-4">
+        <div class="stat-info">
+            <div class="stat-value">{{ "%.0f"|format(success_rate) }}%</div>
+            <div class="stat-label">Success Rate</div>
         </div>
+        <div class="stat-icon purple"><i class="bi bi-graph-up-arrow"></i></div>
     </div>
 </div>
 
 <!-- Recent Activity -->
-<div class="card">
+<div class="card animate-in delay-5">
     <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Agent Runs</h5>
+        <h5><i class="bi bi-terminal" style="margin-right: 0.3rem; opacity: 0.5;"></i> Recent Agent Runs</h5>
     </div>
-    <div class="card-body">
+    <div class="card-body" style="padding: 0;">
         {% if recent_runs %}
-        <div class="table-responsive">
-            <table class="table table-hover">
+        <div style="overflow-x: auto;">
+            <table class="data-table">
                 <thead>
                     <tr>
                         <th>Started</th>
@@ -63,30 +61,34 @@
                 <tbody>
                     {% for run in recent_runs %}
                     <tr>
-                        <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else '-' }}</td>
+                        <td class="mono" style="font-size: 0.78rem;">{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else '-' }}</td>
                         <td>
                             {% if run.status.value == 'completed' %}
-                            <span class="badge bg-success">{{ run.status.value }}</span>
+                            <span class="badge badge-green">{{ run.status.value }}</span>
                             {% elif run.status.value == 'running' %}
-                            <span class="badge bg-primary">{{ run.status.value }}</span>
+                            <span class="badge badge-blue">{{ run.status.value }}</span>
                             {% elif run.status.value == 'failed' %}
-                            <span class="badge bg-danger">{{ run.status.value }}</span>
+                            <span class="badge badge-red">{{ run.status.value }}</span>
                             {% else %}
-                            <span class="badge bg-secondary">{{ run.status.value }}</span>
+                            <span class="badge badge-neutral">{{ run.status.value }}</span>
                             {% endif %}
                         </td>
                         <td>{{ run.profile_name }}</td>
-                        <td>{{ run.jobs_discovered }}</td>
-                        <td>{{ run.jobs_applied }}</td>
-                        <td>{{ run.jobs_queued }}</td>
-                        <td>{{ run.jobs_skipped }}</td>
+                        <td class="mono">{{ run.jobs_discovered }}</td>
+                        <td class="mono">{{ run.jobs_applied }}</td>
+                        <td class="mono">{{ run.jobs_queued }}</td>
+                        <td class="mono">{{ run.jobs_skipped }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         {% else %}
-        <p class="text-muted">No agent runs yet. Start the agent with: <code>job-agent run --profile your_profile.yaml</code></p>
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-terminal"></i></div>
+            <p>No agent runs yet. Start with:</p>
+            <p style="margin-top: 0.5rem;"><code>job-agent run --profile your_profile.yaml</code></p>
+        </div>
         {% endif %}
     </div>
 </div>

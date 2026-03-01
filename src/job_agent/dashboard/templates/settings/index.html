@@ -2,91 +2,104 @@
 {% block title %}Settings - Job Agent{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-gear"></i> Settings</h2>
+<div class="page-header animate-in delay-1">
+    <h2>
+        <span class="page-icon"><i class="bi bi-gear-fill"></i></span>
+        Settings
+    </h2>
+</div>
 
-<div class="row">
+<div class="settings-grid">
     <!-- Credentials -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Platform Credentials</h5></div>
-            <div class="card-body">
-                {% for plat in credentials %}
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div>
-                        <strong>{{ plat.platform }}</strong>
-                        {% if plat.configured %}
-                        <span class="badge bg-success ms-1">Configured</span>
-                        <br><small class="text-muted">{{ plat.username }}</small>
-                        {% else %}
-                        <span class="badge bg-secondary ms-1">Not Set</span>
-                        {% endif %}
-                    </div>
+    <div class="card animate-in delay-2">
+        <div class="card-header">
+            <h5>Platform Credentials</h5>
+        </div>
+        <div class="card-body">
+            {% for plat in credentials %}
+            <div class="credential-item">
+                <div>
+                    <div style="font-weight: 600; color: var(--text-primary); text-transform: capitalize;">{{ plat.platform }}</div>
+                    {% if plat.configured %}
+                    <div class="text-sm text-muted">{{ plat.username }}</div>
+                    {% endif %}
                 </div>
-                {% endfor %}
-
-                <hr>
-                <form method="post" action="/settings/credentials">
-                    <div class="mb-2">
-                        <select name="platform" class="form-select form-select-sm" required>
-                            <option value="linkedin">LinkedIn</option>
-                            <option value="indeed">Indeed</option>
-                            <option value="glassdoor">Glassdoor</option>
-                        </select>
-                    </div>
-                    <div class="mb-2">
-                        <input type="text" name="username" class="form-control form-control-sm" placeholder="Username/Email" required>
-                    </div>
-                    <div class="mb-2">
-                        <input type="password" name="password" class="form-control form-control-sm" placeholder="Password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm">Save Credentials</button>
-                </form>
+                {% if plat.configured %}
+                <span class="badge badge-green">Active</span>
+                {% else %}
+                <span class="badge badge-neutral">Not Set</span>
+                {% endif %}
             </div>
+            {% endfor %}
+
+            <hr class="divider">
+
+            <div class="form-label mb-2">Add / Update Credentials</div>
+            <form method="post" action="/settings/credentials">
+                <div style="display: grid; gap: 0.5rem;">
+                    <select name="platform" class="form-select" required>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="indeed">Indeed</option>
+                        <option value="glassdoor">Glassdoor</option>
+                    </select>
+                    <input type="text" name="username" class="form-control" placeholder="Username or email" required>
+                    <input type="password" name="password" class="form-control" placeholder="Password" required>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-lock"></i> Save Encrypted
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
     <!-- Thresholds -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Matching Thresholds</h5></div>
-            <div class="card-body">
-                <form method="post" action="/settings/thresholds">
-                    <div class="mb-3">
-                        <label class="form-label">Auto-Apply Threshold</label>
-                        <input type="number" name="auto_apply_threshold" class="form-control form-control-sm"
-                               value="{{ thresholds.auto_apply }}" min="0" max="1" step="0.05">
-                        <small class="text-muted">Jobs scoring above this are applied to automatically.</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Review Queue Threshold</label>
-                        <input type="number" name="review_threshold" class="form-control form-control-sm"
-                               value="{{ thresholds.review }}" min="0" max="1" step="0.05">
-                        <small class="text-muted">Jobs scoring above this (but below auto-apply) go to the review queue.</small>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm">Save Thresholds</button>
-                </form>
-            </div>
+    <div class="card animate-in delay-3">
+        <div class="card-header">
+            <h5>Matching Thresholds</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="/settings/thresholds">
+                <div style="margin-bottom: 1rem;">
+                    <label class="form-label">Auto-Apply Threshold</label>
+                    <input type="number" name="auto_apply_threshold" class="form-control"
+                           value="{{ thresholds.auto_apply }}" min="0" max="1" step="0.05">
+                    <div class="text-sm text-muted" style="margin-top: 0.25rem;">Jobs scoring above this are applied to automatically.</div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label class="form-label">Review Queue Threshold</label>
+                    <input type="number" name="review_threshold" class="form-control"
+                           value="{{ thresholds.review }}" min="0" max="1" step="0.05">
+                    <div class="text-sm text-muted" style="margin-top: 0.25rem;">Jobs scoring above this go to the review queue.</div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-check"></i> Save Thresholds
+                </button>
+            </form>
         </div>
     </div>
 </div>
 
 <!-- Agent Config -->
-<div class="card mb-4">
-    <div class="card-header"><h5 class="mb-0">Agent Configuration</h5></div>
+<div class="card animate-in delay-4">
+    <div class="card-header">
+        <h5>Agent Configuration</h5>
+    </div>
     <div class="card-body">
-        <div class="row">
-            <div class="col-md-4">
-                <strong>Schedule Interval:</strong> {{ settings.agent.schedule_interval }} minutes
+        <div class="config-row">
+            <div class="config-item">
+                <span class="config-label">Schedule Interval</span>
+                <span class="config-value">{{ settings.agent.schedule_interval }} min</span>
             </div>
-            <div class="col-md-4">
-                <strong>Activity Window:</strong> {{ settings.agent.activity_start_hour }}:00 - {{ settings.agent.activity_end_hour }}:00
+            <div class="config-item">
+                <span class="config-label">Activity Window</span>
+                <span class="config-value">{{ settings.agent.activity_start_hour }}:00 &ndash; {{ settings.agent.activity_end_hour }}:00</span>
             </div>
-            <div class="col-md-4">
-                <strong>Dry Run:</strong>
+            <div class="config-item">
+                <span class="config-label">Dry Run</span>
                 {% if settings.agent.dry_run %}
-                <span class="badge bg-warning text-dark">Enabled</span>
+                <span class="badge badge-amber">Enabled</span>
                 {% else %}
-                <span class="badge bg-success">Disabled</span>
+                <span class="badge badge-green">Disabled</span>
                 {% endif %}
             </div>
         </div>

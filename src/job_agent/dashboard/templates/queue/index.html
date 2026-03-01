@@ -2,71 +2,75 @@
 {% block title %}Review Queue - Job Agent{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-inbox"></i> Review Queue</h2>
-    <span class="text-muted">{{ queue|length }} jobs awaiting review</span>
+<div class="page-header animate-in delay-1">
+    <h2>
+        <span class="page-icon"><i class="bi bi-inbox-fill"></i></span>
+        Review Queue
+    </h2>
+    <span class="text-sm text-muted mono">{{ queue|length }} awaiting review</span>
 </div>
 
 {% if queue %}
-<div class="row">
+<div class="queue-grid">
     {% for item in queue %}
-    <div class="col-md-6 mb-3" id="queue-item-{{ item.job.id }}">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between">
-                <div>
-                    <strong>{{ item.job.title }}</strong>
-                    <br><small class="text-muted">{{ item.job.company }} &bull; {{ item.job.location }}</small>
-                </div>
-                {% if item.match_result %}
-                <span class="badge bg-warning text-dark score-badge align-self-start">
-                    {{ "%.2f"|format(item.match_result.score) }}
-                </span>
-                {% endif %}
+    <div id="queue-item-{{ item.job.id }}" class="queue-card animate-in delay-{{ loop.index % 6 + 1 }}">
+        <div class="queue-card-header">
+            <div>
+                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.15rem;">{{ item.job.title }}</div>
+                <div class="text-muted text-sm">{{ item.job.company }} &middot; {{ item.job.location }}</div>
             </div>
-            <div class="card-body">
-                {% if item.match_result %}
-                <p>{{ item.match_result.reasoning }}</p>
+            {% if item.match_result %}
+            <span class="badge badge-amber score-badge">{{ "%.2f"|format(item.match_result.score) }}</span>
+            {% endif %}
+        </div>
+        <div class="queue-card-body">
+            {% if item.match_result %}
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">{{ item.match_result.reasoning }}</p>
 
-                {% if item.match_result.role_fit %}
-                <p><strong>Role Fit:</strong> {{ item.match_result.role_fit }}</p>
-                {% endif %}
-                {% endif %}
+            {% if item.match_result.role_fit %}
+            <div class="form-label mb-1">Role Fit</div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">{{ item.match_result.role_fit }}</p>
+            {% endif %}
+            {% endif %}
 
-                <div class="mb-2">
-                    <span class="badge bg-secondary">{{ item.job.platform.value }}</span>
-                    {% if item.job.easy_apply %}<span class="badge bg-primary">Easy Apply</span>{% endif %}
-                    {% if item.job.remote %}<span class="badge bg-info">Remote</span>{% endif %}
-                </div>
+            <div class="d-flex gap-1 flex-wrap">
+                <span class="badge badge-neutral">{{ item.job.platform.value }}</span>
+                {% if item.job.easy_apply %}<span class="badge badge-blue">Easy Apply</span>{% endif %}
+                {% if item.job.remote %}<span class="badge badge-purple">Remote</span>{% endif %}
+            </div>
 
-                {% if item.job.url %}
-                <a href="{{ item.job.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-box-arrow-up-right"></i> View Posting
+            {% if item.job.url %}
+            <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">
+                <a href="{{ item.job.url }}" target="_blank" class="btn btn-ghost btn-sm">
+                    <i class="bi bi-box-arrow-up-right"></i> Posting
                 </a>
-                <a href="/jobs/{{ item.job.id }}" class="btn btn-outline-secondary btn-sm">Details</a>
-                {% endif %}
+                <a href="/jobs/{{ item.job.id }}" class="btn btn-ghost btn-sm">
+                    <i class="bi bi-eye"></i> Details
+                </a>
             </div>
-            <div class="card-footer d-flex gap-2">
-                <button class="btn btn-success btn-sm flex-fill"
-                        hx-post="/queue/approve/{{ item.job.id }}"
-                        hx-target="#queue-item-{{ item.job.id }}"
-                        hx-swap="outerHTML">
-                    <i class="bi bi-check-circle"></i> Approve
-                </button>
-                <button class="btn btn-danger btn-sm flex-fill"
-                        hx-post="/queue/reject/{{ item.job.id }}"
-                        hx-target="#queue-item-{{ item.job.id }}"
-                        hx-swap="outerHTML">
-                    <i class="bi bi-x-circle"></i> Reject
-                </button>
-            </div>
+            {% endif %}
+        </div>
+        <div class="queue-card-footer">
+            <button class="btn btn-success btn-sm"
+                    hx-post="/queue/approve/{{ item.job.id }}"
+                    hx-target="#queue-item-{{ item.job.id }}"
+                    hx-swap="outerHTML">
+                <i class="bi bi-check-circle"></i> Approve
+            </button>
+            <button class="btn btn-danger btn-sm"
+                    hx-post="/queue/reject/{{ item.job.id }}"
+                    hx-target="#queue-item-{{ item.job.id }}"
+                    hx-swap="outerHTML">
+                <i class="bi bi-x-circle"></i> Reject
+            </button>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="text-center text-muted mt-5">
-    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-    <p class="mt-2">No jobs in the review queue.</p>
+<div class="empty-state animate-in delay-2">
+    <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+    <p>No jobs in the review queue. Jobs scoring between the review and auto-apply thresholds will appear here.</p>
 </div>
 {% endif %}
 {% endblock %}

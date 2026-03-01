@@ -2,81 +2,100 @@
 {% block title %}Outreach - Job Agent{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-people"></i> Outreach</h2>
+<div class="page-header animate-in delay-1">
+    <h2>
+        <span class="page-icon"><i class="bi bi-people-fill"></i></span>
+        Outreach
+    </h2>
+</div>
 
-<!-- Stats -->
-<div class="row mb-4">
-    <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="card-stat">{{ stats.total }}</div>
-                <small class="text-muted">Total Sent</small>
-            </div>
+<!-- Stats with icon circles -->
+<div class="stat-grid">
+    <div class="stat-card animate-in delay-1">
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">Total Sent</div>
         </div>
+        <div class="stat-icon blue"><i class="bi bi-send"></i></div>
     </div>
-    <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="card-stat text-success">{{ stats.accepted }}</div>
-                <small class="text-muted">Accepted</small>
-            </div>
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.accepted }}</div>
+            <div class="stat-label">Accepted</div>
         </div>
+        <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
     </div>
-    <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="card-stat text-primary">{{ stats.replied }}</div>
-                <small class="text-muted">Replied</small>
-            </div>
+    <div class="stat-card animate-in delay-3">
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.replied }}</div>
+            <div class="stat-label">Replied</div>
         </div>
+        <div class="stat-icon purple"><i class="bi bi-chat-dots"></i></div>
     </div>
-    <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="card-stat">{{ "%.0f"|format(stats.response_rate) }}%</div>
-                <small class="text-muted">Response Rate</small>
-            </div>
+    <div class="stat-card animate-in delay-4">
+        <div class="stat-info">
+            <div class="stat-value">{{ "%.0f"|format(stats.response_rate) }}%</div>
+            <div class="stat-label">Response Rate</div>
         </div>
+        <div class="stat-icon amber"><i class="bi bi-percent"></i></div>
     </div>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Recipient</th>
-                <th>Title</th>
-                <th>Company</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Sent</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for msg in messages %}
-            <tr>
-                <td>
-                    {% if msg.recipient_profile_url %}
-                    <a href="{{ msg.recipient_profile_url }}" target="_blank">{{ msg.recipient_name }}</a>
-                    {% else %}
-                    {{ msg.recipient_name }}
-                    {% endif %}
-                </td>
-                <td>{{ msg.recipient_title }}</td>
-                <td>{{ msg.recipient_company }}</td>
-                <td><span class="badge bg-secondary">{{ msg.message_type }}</span></td>
-                <td>
-                    {% set status_colors = {'pending': 'warning', 'sent': 'primary', 'accepted': 'success', 'replied': 'info', 'failed': 'danger'} %}
-                    <span class="badge bg-{{ status_colors.get(msg.status.value, 'secondary') }}">{{ msg.status.value }}</span>
-                </td>
-                <td>{{ msg.sent_at.strftime('%m/%d %H:%M') if msg.sent_at else '-' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Messages Table -->
+<div class="card animate-in delay-5">
+    <div class="card-header">
+        <h5>Messages</h5>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% if messages %}
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Recipient</th>
+                        <th>Title</th>
+                        <th>Company</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Sent</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for msg in messages %}
+                    <tr>
+                        <td>
+                            {% if msg.recipient_profile_url %}
+                            <a href="{{ msg.recipient_profile_url }}" target="_blank" style="font-weight: 600;">{{ msg.recipient_name }}</a>
+                            {% else %}
+                            <span style="font-weight: 600; color: var(--text-primary);">{{ msg.recipient_name }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ msg.recipient_title }}</td>
+                        <td>{{ msg.recipient_company }}</td>
+                        <td><span class="badge badge-neutral">{{ msg.message_type }}</span></td>
+                        <td>
+                            {% set status_map = {
+                                'pending': 'badge-amber',
+                                'sent': 'badge-blue',
+                                'accepted': 'badge-green',
+                                'replied': 'badge-purple',
+                                'follow_up_sent': 'badge-amber',
+                                'failed': 'badge-red'
+                            } %}
+                            <span class="badge {{ status_map.get(msg.status.value, 'badge-neutral') }}">{{ msg.status.value }}</span>
+                        </td>
+                        <td class="mono" style="font-size: 0.78rem;">{{ msg.sent_at.strftime('%m/%d %H:%M') if msg.sent_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-people"></i></div>
+            <p>No outreach messages yet. The agent will send personalized connection requests to recruiters at target companies.</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
-
-{% if not messages %}
-<p class="text-center text-muted mt-4">No outreach messages yet.</p>
-{% endif %}
 {% endblock %}
