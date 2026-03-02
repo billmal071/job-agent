@@ -18,7 +18,7 @@ class AgentConfig(BaseModel):
 
 
 class MatchingConfig(BaseModel):
-    auto_apply_threshold: float = 0.90
+    auto_apply_threshold: float = 0.80
     review_threshold: float = 0.70
     model: str = ""
 

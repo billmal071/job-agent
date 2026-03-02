@@ -57,8 +57,7 @@ class AuthManager:
 
     def _login_linkedin(self, username: str, password: str) -> Page:
         page = self.context.new_page()
-        page.goto("https://www.linkedin.com/feed/")
-        page.wait_for_load_state("domcontentloaded")
+        page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
         human_delay(2000, 3000)
 
         # Already logged in from saved session
@@ -69,8 +68,7 @@ class AuthManager:
             return page
 
         # Not logged in — go to login page
-        page.goto("https://www.linkedin.com/login")
-        page.wait_for_load_state("domcontentloaded")
+        page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
         human_delay(1000, 2000)
 
         human_type(page, "#username", username)

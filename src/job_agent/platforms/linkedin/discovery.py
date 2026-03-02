@@ -55,8 +55,7 @@ class LinkedInDiscovery:
         log.info("linkedin_search", query=query, location=location, url=url)
 
         self.rate_limiter.wait()
-        self.page.goto(url)
-        self.page.wait_for_load_state("domcontentloaded")
+        self.page.goto(url, wait_until="domcontentloaded")
         human_delay(2000, 4000)
 
         jobs: list[JobPosting] = []
@@ -210,8 +209,7 @@ class LinkedInDiscovery:
     def get_details(self, job_url: str) -> JobPosting:
         """Navigate to a job posting and extract full details."""
         self.rate_limiter.wait()
-        self.page.goto(job_url)
-        self.page.wait_for_load_state("domcontentloaded")
+        self.page.goto(job_url, wait_until="domcontentloaded")
         human_delay(2000, 4000)
 
         title = safe_text(self.page,".t-24.job-details-jobs-unified-top-card__job-title, h1")
@@ -261,8 +259,7 @@ class LinkedInDiscovery:
     def is_already_applied(self, job_url: str) -> bool:
         """Check if already applied to a job by looking for the applied badge."""
         self.rate_limiter.wait()
-        self.page.goto(job_url)
-        self.page.wait_for_load_state("domcontentloaded")
+        self.page.goto(job_url, wait_until="domcontentloaded")
         human_delay(1500, 3000)
         applied = self.page.locator(
             ".jobs-apply-button--applied, "

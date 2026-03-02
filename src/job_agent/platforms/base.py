@@ -31,7 +31,7 @@ def safe_goto(page: Page, url: str, *, retries: int = 2) -> None:
     """Navigate to *url* with retry on network failure."""
     for attempt in range(1 + retries):
         try:
-            page.goto(url)
+            page.goto(url, wait_until="domcontentloaded")
             return
         except Exception:
             if attempt >= retries:
