@@ -128,6 +128,13 @@ class GlassdoorDiscovery:
                 salary_el = card.locator('[data-test="detailSalary"], .salary-estimate').first
                 salary = salary_el.inner_text().strip() if salary_el.count() > 0 else None
 
+                # Check for Easy Apply badge
+                easy_apply = card.locator(
+                    '[data-test="applyButton"], '
+                    ".easy-apply-badge, "
+                    ":text('Easy Apply'), :text('Apply Now')"
+                ).count() > 0
+
                 jobs.append(JobPosting(
                     external_id=external_id,
                     platform=Platform.GLASSDOOR,
@@ -136,6 +143,7 @@ class GlassdoorDiscovery:
                     location=location,
                     url=url,
                     salary=salary,
+                    easy_apply=easy_apply,
                     remote="remote" in location.lower(),
                 ))
             except Exception as e:
@@ -170,6 +178,13 @@ class GlassdoorDiscovery:
         match = re.search(r"jobListingId=(\d+)", job_url)
         external_id = match.group(1) if match else ""
 
+        # Check for apply button on detail page
+        easy_apply = self.page.locator(
+            '[data-test="applyButton"], '
+            'button:has-text("Apply"), '
+            'a:has-text("Apply")'
+        ).count() > 0
+
         self.rate_limiter.success()
         return JobPosting(
             external_id=external_id,
@@ -179,5 +194,6 @@ class GlassdoorDiscovery:
             location=location,
             description=description,
             url=job_url,
+            easy_apply=easy_apply,
             remote="remote" in location.lower(),
         )

@@ -101,6 +101,13 @@ class IndeedDiscovery:
                 salary_el = card.locator(".salary-snippet-container, .metadata.salary-snippet-container").first
                 salary = salary_el.inner_text().strip() if salary_el.count() > 0 else None
 
+                # Check for Easy Apply / Indeed Apply badge
+                easy_apply = card.locator(
+                    ".iaLabel, .indeed-apply-badge, "
+                    "[data-indeed-apply-button], "
+                    ":text('Easily apply'), :text('Apply now')"
+                ).count() > 0
+
                 jobs.append(JobPosting(
                     external_id=external_id,
                     platform=Platform.INDEED,
@@ -109,6 +116,7 @@ class IndeedDiscovery:
                     location=location,
                     url=url,
                     salary=salary,
+                    easy_apply=easy_apply,
                     remote="remote" in location.lower(),
                 ))
             except Exception as e:
@@ -145,6 +153,14 @@ class IndeedDiscovery:
         match = re.search(r"jk=([a-f0-9]+)", job_url)
         external_id = match.group(1) if match else ""
 
+        # Check for apply button on detail page
+        easy_apply = self.page.locator(
+            '#indeedApplyButton, '
+            'button[id*="apply"], '
+            'a[href*="apply"], '
+            ':text("Easily apply")'
+        ).count() > 0
+
         self.rate_limiter.success()
         return JobPosting(
             external_id=external_id,
@@ -154,5 +170,6 @@ class IndeedDiscovery:
             location=location,
             description=description,
             url=job_url,
+            easy_apply=easy_apply,
             remote="remote" in location.lower(),
         )
