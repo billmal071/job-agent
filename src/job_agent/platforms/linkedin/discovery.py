@@ -157,11 +157,16 @@ class LinkedInDiscovery:
             if not external_id or not title:
                 return None
 
-            # Check for Easy Apply badge
-            easy_apply = card.locator(
-                ".job-card-container__apply-method, "
-                "[data-is-easy-apply-button]"
-            ).count() > 0
+            # Check for Easy Apply badge (multiple selector strategies)
+            easy_apply = (
+                card.locator(
+                    ".job-card-container__apply-method, "
+                    "[data-is-easy-apply-button], "
+                    ".jobs-apply-button--top-card, "
+                    "li-icon[type='linkedin-bug']"
+                ).count() > 0
+                or "easy apply" in card.inner_text().lower()
+            )
 
             # Check for remote
             remote = "remote" in location.lower()
@@ -232,10 +237,16 @@ class LinkedInDiscovery:
         match = re.search(r"/jobs/view/(\d+)", job_url)
         external_id = match.group(1) if match else ""
 
-        # Check for Easy Apply
-        easy_apply = self.page.locator(
-            ".jobs-apply-button, [data-is-easy-apply-button]"
-        ).count() > 0
+        # Check for Easy Apply (button text or badge)
+        easy_apply = (
+            self.page.locator(
+                ".jobs-apply-button, "
+                "[data-is-easy-apply-button], "
+                "button:has-text('Easy Apply'), "
+                ".jobs-apply-button--top-card"
+            ).count() > 0
+            or "easy apply" in (safe_text(self.page, ".jobs-apply-button") or "").lower()
+        )
 
         salary = safe_text(self.page,
             ".job-details-jobs-unified-top-card__job-insight--highlight span"

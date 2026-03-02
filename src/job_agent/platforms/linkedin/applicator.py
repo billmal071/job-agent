@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from job_agent.ai.screening import FormField, ScreeningAnswerer
-from job_agent.browser.humanizer import human_click, human_delay
+from job_agent.browser.humanizer import human_delay
 from job_agent.platforms.base import JobPosting
 from job_agent.platforms.base_applicator import BaseApplicator
 from job_agent.utils.logging import get_logger
@@ -36,19 +36,59 @@ class LinkedInApplicator(BaseApplicator):
         cover_letter_path: str,
         answers: dict[str, str] | None,
     ) -> bool:
-        # Click Easy Apply button
-        apply_btn = self.page.locator(
-            ".jobs-apply-button, "
-            'button[aria-label*="Easy Apply"]'
-        )
-        if apply_btn.count() == 0:
-            log.warning("no_easy_apply_button", job_id=job.external_id)
+        # Wait for the page to settle and look for Easy Apply button
+        # LinkedIn uses <a> tags (not <button>) for Easy Apply
+        apply_btn = None
+        strategies = [
+            lambda: self.page.locator('[aria-label*="Easy Apply"]'),
+            lambda: self.page.locator(".jobs-apply-button"),
+            lambda: self.page.get_by_role("link", name="Easy Apply"),
+            lambda: self.page.get_by_role("button", name="Easy Apply"),
+        ]
+        human_delay(2000, 3000)  # Extra settle time
+
+        for strategy in strategies:
+            try:
+                btn = strategy()
+                if btn.count() > 0 and btn.first.is_visible():
+                    apply_btn = btn
+                    break
+            except Exception:
+                continue
+
+        if not apply_btn:
+            closed = self.page.locator(':text("No longer accepting")').count() > 0
+            log.warning(
+                "no_easy_apply_button",
+                job_id=job.external_id,
+                url=self.page.url,
+                closed=closed,
+            )
+            self._take_screenshot(f"no_easy_apply_{job.external_id}")
             return False
 
-        human_click(self.page, ".jobs-apply-button")
-        human_delay(1500, 3000)
+        # Try clicking the button first
+        apply_btn.first.click()
+        human_delay(3000, 5000)
 
-        # Handle multi-step modal
+        # If click didn't navigate or open modal, try direct navigation
+        if "/apply/" not in self.page.url:
+            modal = self.page.locator(
+                '.jobs-easy-apply-modal, '
+                '[data-test-modal-id="easy-apply-modal"], '
+                '[role="dialog"]'
+            )
+            if modal.count() == 0:
+                # Click didn't work — try extracting the href and navigating directly
+                href = apply_btn.first.get_attribute("href")
+                if href:
+                    log.info("navigating_to_apply_url", href=href[:100])
+                    self.page.goto(href, wait_until="domcontentloaded")
+                    human_delay(3000, 5000)
+
+        self._take_screenshot(f"after_easy_apply_click_{job.external_id}")
+
+        # Handle multi-step application flow (modal or SDUI page)
         return self._process_modal(resume_path, cover_letter_path, answers)
 
     def _process_modal(
@@ -57,19 +97,23 @@ class LinkedInApplicator(BaseApplicator):
         cover_letter_path: str,
         answers: dict[str, str] | None,
     ) -> bool:
-        """Process the Easy Apply modal steps."""
+        """Process the Easy Apply modal/page steps."""
         max_steps = 10
 
         for step in range(max_steps):
             human_delay(1000, 2000)
 
-            # Check if modal is still open
+            # Check if we're in a modal or SDUI apply page
             modal = self.page.locator(
                 ".jobs-easy-apply-modal, "
-                '[data-test-modal-id="easy-apply-modal"]'
+                '[data-test-modal-id="easy-apply-modal"], '
+                '[role="dialog"]'
             )
-            if modal.count() == 0:
-                log.info("modal_closed_unexpectedly", step=step)
+            on_apply_page = "/apply/" in self.page.url
+
+            if modal.count() == 0 and not on_apply_page:
+                log.info("modal_closed_unexpectedly", step=step, url=self.page.url)
+                self._take_screenshot(f"modal_closed_{step}")
                 return False
 
             # Handle resume upload
@@ -85,53 +129,49 @@ class LinkedInApplicator(BaseApplicator):
             # Handle screening questions (AI-powered or dict-based)
             self._handle_screening_questions(answers)
 
-            # Check for submit button
+            # Check for submit button (both modal and SDUI selectors)
             submit_btn = self.page.locator(
-                'button[aria-label="Submit application"], '
-                'button[aria-label="Review your application"]'
+                '[aria-label="Submit application"], '
+                '[aria-label="Review your application"], '
+                'button:has-text("Submit application"), '
+                'button:has-text("Submit")'
             )
             if submit_btn.count() > 0:
-                label = submit_btn.get_attribute("aria-label") or ""
-                if "Review" in label:
-                    human_click(
-                        self.page,
-                        'button[aria-label="Review your application"]',
-                    )
+                text = submit_btn.first.inner_text().strip().lower()
+                aria = (submit_btn.first.get_attribute("aria-label") or "").lower()
+                if "review" in text or "review" in aria:
+                    submit_btn.first.click()
                     human_delay(1500, 3000)
                     # Now click the final submit
                     final_submit = self.page.locator(
-                        'button[aria-label="Submit application"]'
+                        '[aria-label="Submit application"], '
+                        'button:has-text("Submit application"), '
+                        'button:has-text("Submit")'
                     )
                     if final_submit.count() > 0:
-                        human_click(
-                            self.page,
-                            'button[aria-label="Submit application"]',
-                        )
+                        final_submit.first.click()
                         human_delay(2000, 4000)
                         log.info("application_submitted")
                         return True
                 else:
-                    human_click(
-                        self.page,
-                        'button[aria-label="Submit application"]',
-                    )
+                    submit_btn.first.click()
                     human_delay(2000, 4000)
                     log.info("application_submitted")
                     return True
 
             # Click Next to proceed to next step
             next_btn = self.page.locator(
-                'button[aria-label="Continue to next step"], '
-                'button[aria-label="Next"]'
+                '[aria-label="Continue to next step"], '
+                '[aria-label="Next"], '
+                'button:has-text("Next"), '
+                'button:has-text("Continue")'
             )
             if next_btn.count() > 0:
-                human_click(
-                    self.page,
-                    'button[aria-label="Continue to next step"]',
-                )
+                next_btn.first.click()
                 human_delay(1000, 2000)
             else:
                 log.warning("no_next_or_submit_button", step=step)
+                self._take_screenshot(f"no_next_submit_{step}")
                 break
 
         log.error("max_steps_exceeded")
