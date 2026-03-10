@@ -149,8 +149,46 @@
     </div>
 </div>
 
-<!-- Agent Config -->
+<!-- Email / SMTP -->
 <div class="card animate-in delay-5">
+    <div class="card-header">
+        <h5>Email / SMTP</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/settings/email">
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">Gmail Address</label>
+                <input type="email" name="smtp_user" class="form-control"
+                       placeholder="{{ email_config.smtp_user_masked or 'your-email@gmail.com' }}">
+                {% if email_config.smtp_user %}
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">Currently: {{ email_config.smtp_user_masked }}</div>
+                {% endif %}
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">App Password</label>
+                <input type="password" name="smtp_password" class="form-control"
+                       placeholder="{{ '••••••••' if email_config.smtp_password_set else 'Not set' }}">
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">
+                    Use a Gmail App Password (Google Account &gt; Security &gt; 2-Step Verification &gt; App Passwords)
+                </div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">Notification Email</label>
+                <input type="email" name="notification_email" class="form-control"
+                       placeholder="{{ email_config.notification_email or 'notifications@example.com' }}">
+                {% if email_config.notification_email %}
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">Currently: {{ email_config.notification_email }}</div>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-envelope"></i> Save Email Settings
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Agent Config -->
+<div class="card animate-in delay-6">
     <div class="card-header">
         <h5>Agent Configuration</h5>
     </div>

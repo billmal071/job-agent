@@ -36,7 +36,7 @@ class GlassdoorDiscovery:
             pass
 
     def _safe_goto(self, url: str) -> None:
-        """Navigate to URL, handling OAuth redirect interruptions."""
+        """Navigate to URL, handling OAuth redirect interruptions and Cloudflare."""
         try:
             self._dismiss_one_tap()
             self.page.goto(url)
@@ -46,12 +46,19 @@ class GlassdoorDiscovery:
                 log.warning("glassdoor_nav_interrupted", url=url)
                 self.page.wait_for_load_state("domcontentloaded")
                 human_delay(2000, 3000)
-                # Retry the original navigation
                 self._dismiss_one_tap()
                 self.page.goto(url)
                 self.page.wait_for_load_state("domcontentloaded")
             else:
                 raise
+
+        # Wait through Cloudflare challenge if present
+        for _ in range(6):
+            if "just a moment" in self.page.title().lower():
+                log.warning("glassdoor_cloudflare_wait")
+                human_delay(5000, 8000)
+            else:
+                break
 
     def search(
         self,
@@ -106,21 +113,34 @@ class GlassdoorDiscovery:
                 title_el = card.locator('[data-test="job-title"], .job-title').first
                 title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
-                company_el = card.locator('[data-test="emp-name"], .employer-name').first
+                company_el = card.locator('[data-test="emp-name"], [class*="EmployerProfile_employerNameContainer"], .employer-name').first
                 company = company_el.inner_text().strip() if company_el.count() > 0 else ""
+                # Clean up company name (remove rating suffix like "3.8")
+                import re as _re
+                company = _re.sub(r'\s*\d+\.\d+\s*$', '', company).strip()
 
                 location_el = card.locator('[data-test="emp-location"], .location').first
                 location = location_el.inner_text().strip() if location_el.count() > 0 else ""
 
-                link_el = card.locator("a[href*='/job-listing/']").first
+                link_el = card.locator("a[href*='/job-listing/'], a[data-test='job-title']").first
                 url = ""
                 external_id = ""
                 if link_el.count() > 0:
                     href = link_el.get_attribute("href") or ""
                     url = href if href.startswith("http") else f"https://www.glassdoor.com{href}"
+                    # Try jobListingId param first, then extract from URL path
                     match = re.search(r"jobListingId=(\d+)", url)
                     if match:
                         external_id = match.group(1)
+                    else:
+                        # New URL format: /job-listing/...-JV_IC1234_KO... or just slug
+                        match = re.search(r"JV_(?:IC)?(\d+)", url)
+                        if match:
+                            external_id = match.group(1)
+                        elif "/job-listing/" in url:
+                            # Use URL slug as ID
+                            slug = url.split("/job-listing/")[-1].split("?")[0]
+                            external_id = slug or ""
 
                 if not external_id or not title:
                     continue

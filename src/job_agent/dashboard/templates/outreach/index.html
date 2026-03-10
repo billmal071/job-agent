@@ -10,9 +10,14 @@
             Outreach
         </h2>
     </div>
-    <button class="btn btn-primary btn-sm" onclick="document.getElementById('generateModal').style.display='flex'">
-        <i class="bi bi-envelope-plus"></i> Generate Email
-    </button>
+    <div style="display: flex; gap: 0.5rem;">
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('quickApplyModal').style.display='flex'">
+            <i class="bi bi-send-fill"></i> Quick Apply
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('generateModal').style.display='flex'">
+            <i class="bi bi-envelope-plus"></i> Generate Draft
+        </button>
+    </div>
 </div>
 
 <!-- Stats with icon circles -->
@@ -96,9 +101,16 @@
                                     <button class="btn btn-ghost btn-sm" onclick="copyAll('subject-{{ msg.id }}', 'body-{{ msg.id }}')" title="Copy all"><i class="bi bi-clipboard2-check"></i> Copy All</button>
                                 </div>
                             </div>
-                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; border-top: 1px solid var(--border-color); padding-top: 0.75rem; flex-wrap: wrap;">
+                                <form action="{{ url_for('outreach.send_email', message_id=msg.id) }}" method="post" style="display: inline-flex; align-items: center; gap: 0.5rem;" onsubmit="return confirmSendEmail(this, '{{ msg.recipient_profile_url }}')">
+                                    {% if not msg.recipient_profile_url or '@' not in msg.recipient_profile_url %}
+                                    <input type="email" name="recipient_email" placeholder="recipient@company.com" required
+                                           style="padding: 0.35rem 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; width: 200px;">
+                                    {% endif %}
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-send"></i> Send Email</button>
+                                </form>
                                 <form action="{{ url_for('outreach.mark_sent', message_id=msg.id) }}" method="post" style="display: inline;">
-                                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg"></i> Mark as Sent</button>
+                                    <button type="submit" class="btn btn-ghost btn-sm"><i class="bi bi-check-lg"></i> Mark as Sent</button>
                                 </form>
                                 <form action="{{ url_for('outreach.delete_message', message_id=msg.id) }}" method="post" style="display: inline;" onsubmit="return confirm('Delete this draft?')">
                                     <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Delete</button>
@@ -172,6 +184,61 @@
     </div>
 </div>
 
+<!-- Quick Apply Modal -->
+<div id="quickApplyModal" style="display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);" onclick="if(event.target===this)this.style.display='none'">
+    <div class="card" style="width: 100%; max-width: 560px; margin: 1rem; max-height: 90vh; overflow-y: auto;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h5><i class="bi bi-send-fill" style="margin-right: 0.5rem;"></i>Quick Apply</h5>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('quickApplyModal').style.display='none'">&times;</button>
+        </div>
+        <div class="card-body">
+            <p class="text-sm text-muted" style="margin-bottom: 1rem;">Paste the full job posting below. The AI will extract details, generate a tailored email, and send it with your CV.</p>
+            <form id="quickApplyForm" method="post" action="{{ url_for('outreach.quick_apply') }}" onsubmit="var b=document.getElementById('qaSubmitBtn'); b.disabled=true; b.textContent='Sending...';">
+                <div style="display: grid; gap: 0.75rem;">
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem;">Job Posting *</label>
+                        <textarea name="raw_posting" rows="6" required placeholder="Paste the full job posting here — company, role, requirements, email, everything. The AI will figure it out."
+                                  style="width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); resize: vertical;"></textarea>
+                    </div>
+                    <details>
+                        <summary style="cursor: pointer; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Override extracted fields (optional)</summary>
+                        <div style="display: grid; gap: 0.75rem; margin-top: 0.5rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                <div>
+                                    <label style="display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem;">Company</label>
+                                    <input type="text" name="company" placeholder="Auto-detected"
+                                           style="width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem;">Job Title</label>
+                                    <input type="text" name="job_title" placeholder="Auto-detected"
+                                           style="width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                <div>
+                                    <label style="display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem;">Recipient Email</label>
+                                    <input type="email" name="recipient_email" placeholder="Auto-detected"
+                                           style="width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem;">Recipient Name</label>
+                                    <input type="text" name="recipient_name" placeholder="Hiring Manager"
+                                           style="width: 100%; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem;">
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('quickApplyModal').style.display='none'">Cancel</button>
+                        <button type="submit" id="qaSubmitBtn" class="btn btn-primary btn-sm"><i class="bi bi-send"></i> Generate &amp; Send</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Generate Email Modal -->
 <div id="generateModal" style="display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);" onclick="if(event.target===this)this.style.display='none'">
     <div class="card" style="width: 100%; max-width: 500px; margin: 1rem;">
@@ -242,6 +309,16 @@ function copyAll(subjectId, bodyId) {
     var body = document.getElementById(bodyId).innerText;
     var text = 'Subject: ' + subject + '\n\n' + body;
     navigator.clipboard.writeText(text);
+}
+
+function confirmSendEmail(form, storedEmail) {
+    var emailInput = form.querySelector('input[name="recipient_email"]');
+    var email = emailInput ? emailInput.value : storedEmail;
+    if (!email) {
+        alert('Please enter a recipient email address.');
+        return false;
+    }
+    return confirm('Send this email to ' + email + '?');
 }
 
 // Update form action when job is selected

@@ -32,11 +32,13 @@ class GlassdoorDriver(PlatformDriver):
             cooldown_seconds=platform_cfg.cooldown_minutes * 60,
         )
         self._page: Page | None = None
+        self._applicator: GlassdoorApplicator | None = None
 
     def login(self, username: str, password: str) -> None:
         context = self.browser.get_context("glassdoor")
         auth = AuthManager(context)
         self._page = auth.login(Platform.GLASSDOOR, username, password)
+        self._applicator = GlassdoorApplicator(self._page, self.rate_limiter, self.settings)
         self.browser.save_state("glassdoor")
         log.info("glassdoor_driver_ready")
 
@@ -69,9 +71,15 @@ class GlassdoorDriver(PlatformDriver):
         cover_letter_path: str = "",
         answers: dict[str, str] | None = None,
     ) -> bool:
-        page = self._ensure_page()
-        applicator = GlassdoorApplicator(page, self.rate_limiter, self.settings)
-        return applicator.apply(job, resume_path)
+        if not self._applicator:
+            raise RuntimeError("Not logged in.")
+        return self._applicator.apply(job, resume_path, cover_letter_path)
+
+    def set_ai_context(self, ai_client, profile: dict) -> None:
+        """Pass AI client and profile to the applicator for screening questions."""
+        if self._applicator:
+            self._applicator._ai_client = ai_client
+            self._applicator._profile = profile
 
     def is_already_applied(self, job: JobPosting) -> bool:
         return False

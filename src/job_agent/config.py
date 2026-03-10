@@ -84,6 +84,7 @@ class BrowserConfig(BaseModel):
     headless: bool = True
     state_dir: str = "~/.job-agent/browser_state"
     proxy: str | None = None
+    use_camoufox: bool = True
 
 
 class EmailNotificationConfig(BaseModel):

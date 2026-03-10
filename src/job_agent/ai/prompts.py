@@ -74,12 +74,24 @@ Tailor the following master resume for the specific job posting below. Optimize 
 {{ key_skills | join(', ') }}
 
 ## Instructions
-1. Rewrite the resume in Markdown format
-2. Emphasize skills and experiences that match the job description
-3. Use keywords from the job description naturally throughout
-4. Keep the same factual information - only reword and reorganize
-5. Ensure ATS-friendly formatting (clear sections, standard headings)
-6. Output ONLY the tailored resume in Markdown format, nothing else
+1. Output the tailored resume in clean Markdown. Output ONLY the resume, nothing else.
+2. Use keywords from the job description naturally in the summary and bullet points.
+3. Keep ALL factual information — do NOT remove any roles, projects, education, or certifications.
+4. PRESERVE ALL LINKS using markdown syntax: [Email Address](mailto:...) | [Portfolio](https://...) | [LinkedIn](https://...) | [GitHub](https://...)
+5. Keep the EXACT same section structure as the master resume: PROFESSIONAL SUMMARY, SKILLS, PROFESSIONAL EXPERIENCE, EARLY CAREER, PROJECTS, EDUCATION/CERTIFICATIONS.
+
+## Formatting Rules (follow exactly)
+- Name as `# MALACHY WILLIAMS CHUKWUEBUKA`
+- Contact line: `Remote | +234-810-7306-387 | [williams.c.malachy@gmail.com](mailto:...) | [Portfolio](https://...) | [LinkedIn](https://...) | [GitHub](https://...)`
+- IMPORTANT: Link labels must be human-readable — use the actual email address, not "Email Address". Use "Portfolio", "LinkedIn", "GitHub" as labels (these are fine since they're recognizable).
+- Section headings as `## SECTION NAME`
+- Each role as: `### Role | Company | Location | *Date Range*`
+- Under each role: a 1-line description paragraph, then bullet points using `- ` (dash space)
+- EVERY role from the master resume MUST appear, including the current/present role
+- EARLY CAREER as a bullet list with `- ` prefix, one per line
+- Education/Certifications as a bullet list, preserving [View Certificate](url) links
+- Skills as a bullet list with category labels (e.g. `- **Languages:** Java, TypeScript, ...`)
+- Project entries: `### ProjectName | Tech Stack: ... | [View Project](url)`
 """)
 
 COVER_LETTER_TEMPLATE = _env.from_string("""\

@@ -57,6 +57,31 @@ class LinkedInApplicator(BaseApplicator):
                 continue
 
         if not apply_btn:
+            # No Easy Apply — try external "Apply" link to company ATS
+            external_link = self.page.locator(
+                'a:has-text("Apply"), '
+                'a.jobs-apply-button, '
+                'a[href*="/applyredirect"]'
+            ).first
+            if external_link.count() > 0:
+                href = external_link.get_attribute("href") or ""
+                log.info("external_apply_link", url=href[:100], job_id=job.external_id)
+                external_link.click()
+                human_delay(3000, 5000)
+                # Handle new tab/popup or redirect
+                if "linkedin.com" not in self.page.url:
+                    from job_agent.platforms.external_ats import ExternalATSApplicator
+                    ats = ExternalATSApplicator(self.page, self._get_answerer())
+                    return ats.apply(job, resume_path, cover_letter_path)
+                # Check for popup/new tab
+                pages = self.page.context.pages
+                if len(pages) > 1:
+                    new_page = pages[-1]
+                    from job_agent.platforms.external_ats import ExternalATSApplicator
+                    ats = ExternalATSApplicator(new_page, self._get_answerer())
+                    result = ats.apply(job, resume_path, cover_letter_path)
+                    new_page.close()
+                    return result
             closed = self.page.locator(':text("No longer accepting")').count() > 0
             log.warning(
                 "no_easy_apply_button",

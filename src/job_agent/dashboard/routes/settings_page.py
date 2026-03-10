@@ -102,11 +102,19 @@ def index():
             "providers": _AI_PROVIDERS,
         }
 
+        email_config = {
+            "smtp_user": settings.smtp_user,
+            "smtp_user_masked": _mask_key(settings.smtp_user) if settings.smtp_user else "",
+            "smtp_password_set": bool(settings.smtp_password),
+            "notification_email": settings.notification_email,
+        }
+
         return render_template(
             "settings/index.html",
             credentials=credentials,
             thresholds=thresholds,
             ai_config=ai_config,
+            email_config=email_config,
         )
     finally:
         session.close()
@@ -209,4 +217,27 @@ def update_ai_provider():
     settings.ai_provider = provider
 
     flash(f"AI provider set to {provider}.", "success")
+    return redirect(url_for("settings_page.index"))
+
+
+@bp.route("/email", methods=["POST"])
+def update_email():
+    """Update SMTP / email settings."""
+    settings = current_app.config["SETTINGS"]
+
+    smtp_user = request.form.get("smtp_user", "").strip()
+    smtp_password = request.form.get("smtp_password", "").strip()
+    notification_email = request.form.get("notification_email", "").strip()
+
+    if smtp_user:
+        _write_env_var("JOB_AGENT_SMTP_USER", smtp_user)
+        settings.smtp_user = smtp_user
+    if smtp_password:
+        _write_env_var("JOB_AGENT_SMTP_PASSWORD", smtp_password)
+        settings.smtp_password = smtp_password
+    if notification_email:
+        _write_env_var("JOB_AGENT_NOTIFICATION_EMAIL", notification_email)
+        settings.notification_email = notification_email
+
+    flash("Email settings updated.", "success")
     return redirect(url_for("settings_page.index"))

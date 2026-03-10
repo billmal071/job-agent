@@ -6,6 +6,7 @@ import json
 
 from job_agent.ai.client import AIClient
 from job_agent.ai.cold_email import ColdEmailGenerator
+from job_agent.ai.cover_letter import CoverLetterGenerator
 from job_agent.ai.job_matcher import JobMatcher
 from job_agent.ai.resume_tailor import ResumeTailor
 from job_agent.browser.manager import BrowserManager
@@ -48,6 +49,22 @@ def get_platform_driver(
     if not factory:
         raise ValueError(f"Unsupported platform: {platform_name}")
     return factory()
+
+
+def _build_candidate_summary(profile: dict) -> str:
+    """Build a candidate summary string from a profile dict."""
+    parts: list[str] = []
+    if name := profile.get("name"):
+        parts.append(f"Target Role: {name}")
+    search = profile.get("search", {})
+    if exp := search.get("experience_level"):
+        parts.append(f"Experience Level: {exp}")
+    skills = profile.get("skills", {})
+    if req := skills.get("required"):
+        parts.append(f"Required Skills: {', '.join(req)}")
+    if pref := skills.get("preferred"):
+        parts.append(f"Preferred Skills: {', '.join(pref)}")
+    return "\n".join(parts)
 
 
 def _generate_cold_email_draft(
@@ -203,6 +220,8 @@ def run_pipeline(
     ai_client = AIClient(settings)
     matcher = JobMatcher(ai_client)
     resume_tailor = ResumeTailor(ai_client, settings)
+    cover_letter_gen = CoverLetterGenerator(ai_client, settings)
+    candidate_summary = _build_candidate_summary(profile)
 
     try:
         with BrowserManager(settings) as browser:
@@ -282,18 +301,26 @@ def run_pipeline(
                             # Decide
                             if score.score >= settings.matching.auto_apply_threshold:
                                 job.status = JobStatus.AUTO_APPROVED
-                                if not settings.agent.dry_run and posting.easy_apply:
-                                    # Tailor resume and apply
+                                if not settings.agent.dry_run:
+                                    # Tailor resume, generate cover letter, and apply
                                     try:
                                         resume_path = resume_tailor.tailor_and_save(
                                             posting, score.matched_skills
                                         )
-                                        success = driver.apply(posting, resume_path)
+                                        try:
+                                            cl_path = cover_letter_gen.generate_and_save(
+                                                posting, candidate_summary, score.matched_skills
+                                            )
+                                        except Exception as e:
+                                            log.warning("cover_letter_failed", job_id=job.id, error=str(e))
+                                            cl_path = ""
+                                        success = driver.apply(posting, resume_path, cover_letter_path=cl_path)
                                         if success:
                                             job.status = JobStatus.APPLIED
                                             app_repo.create(
                                                 job_id=job.id,
                                                 resume_path=resume_path,
+                                                cover_letter_path=cl_path,
                                             )
                                             stats["applied"] += 1
                                             _generate_cold_email_draft(
@@ -376,13 +403,21 @@ def run_pipeline(
                                 resume_path = resume_tailor.tailor_and_save(
                                     posting, matched_skills
                                 )
+                                try:
+                                    cl_path = cover_letter_gen.generate_and_save(
+                                        posting, candidate_summary, matched_skills
+                                    )
+                                except Exception as e:
+                                    log.warning("cover_letter_failed", job_id=job.id, error=str(e))
+                                    cl_path = ""
 
-                                success = driver.apply(posting, resume_path)
+                                success = driver.apply(posting, resume_path, cover_letter_path=cl_path)
                                 if success:
                                     job.status = JobStatus.APPLIED
                                     app_repo.create(
                                         job_id=job.id,
                                         resume_path=resume_path,
+                                        cover_letter_path=cl_path,
                                     )
                                     stats["applied"] += 1
                                     log.info("approved_job_applied", job_id=job.id, title=job.title)
@@ -422,7 +457,9 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
     app_repo = ApplicationRepository(session)
     ai_client = AIClient(settings)
     resume_tailor = ResumeTailor(ai_client, settings)
+    cover_letter_gen = CoverLetterGenerator(ai_client, settings)
     profile = load_profile(profile_path) if profile_path else {}
+    candidate_summary = _build_candidate_summary(profile)
 
     try:
         approved_jobs = job_repo.list_by_status(JobStatus.APPROVED)
@@ -478,11 +515,18 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
                             resume_path = resume_tailor.tailor_and_save(
                                 posting, matched_skills
                             )
+                            try:
+                                cl_path = cover_letter_gen.generate_and_save(
+                                    posting, candidate_summary, matched_skills
+                                )
+                            except Exception as e:
+                                log.warning("cover_letter_failed", job_id=job.id, error=str(e))
+                                cl_path = ""
 
-                            success = driver.apply(posting, resume_path)
+                            success = driver.apply(posting, resume_path, cover_letter_path=cl_path)
                             if success:
                                 job.status = JobStatus.APPLIED
-                                app_repo.create(job_id=job.id, resume_path=resume_path)
+                                app_repo.create(job_id=job.id, resume_path=resume_path, cover_letter_path=cl_path)
                                 stats["applied"] += 1
                                 log.info("approved_job_applied", job_id=job.id, title=job.title)
                                 _generate_cold_email_draft(

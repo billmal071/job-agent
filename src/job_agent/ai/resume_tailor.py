@@ -59,20 +59,70 @@ class ResumeTailor:
         <html>
         <head>
             <style>
+                @page {{
+                    size: letter;
+                    margin: 0.5in 0.6in;
+                }}
                 body {{
                     font-family: 'Helvetica Neue', Arial, sans-serif;
-                    font-size: 11pt;
-                    line-height: 1.5;
-                    margin: 0.75in;
+                    font-size: 10pt;
+                    line-height: 1.4;
                     color: #333;
+                    margin: 0;
+                    padding: 0;
                 }}
-                h1 {{ font-size: 18pt; margin-bottom: 4pt; color: #1a1a1a; }}
-                h2 {{ font-size: 13pt; border-bottom: 1px solid #ddd; padding-bottom: 3pt; margin-top: 14pt; color: #2a2a2a; }}
-                h3 {{ font-size: 11pt; margin-bottom: 2pt; }}
-                ul {{ padding-left: 20pt; margin: 4pt 0; }}
-                li {{ margin-bottom: 2pt; }}
-                p {{ margin: 4pt 0; }}
-                a {{ color: #0066cc; text-decoration: none; }}
+                h1 {{
+                    font-size: 16pt;
+                    margin: 0 0 2pt 0;
+                    color: #1a1a1a;
+                    text-align: center;
+                    text-transform: uppercase;
+                    letter-spacing: 1pt;
+                }}
+                /* Contact line right after h1 */
+                h1 + p {{
+                    text-align: center;
+                    font-size: 9pt;
+                    color: #555;
+                    margin: 0 0 8pt 0;
+                }}
+                h2 {{
+                    font-size: 11pt;
+                    text-transform: uppercase;
+                    border-bottom: 1.5px solid #333;
+                    padding-bottom: 2pt;
+                    margin: 12pt 0 6pt 0;
+                    color: #1a1a1a;
+                    letter-spacing: 0.5pt;
+                }}
+                h3 {{
+                    font-size: 10pt;
+                    margin: 8pt 0 2pt 0;
+                    color: #1a1a1a;
+                }}
+                ul {{
+                    padding-left: 18pt;
+                    margin: 2pt 0 6pt 0;
+                }}
+                li {{
+                    margin-bottom: 1.5pt;
+                    text-align: justify;
+                }}
+                p {{
+                    margin: 2pt 0;
+                    text-align: justify;
+                }}
+                a {{
+                    color: #0066cc;
+                    text-decoration: underline;
+                }}
+                strong {{
+                    color: #1a1a1a;
+                }}
+                em {{
+                    font-style: italic;
+                    color: #555;
+                }}
             </style>
         </head>
         <body>{html_content}</body>
@@ -112,7 +162,21 @@ class ResumeTailor:
             import pymupdf
             doc = pymupdf.open(str(resume_path))
             text = "\n".join(page.get_text() for page in doc)
+
+            # Extract hyperlinks and append as reference
+            links: list[str] = []
+            for page in doc:
+                for link in page.get_links():
+                    if "uri" in link:
+                        label = page.get_text("text", clip=link["from"]).strip()
+                        if label and link["uri"]:
+                            links.append(f"- {label}: {link['uri']}")
             doc.close()
+
+            if links:
+                text += "\n\n## Links (use these exact URLs in the tailored resume)\n"
+                text += "\n".join(links)
+
             return text
         return resume_path.read_text()
 
@@ -134,8 +198,10 @@ class ResumeTailor:
         # Links
         html = re.sub(r"\[(.+?)\]\((.+?)\)", r'<a href="\2">\1</a>', html)
 
-        # List items
-        html = re.sub(r"^- (.+)$", r"<li>\1</li>", html, flags=re.MULTILINE)
+        # List items (- or * or • or +)
+        html = re.sub(r"^[-*•+] (.+)$", r"<li>\1</li>", html, flags=re.MULTILINE)
+        # Remove empty bullet lines
+        html = re.sub(r"^[-*•+]\s*$", "", html, flags=re.MULTILINE)
 
         # Wrap consecutive list items in <ul>
         html = re.sub(

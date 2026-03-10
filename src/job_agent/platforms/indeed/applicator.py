@@ -34,23 +34,65 @@ class IndeedApplicator(BaseApplicator):
         cover_letter_path: str,
         answers: dict[str, str] | None,
     ) -> bool:
-        # Click Apply button
+        # If we were redirected to an external ATS already (rc/clk URLs do this),
+        # handle it immediately
+        if "indeed.com" not in self.page.url:
+            log.info("external_ats_redirect", url=self.page.url)
+            from job_agent.platforms.external_ats import ExternalATSApplicator
+            ats_applicator = ExternalATSApplicator(self.page, self._get_answerer())
+            return ats_applicator.apply(job, resume_path, cover_letter_path)
+
+        # Click Apply button — try Indeed native first, then external link
         apply_btn = self.page.locator(
             '#indeedApplyButton, '
             'button[id*="apply"], '
-            'a[href*="apply"]'
+            'button:has-text("Apply now")'
         ).first
         if apply_btn.count() == 0:
-            log.warning("no_apply_button", job_id=job.external_id)
-            return False
+            # Non-easy-apply: look for "Apply on company site" link
+            external_link = self.page.locator(
+                'a:has-text("Apply on company site"), '
+                'a:has-text("Apply now"), '
+                'a[href*="apply"], '
+                'button:has-text("Apply on"), '
+                'a.jobsearch-IndeedApplyButton-newDesign'
+            ).first
+            if external_link.count() > 0:
+                href = external_link.get_attribute("href") or ""
+                log.info("external_apply_link", url=href, job_id=job.external_id)
+                # Track pages before click (might open new tab)
+                pages_before = len(self.page.context.pages)
+                external_link.click(force=True)
+                human_delay(3000, 5000)
+
+                # Check for new tab
+                from job_agent.platforms.external_ats import ExternalATSApplicator
+                if len(self.page.context.pages) > pages_before:
+                    new_page = self.page.context.pages[-1]
+                    if "indeed.com" not in new_page.url:
+                        ats = ExternalATSApplicator(new_page, self._get_answerer())
+                        result = ats.apply(job, resume_path, cover_letter_path)
+                        new_page.close()
+                        return result
+                # Same tab redirect
+                if "indeed.com" not in self.page.url:
+                    ats = ExternalATSApplicator(self.page, self._get_answerer())
+                    return ats.apply(job, resume_path, cover_letter_path)
+                # Still on Indeed — try the built-in apply flow
+                return self._process_indeed_apply(resume_path)
+            else:
+                log.warning("no_apply_button", job_id=job.external_id)
+                return False
 
         apply_btn.click()
         human_delay(2000, 4000)
 
-        # Indeed often redirects to company ATS
+        # Indeed may redirect to company ATS after clicking apply
         if "indeed.com" not in self.page.url:
             log.info("external_ats_redirect", url=self.page.url)
-            return False
+            from job_agent.platforms.external_ats import ExternalATSApplicator
+            ats = ExternalATSApplicator(self.page, self._get_answerer())
+            return ats.apply(job, resume_path, cover_letter_path)
 
         # Handle Indeed's built-in apply flow
         return self._process_indeed_apply(resume_path)

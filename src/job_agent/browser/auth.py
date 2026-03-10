@@ -121,9 +121,41 @@ class AuthManager:
 
     def _login_indeed(self, username: str, password: str) -> Page:
         page = self.context.new_page()
+
+        # Visit homepage first to check session — avoids Cloudflare on /auth
+        page.goto("https://www.indeed.com")
+        page.wait_for_load_state("domcontentloaded")
+        human_delay(2000, 3000)
+
+        # Check if already logged in by looking for profile/account indicators
+        logged_in = page.locator(
+            '[data-gnav-element-name="AccountMenu"], '
+            'a[href*="/account"], '
+            '[data-testid="gnav-header-account"], '
+            '#AccountMenu'
+        ).count() > 0
+        if logged_in:
+            log.info("indeed_already_logged_in")
+            return page
+
+        # Need to log in — navigate to auth page
         page.goto("https://secure.indeed.com/auth")
         page.wait_for_load_state("domcontentloaded")
-        human_delay(1000, 2000)
+        human_delay(2000, 3000)
+
+        # Handle Cloudflare / verification challenges
+        for _ in range(6):
+            title = page.title().lower()
+            if "just a moment" in title or "verify" in title:
+                log.warning("indeed_challenge_wait")
+                human_delay(5000, 8000)
+            else:
+                break
+
+        # Check if redirected to logged-in state
+        if "indeed.com" in page.url and "auth" not in page.url and "login" not in page.url:
+            log.info("indeed_already_logged_in")
+            return page
 
         # Try Google auth button first, fall back to email/password
         google_btn = page.locator('button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]')
@@ -131,24 +163,67 @@ class AuthManager:
             human_click(page, 'button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]')
             self._wait_for_oauth_login(page, "indeed", "indeed.com")
         else:
-            human_type(page, '[name="__email"]', username)
-            human_click(page, '[data-tn-element="auth-page-email-submit"]')
-            page.wait_for_load_state("domcontentloaded")
-            human_delay(1000, 2000)
+            email_field = page.locator('[name="__email"]')
+            if email_field.count() > 0:
+                human_type(page, '[name="__email"]', username)
+                human_click(page, '[data-tn-element="auth-page-email-submit"]')
+                page.wait_for_load_state("domcontentloaded")
+                human_delay(1000, 2000)
 
-            human_type(page, '[name="__password"]', password)
-            human_click(page, '[data-tn-element="auth-page-sign-in-submit"]')
-            page.wait_for_load_state("domcontentloaded")
-            human_delay(2000, 4000)
+                human_type(page, '[name="__password"]', password)
+                human_click(page, '[data-tn-element="auth-page-sign-in-submit"]')
+                page.wait_for_load_state("domcontentloaded")
+                human_delay(2000, 4000)
+            else:
+                log.warning("indeed_login_form_not_found", url=page.url)
 
         log.info("indeed_login_complete")
         return page
 
     def _login_glassdoor(self, username: str, password: str) -> Page:
         page = self.context.new_page()
+
+        # Visit homepage first to check session — avoids Cloudflare on login page
+        page.goto("https://www.glassdoor.com")
+        page.wait_for_load_state("domcontentloaded")
+        human_delay(2000, 3000)
+
+        # Handle Cloudflare challenge on homepage
+        for _ in range(6):
+            if "just a moment" in page.title().lower():
+                log.warning("glassdoor_cloudflare_challenge", message="Waiting for Cloudflare...")
+                human_delay(5000, 8000)
+            else:
+                break
+
+        # Check if already logged in
+        logged_in = page.locator(
+            '[data-test="profile-button"], '
+            'a[href*="/member/profile"], '
+            '#ProfileButton, '
+            '[data-test="header-profile"]'
+        ).count() > 0
+        if logged_in:
+            log.info("glassdoor_already_logged_in")
+            return page
+
+        # Need to log in — navigate to login page
         page.goto("https://www.glassdoor.com/profile/login_input.htm")
         page.wait_for_load_state("domcontentloaded")
-        human_delay(1000, 2000)
+        human_delay(2000, 3000)
+
+        # Handle Cloudflare challenge on login page
+        for _ in range(6):
+            if "just a moment" in page.title().lower():
+                log.warning("glassdoor_cloudflare_challenge", message="Waiting for Cloudflare...")
+                human_delay(5000, 8000)
+            else:
+                break
+
+        # Check if already logged in (redirected away from login)
+        if "glassdoor.com" in page.url and "login" not in page.url.lower():
+            log.info("glassdoor_already_logged_in")
+            return page
 
         # Try Google auth button first, fall back to email/password
         google_btn = page.locator('button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]')
@@ -156,12 +231,18 @@ class AuthManager:
             human_click(page, 'button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]')
             self._wait_for_oauth_login(page, "glassdoor", "glassdoor.com")
         else:
-            human_type(page, '[name="username"]', username)
-            human_type(page, '[name="password"]', password)
-            human_delay(500, 1000)
-            human_click(page, '[type="submit"]')
-            page.wait_for_load_state("domcontentloaded")
-            human_delay(2000, 4000)
+            # Check if login form is actually present
+            username_field = page.locator('[name="username"], [name="email"], #userEmail')
+            if username_field.count() > 0:
+                human_type(page, '[name="username"], [name="email"], #userEmail', username)
+                human_type(page, '[name="password"]', password)
+                human_delay(500, 1000)
+                human_click(page, '[type="submit"]')
+                page.wait_for_load_state("domcontentloaded")
+                human_delay(2000, 4000)
+            else:
+                log.warning("glassdoor_login_form_not_found", url=page.url)
+                # Might already be logged in or Cloudflare blocked us
 
         log.info("glassdoor_login_complete")
         return page

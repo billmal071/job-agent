@@ -20,29 +20,60 @@ class BrowserManager:
         self.settings = settings
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
+        self._camoufox_ctx = None  # Camoufox context manager
         self._contexts: dict[str, BrowserContext] = {}
         self._state_dir = Path(settings.browser.state_dir).expanduser()
         self._state_dir.mkdir(parents=True, exist_ok=True)
 
     def start(self) -> None:
-        """Launch the Playwright instance and browser."""
+        """Launch the browser instance."""
+        if self.settings.browser.use_camoufox:
+            self._start_camoufox()
+        else:
+            self._start_playwright()
+
+    def _start_camoufox(self) -> None:
+        """Launch Camoufox anti-detection browser."""
+        from camoufox.sync_api import Camoufox
+
+        kwargs: dict = {
+            "headless": self.settings.browser.headless,
+            "humanize": True,
+        }
+        if self.settings.browser.proxy:
+            kwargs["proxy"] = {"server": self.settings.browser.proxy}
+
+        self._camoufox_ctx = Camoufox(**kwargs)
+        self._browser = self._camoufox_ctx.__enter__()
+        log.info("camoufox_started", headless=self.settings.browser.headless)
+
+    def _start_playwright(self) -> None:
+        """Launch standard Playwright Chromium browser."""
         self._playwright = sync_playwright().start()
 
         launch_args = [
             "--disable-blink-features=AutomationControlled",
             "--disable-dev-shm-usage",
             "--no-first-run",
+            "--disable-features=IsolateOrigins,site-per-process",
         ]
+        if not self.settings.browser.headless:
+            launch_args.append("--start-maximized")
 
         kwargs: dict = {
             "headless": self.settings.browser.headless,
             "args": launch_args,
+            "channel": "chrome",
         }
 
         if self.settings.browser.proxy:
             kwargs["proxy"] = {"server": self.settings.browser.proxy}
 
-        self._browser = self._playwright.chromium.launch(**kwargs)
+        try:
+            self._browser = self._playwright.chromium.launch(**kwargs)
+        except Exception:
+            kwargs.pop("channel", None)
+            self._browser = self._playwright.chromium.launch(**kwargs)
         log.info("browser_started", headless=self.settings.browser.headless)
 
     def get_context(self, name: str = "default") -> BrowserContext:
@@ -56,20 +87,23 @@ class BrowserManager:
         state_file = self._state_dir / f"{name}_state.json"
         kwargs: dict = {
             "viewport": {"width": 1920, "height": 1080},
-            "user_agent": (
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-            ),
             "locale": "en-US",
             "timezone_id": "America/New_York",
         }
+        # Camoufox manages its own fingerprint — don't override user_agent
+        if not self.settings.browser.use_camoufox:
+            kwargs["user_agent"] = (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+            )
 
         if state_file.exists():
             kwargs["storage_state"] = str(state_file)
             log.info("browser_context_restored", name=name)
 
         context = self._browser.new_context(**kwargs)  # type: ignore[union-attr]
-        apply_stealth(context)
+        if not self.settings.browser.use_camoufox:
+            apply_stealth(context)
 
         self._contexts[name] = context
         return context
@@ -92,7 +126,11 @@ class BrowserManager:
         """Close all contexts and the browser."""
         for name in list(self._contexts):
             self.close_context(name)
-        if self._browser:
+        if self._camoufox_ctx:
+            self._camoufox_ctx.__exit__(None, None, None)
+            self._camoufox_ctx = None
+            self._browser = None
+        elif self._browser:
             self._browser.close()
             self._browser = None
         if self._playwright:
