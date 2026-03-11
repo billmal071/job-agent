@@ -113,6 +113,7 @@ def test_markdown_to_latex_handles_bold_italic():
 def test_generate_pdf_falls_back_to_weasyprint(tmp_path):
     """When pdflatex is not available, falls back to WeasyPrint."""
     s = _settings()
+    s.resume.use_latex = True
     ai = MagicMock()
     tailor = ResumeTailor(ai, s)
 
@@ -128,8 +129,9 @@ def test_generate_pdf_falls_back_to_weasyprint(tmp_path):
 
 
 def test_generate_pdf_uses_latex_when_available(tmp_path):
-    """When pdflatex is available, uses LaTeX generation."""
+    """When pdflatex is available and use_latex=True, uses LaTeX generation."""
     s = _settings()
+    s.resume.use_latex = True
     ai = MagicMock()
     tailor = ResumeTailor(ai, s)
 

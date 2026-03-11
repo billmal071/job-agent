@@ -26,7 +26,7 @@ class MatchingConfig(BaseModel):
 class ResumeConfig(BaseModel):
     master_resume: str = "config/resumes/master.pdf"
     cover_letter_tone: str = "professional"
-    use_latex: bool = True  # Use LaTeX for PDF generation; falls back to WeasyPrint
+    use_latex: bool = False  # Opt-in: use LaTeX for PDF generation (requires texlive)
     default_cover_note: str = (
         "I'm excited about this opportunity and believe my skills "
         "are a strong match. Please see my attached resume for details."

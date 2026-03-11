@@ -111,69 +111,108 @@ class ResumeTailor:
         <html>
         <head>
             <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;600&display=swap');
+
                 @page {{
                     size: letter;
-                    margin: 0.5in 0.6in;
+                    margin: 0.45in 0.55in;
                 }}
                 body {{
-                    font-family: 'Helvetica Neue', Arial, sans-serif;
-                    font-size: 10pt;
-                    line-height: 1.4;
-                    color: #333;
+                    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+                    font-size: 9.5pt;
+                    line-height: 1.35;
+                    color: #2d2d2d;
                     margin: 0;
                     padding: 0;
+                    -webkit-font-smoothing: antialiased;
                 }}
+                /* Name */
                 h1 {{
-                    font-size: 16pt;
-                    margin: 0 0 2pt 0;
-                    color: #1a1a1a;
+                    font-family: 'Source Serif 4', 'Georgia', serif;
+                    font-size: 20pt;
+                    font-weight: 600;
+                    margin: 0 0 1pt 0;
+                    color: #111;
                     text-align: center;
                     text-transform: uppercase;
-                    letter-spacing: 1pt;
+                    letter-spacing: 2.5pt;
                 }}
-                /* Contact line right after h1 */
+                /* Contact line right after name */
                 h1 + p {{
                     text-align: center;
-                    font-size: 9pt;
+                    font-size: 8.5pt;
                     color: #555;
-                    margin: 0 0 8pt 0;
+                    margin: 0 0 10pt 0;
+                    letter-spacing: 0.3pt;
+                    line-height: 1.5;
                 }}
+                h1 + p a {{
+                    color: #555;
+                    text-decoration: none;
+                    border-bottom: 0.5pt solid #bbb;
+                }}
+                /* Section headings */
                 h2 {{
-                    font-size: 11pt;
+                    font-size: 9.5pt;
+                    font-weight: 700;
                     text-transform: uppercase;
-                    border-bottom: 1.5px solid #333;
+                    letter-spacing: 1.5pt;
+                    color: #111;
+                    border-bottom: 1.5pt solid #111;
                     padding-bottom: 2pt;
-                    margin: 12pt 0 6pt 0;
-                    color: #1a1a1a;
-                    letter-spacing: 0.5pt;
+                    margin: 10pt 0 5pt 0;
                 }}
+                /* Role / subsection headings */
                 h3 {{
-                    font-size: 10pt;
-                    margin: 8pt 0 2pt 0;
+                    font-size: 9.5pt;
+                    font-weight: 600;
+                    margin: 6pt 0 1pt 0;
                     color: #1a1a1a;
+                    line-height: 1.3;
+                }}
+                /* Date ranges in role headings */
+                h3 em {{
+                    font-weight: 400;
+                    font-style: normal;
+                    color: #666;
+                    float: right;
                 }}
                 ul {{
-                    padding-left: 18pt;
-                    margin: 2pt 0 6pt 0;
+                    padding-left: 15pt;
+                    margin: 1pt 0 4pt 0;
                 }}
                 li {{
-                    margin-bottom: 1.5pt;
+                    margin-bottom: 1pt;
                     text-align: justify;
+                    line-height: 1.35;
+                }}
+                li::marker {{
+                    color: #999;
+                    font-size: 7pt;
                 }}
                 p {{
-                    margin: 2pt 0;
+                    margin: 1pt 0;
                     text-align: justify;
                 }}
                 a {{
-                    color: #0066cc;
-                    text-decoration: underline;
+                    color: #1a5276;
+                    text-decoration: none;
+                    border-bottom: 0.5pt solid #a9cce3;
                 }}
                 strong {{
+                    font-weight: 600;
                     color: #1a1a1a;
                 }}
                 em {{
                     font-style: italic;
                     color: #555;
+                }}
+                /* Skills section: tighter layout */
+                h2 + ul {{
+                    margin-top: 3pt;
+                }}
+                h2 + ul li {{
+                    margin-bottom: 0.5pt;
                 }}
             </style>
         </head>
