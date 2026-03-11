@@ -362,6 +362,7 @@ def run_pipeline(
                                                 job_id=job.id,
                                                 resume_path=resume_path,
                                                 cover_letter_path=cl_path,
+                                                status=ApplicationStatus.SUBMITTED,
                                             )
                                             stats["applied"] += 1
                                             _generate_cold_email_draft(
@@ -489,6 +490,7 @@ def run_pipeline(
                                         job_id=job.id,
                                         resume_path=resume_path,
                                         cover_letter_path=cl_path,
+                                        status=ApplicationStatus.SUBMITTED,
                                     )
                                     stats["applied"] += 1
                                     log.info(
@@ -631,6 +633,7 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
                                     job_id=job.id,
                                     resume_path=resume_path,
                                     cover_letter_path=cl_path,
+                                    status=ApplicationStatus.SUBMITTED,
                                 )
                                 stats["applied"] += 1
                                 log.info(

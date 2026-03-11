@@ -158,6 +158,15 @@ class DiscordInteractionHandler:
                     return True
                 log.error("discord_register_failed", status=resp.status)
                 return False
+        except urllib.error.HTTPError as e:
+            body = e.read().decode(errors="replace")[:500]
+            log.error(
+                "discord_register_failed",
+                status=e.code,
+                reason=e.reason,
+                body=body,
+            )
+            return False
         except urllib.error.URLError as e:
             log.error("discord_register_failed", error=str(e))
             return False
