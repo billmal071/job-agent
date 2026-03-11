@@ -99,9 +99,25 @@ class WebhookNotificationConfig(BaseModel):
     )
 
 
+class TelegramNotificationConfig(BaseModel):
+    enabled: bool = False
+    triggers: list[str] = Field(
+        default_factory=lambda: ["queued", "failed", "auto_applied"]
+    )
+
+
+class DiscordNotificationConfig(BaseModel):
+    enabled: bool = False
+    triggers: list[str] = Field(
+        default_factory=lambda: ["queued", "failed", "auto_applied"]
+    )
+
+
 class NotificationsConfig(BaseModel):
     email: EmailNotificationConfig = EmailNotificationConfig()
     webhook: WebhookNotificationConfig = WebhookNotificationConfig()
+    telegram: TelegramNotificationConfig = TelegramNotificationConfig()
+    discord: DiscordNotificationConfig = DiscordNotificationConfig()
 
 
 class DashboardConfig(BaseModel):
@@ -141,6 +157,15 @@ class Settings(BaseSettings):
     slack_webhook_url: str = ""
     discord_webhook_url: str = ""
 
+    # Telegram
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+
+    # Discord bot (for interactive slash commands)
+    discord_bot_token: str = ""
+    discord_application_id: str = ""
+    discord_public_key: str = ""
+
     # Proxy
     proxy_url: str = ""
 
@@ -152,6 +177,11 @@ class Settings(BaseSettings):
     browser: BrowserConfig = BrowserConfig()
     notifications: NotificationsConfig = NotificationsConfig()
     dashboard: DashboardConfig = DashboardConfig()
+
+    def model_post_init(self, __context) -> None:
+        """Wire top-level proxy_url into browser.proxy if not already set."""
+        if self.proxy_url and not self.browser.proxy:
+            self.browser.proxy = self.proxy_url
 
     @property
     def data_dir(self) -> Path:

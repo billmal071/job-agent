@@ -5,7 +5,9 @@ from __future__ import annotations
 import csv
 import io
 
-from flask import Blueprint, render_template, request, current_app, Response
+from pathlib import Path
+
+from flask import Blueprint, render_template, request, current_app, Response, send_file
 
 from job_agent.db.session import get_session
 from job_agent.db.repository import ApplicationRepository, JobRepository
@@ -92,6 +94,54 @@ def export():
             csv_content,
             mimetype="text/csv",
             headers={"Content-Disposition": "attachment; filename=applications.csv"},
+        )
+    finally:
+        session.close()
+
+
+@bp.route("/<int:app_id>/download-resume")
+def download_resume(app_id: int):
+    """Download the tailored resume for an application."""
+    session = get_session(current_app.config["SETTINGS"])
+    try:
+        application = session.get(Application, app_id)
+        if application is None:
+            return "Application not found", 404
+        if not application.resume_path:
+            return "No resume available for this application", 404
+
+        resume_file = Path(application.resume_path)
+        if not resume_file.exists():
+            return "Resume file not found on disk", 404
+
+        return send_file(
+            str(resume_file),
+            as_attachment=True,
+            download_name=f"resume_{app_id}{resume_file.suffix}",
+        )
+    finally:
+        session.close()
+
+
+@bp.route("/<int:app_id>/download-cover-letter")
+def download_cover_letter(app_id: int):
+    """Download the cover letter for an application."""
+    session = get_session(current_app.config["SETTINGS"])
+    try:
+        application = session.get(Application, app_id)
+        if application is None:
+            return "Application not found", 404
+        if not application.cover_letter_path:
+            return "No cover letter available for this application", 404
+
+        cl_file = Path(application.cover_letter_path)
+        if not cl_file.exists():
+            return "Cover letter file not found on disk", 404
+
+        return send_file(
+            str(cl_file),
+            as_attachment=True,
+            download_name=f"cover_letter_{app_id}{cl_file.suffix}",
         )
     finally:
         session.close()

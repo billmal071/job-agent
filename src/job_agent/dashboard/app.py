@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
+
 from flask import Flask
 
 from job_agent.config import Settings
@@ -21,6 +24,16 @@ def create_app(settings: Settings | None = None) -> Flask:
     )
     app.config["SECRET_KEY"] = settings.flask_secret_key
     app.config["SETTINGS"] = settings
+
+    # Custom Jinja2 filters
+    def from_json(value):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    app.jinja_env.filters["from_json"] = from_json
+    app.jinja_env.globals["now"] = lambda: datetime.now(timezone.utc)
 
     # Make settings available in templates
     @app.context_processor
@@ -45,8 +58,10 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(settings_bp, url_prefix="/settings")
 
     from job_agent.dashboard.routes.actions import bp as actions_bp
+    from job_agent.dashboard.routes.discord_webhook import bp as discord_bp
 
     app.register_blueprint(actions_bp, url_prefix="/actions")
+    app.register_blueprint(discord_bp, url_prefix="/discord")
 
     # Teardown session
     @app.teardown_appcontext

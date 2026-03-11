@@ -88,3 +88,33 @@ def data_timeline():
         )
     finally:
         session.close()
+
+
+@bp.route("/digest")
+def digest():
+    """Generate and return the weekly stats digest as JSON."""
+    from job_agent.orchestrator.digest import generate_digest, format_digest_text
+
+    settings = current_app.config["SETTINGS"]
+    stats = generate_digest(settings)
+    text = format_digest_text(stats)
+    return jsonify(stats=stats, text=text)
+
+
+@bp.route("/digest/send", methods=["POST"])
+def send_digest():
+    """Generate and send the weekly stats digest via email."""
+    from job_agent.orchestrator.digest import (
+        generate_digest,
+        format_digest_text,
+        send_digest_email,
+    )
+
+    settings = current_app.config["SETTINGS"]
+    stats = generate_digest(settings)
+    text = format_digest_text(stats)
+    sent = send_digest_email(settings, text)
+
+    if sent:
+        return jsonify(ok=True, message="Digest email sent")
+    return jsonify(ok=False, message="SMTP not configured or send failed"), 400

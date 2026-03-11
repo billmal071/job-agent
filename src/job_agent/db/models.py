@@ -90,7 +90,11 @@ class Job(Base):
     status: Mapped[JobStatus] = mapped_column(
         Enum(JobStatus), default=JobStatus.DISCOVERED
     )
+    bookmarked: Mapped[bool] = mapped_column(Boolean, default=False)
     profile_name: Mapped[str] = mapped_column(String(255), default="")
+    duplicate_of_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("jobs.id"), nullable=True, default=None
+    )
     discovered_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=_utcnow, onupdate=_utcnow

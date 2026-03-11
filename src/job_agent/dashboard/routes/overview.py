@@ -48,6 +48,9 @@ def index():
             else 0.0
         )
 
+        # Follow-up reminders
+        followups = app_repo.list_needing_followup(days=7)
+
         # Recent activity from agent runs
         recent_runs = run_repo.get_latest(limit=20)
 
@@ -71,6 +74,7 @@ def index():
             failed=failed,
             status_counts=status_counts,
             recent_runs=recent_runs,
+            followups=followups,
             profiles=profiles,
         )
     finally:

@@ -23,7 +23,15 @@ https://github.com/billmal071/job-agent/releases/download/v0.1.0/demo.mp4
 - **Anti-Detection** — Camoufox stealth browser, human-like typing/mouse, random delays, session rotation
 - **Email-to-Apply** — Detects "email your resume" pages and sends applications via SMTP with resume/cover letter attached
 - **Scheduling** — APScheduler with configurable activity windows (default 8am–11pm)
-- **Notifications** — Email (SMTP) and webhooks (Slack/Discord)
+- **Notifications** — Email (SMTP), webhooks (Slack/Discord), Telegram
+- **Interactive Bots** — Telegram bot (long-polling) and Discord bot (slash commands) for approving/rejecting jobs, checking queue and stats from your phone
+- **Job Bookmarking** — Bookmark interesting jobs for later review
+- **Cross-Platform Dedup** — Detects duplicate postings across platforms by normalized title + company
+- **Follow-Up Reminders** — Dashboard shows applications pending 7+ days without response
+- **Stats Digest** — Generate and email daily/weekly summary of job search activity
+- **Bulk Actions** — Approve or reject multiple queued jobs at once from the dashboard
+- **Export Documents** — Download tailored resumes and cover letters per application
+- **Proxy Support** — Route browser traffic through HTTP/SOCKS proxies
 - **Security** — Fernet-encrypted credentials, SQLite outside repo, browser state persistence
 
 ## Quick Start
@@ -141,12 +149,12 @@ The web dashboard at `http://127.0.0.1:5000` provides:
 
 | Page | Description |
 |------|-------------|
-| **Overview** | Summary stats, recent activity timeline, agent run history |
-| **Jobs** | All discovered jobs with match scores, details, and filtering by status |
-| **Review Queue** | Medium-scoring jobs awaiting approval. Approve or reject — approved jobs are applied to on the next run |
-| **Applications** | All submitted applications with status tracking (pending, submitted, confirmed, failed). Export to CSV |
+| **Overview** | Summary stats, recent activity, agent run history, follow-up reminders for stale applications |
+| **Jobs** | All discovered jobs with match scores, skill insights, bookmark toggle, duplicate badges, filtering by status |
+| **Review Queue** | Medium-scoring jobs awaiting approval. Bulk approve/reject with checkboxes, select-all |
+| **Applications** | Submitted applications with status tracking, retry failed apps, download tailored resumes and cover letters |
 | **Outreach** | AI-generated cold emails and LinkedIn connection request drafts. Track engagement status |
-| **Analytics** | Score distribution histogram, activity timeline, platform breakdown charts |
+| **Analytics** | Score distribution histogram, activity timeline, platform breakdown charts, stats digest |
 | **Settings** | AI provider, platform credentials, matching thresholds, email/Slack notifications, CV-to-profile generator |
 
 ### Dashboard Actions
@@ -154,13 +162,64 @@ The web dashboard at `http://127.0.0.1:5000` provides:
 From the dashboard you can:
 
 - **Run the pipeline** on demand (discover, match, apply)
-- **Approve/reject** jobs in the review queue
+- **Approve/reject** jobs in the review queue (individually or in bulk)
+- **Bookmark** jobs for later review
+- **Retry** failed applications
+- **Download** tailored resumes and cover letters per application
 - **Configure AI provider** and API keys (no restart needed)
 - **Add platform credentials** (encrypted with Fernet)
 - **Adjust thresholds** for auto-apply and review queue
 - **Upload your CV** to auto-generate a search profile
 - **Set up notifications** — email alerts and Slack/Discord webhooks
 - **Export** application data to CSV
+
+## Telegram & Discord Bots
+
+Manage your job queue from your phone via interactive bot commands.
+
+### Telegram Bot
+
+```bash
+# Interactive setup (writes to .env for you)
+uv run job-agent bot setup
+
+# Or set manually in .env:
+# TELEGRAM_BOT_TOKEN=your-token-from-botfather
+# TELEGRAM_CHAT_ID=your-chat-id
+
+# Start the bot (long-polling, no public URL needed)
+uv run job-agent bot telegram
+```
+
+### Discord Bot
+
+Discord uses slash commands via HTTP interactions — requires the dashboard to be publicly accessible.
+
+```bash
+# Set in .env:
+# DISCORD_BOT_TOKEN=your-bot-token
+# DISCORD_APPLICATION_ID=your-app-id
+# DISCORD_PUBLIC_KEY=your-public-key
+
+# Register slash commands (instant for a specific guild)
+uv run job-agent bot discord-register --guild-id YOUR_GUILD_ID
+
+# Start the dashboard (serves the /discord/interactions endpoint)
+uv run job-agent dashboard
+```
+
+Set your Discord Interactions Endpoint URL to `https://your-domain/discord/interactions`.
+
+### Bot Commands
+
+| Command | Description |
+|---------|-------------|
+| `/queue` | List jobs awaiting review |
+| `/approve <id>` | Approve a queued job |
+| `/reject <id>` | Reject a queued job |
+| `/stats` | Show job and application statistics |
+| `/bookmarks` | List bookmarked jobs |
+| `/help` | Show available commands |
 
 ## Multiple Profiles
 
@@ -286,11 +345,12 @@ job-agent/
 │   ├── ai/                  # AI client, matching, resume tailoring, cover letters,
 │   │                        #   screening question answerer, cold email generator,
 │   │                        #   CV-to-profile generator
+│   ├── bots/                # Interactive bots: Telegram (long-polling), Discord (slash commands)
 │   ├── browser/             # Playwright/Camoufox: manager, stealth, humanizer, auth
 │   ├── dashboard/           # Flask web UI: routes, templates, static assets
 │   ├── db/                  # SQLAlchemy models, session management, repositories
-│   ├── notifications/       # Email (SMTP) and webhook (Slack/Discord) notifiers
-│   ├── orchestrator/        # Pipeline engine, scheduler, review queue manager
+│   ├── notifications/       # Email (SMTP), webhook (Slack/Discord), Telegram notifiers
+│   ├── orchestrator/        # Pipeline engine, scheduler, review queue, stats digest
 │   ├── platforms/           # Platform drivers:
 │   │   ├── linkedin/        #   Discovery + Easy Apply + external redirect
 │   │   ├── indeed/          #   Discovery + Easy Apply + external redirect
@@ -314,7 +374,7 @@ job-agent/
 ## Testing
 
 ```bash
-uv run pytest tests/ -v
+uv run pytest tests/ -v   # 161 tests
 ```
 
 ## License

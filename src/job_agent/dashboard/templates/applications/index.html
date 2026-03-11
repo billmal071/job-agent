@@ -27,6 +27,7 @@
                         <th>Platform</th>
                         <th>Status</th>
                         <th>Applied</th>
+                        <th>Documents</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -47,6 +48,23 @@
                             <span class="badge {{ status_map.get(app.status.value, 'badge-neutral') }}">{{ app.status.value }}</span>
                         </td>
                         <td class="mono" style="font-size: 0.78rem;">{{ app.applied_at.strftime('%m/%d %H:%M') if app.applied_at else app.created_at.strftime('%m/%d %H:%M') }}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.25rem;">
+                                {% if app.resume_path %}
+                                <a href="/applications/{{ app.id }}/download-resume" class="btn btn-ghost btn-sm" title="Download Resume" target="_blank">
+                                    <i class="bi bi-file-earmark-pdf"></i> Resume
+                                </a>
+                                {% endif %}
+                                {% if app.cover_letter_path %}
+                                <a href="/applications/{{ app.id }}/download-cover-letter" class="btn btn-ghost btn-sm" title="Download Cover Letter" target="_blank">
+                                    <i class="bi bi-file-earmark-text"></i> Cover
+                                </a>
+                                {% endif %}
+                                {% if not app.resume_path and not app.cover_letter_path %}
+                                <span class="text-muted" style="font-size: 0.72rem;">--</span>
+                                {% endif %}
+                            </div>
+                        </td>
                         <td>
                             {% if app.status.value in ('failed', 'withdrawn') %}
                             <button class="btn btn-ghost btn-sm"

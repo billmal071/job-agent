@@ -13,6 +13,14 @@
     <div style="display: flex; align-items: center; gap: 0.5rem;">
         <span class="text-sm text-muted mono">{{ queue|length }} awaiting review</span>
         {% if queue %}
+        <button class="btn btn-success btn-sm" id="bulk-approve-btn" style="display:none;"
+                onclick="bulkAction('approve')" title="Approve selected">
+            <i class="bi bi-check-all"></i> Approve Selected (<span id="selected-count">0</span>)
+        </button>
+        <button class="btn btn-danger btn-sm" id="bulk-reject-btn" style="display:none;"
+                onclick="bulkAction('reject')" title="Reject selected">
+            <i class="bi bi-x-circle"></i> Reject Selected
+        </button>
         <button class="btn btn-success btn-sm"
                 hx-post="/queue/approve-all"
                 hx-target="#action-status"
@@ -37,6 +45,7 @@
     <table class="data-table sortable-table" id="queue-table">
         <thead>
             <tr>
+                <th style="width: 2rem;"><input type="checkbox" id="select-all" onchange="toggleAll(this)"></th>
                 <th data-sort="string" class="sortable">Title <i class="bi bi-chevron-expand sort-icon"></i></th>
                 <th data-sort="string" class="sortable">Company <i class="bi bi-chevron-expand sort-icon"></i></th>
                 <th data-sort="string" class="sortable">Location <i class="bi bi-chevron-expand sort-icon"></i></th>
@@ -49,6 +58,7 @@
         <tbody>
             {% for item in queue %}
             <tr id="queue-item-{{ item.job.id }}">
+                <td><input type="checkbox" class="queue-checkbox" value="{{ item.job.id }}" onchange="updateBulkButtons()"></td>
                 <td>
                     <a href="{{ item.job.url }}" target="_blank" style="font-weight: 600; color: var(--text-primary);">
                         {{ item.job.title }}
@@ -116,14 +126,15 @@
     var currentSort = { col: -1, asc: true };
 
     headers.forEach(function(header, index) {
+        // +1 offset for checkbox column
+        var colIndex = index + 1;
         header.style.cursor = 'pointer';
         header.style.userSelect = 'none';
         header.addEventListener('click', function() {
             var sortType = header.getAttribute('data-sort');
-            var asc = currentSort.col === index ? !currentSort.asc : true;
-            currentSort = { col: index, asc: asc };
+            var asc = currentSort.col === colIndex ? !currentSort.asc : true;
+            currentSort = { col: colIndex, asc: asc };
 
-            // Update sort icons
             headers.forEach(function(h) {
                 h.querySelector('.sort-icon').className = 'bi bi-chevron-expand sort-icon';
             });
@@ -134,8 +145,8 @@
             var rows = Array.from(tbody.querySelectorAll('tr'));
 
             rows.sort(function(a, b) {
-                var cellA = a.children[index];
-                var cellB = b.children[index];
+                var cellA = a.children[colIndex];
+                var cellB = b.children[colIndex];
                 var valA, valB;
 
                 if (sortType === 'number') {
@@ -155,6 +166,52 @@
         });
     });
 })();
+
+function toggleAll(source) {
+    var checkboxes = document.querySelectorAll('.queue-checkbox');
+    checkboxes.forEach(function(cb) { cb.checked = source.checked; });
+    updateBulkButtons();
+}
+
+function updateBulkButtons() {
+    var checked = document.querySelectorAll('.queue-checkbox:checked');
+    var count = checked.length;
+    document.getElementById('bulk-approve-btn').style.display = count > 0 ? '' : 'none';
+    document.getElementById('bulk-reject-btn').style.display = count > 0 ? '' : 'none';
+    document.getElementById('selected-count').textContent = count;
+}
+
+function bulkAction(action) {
+    var checked = document.querySelectorAll('.queue-checkbox:checked');
+    var ids = Array.from(checked).map(function(cb) { return cb.value; });
+    if (ids.length === 0) return;
+
+    var label = action === 'approve' ? 'Approve' : 'Reject';
+    if (!confirm(label + ' ' + ids.length + ' selected job(s)?')) return;
+
+    fetch('/queue/bulk-action', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: action, job_ids: ids.map(Number)})
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        var statusDiv = document.getElementById('action-status');
+        var alert = document.createElement('div');
+        alert.className = 'alert ' + (data.ok ? 'alert-success' : 'alert-danger');
+        alert.textContent = data.message;
+        statusDiv.replaceChildren(alert);
+        // Remove processed rows
+        if (data.ok) {
+            ids.forEach(function(id) {
+                var row = document.getElementById('queue-item-' + id);
+                if (row) row.remove();
+            });
+        }
+        updateBulkButtons();
+        document.getElementById('select-all').checked = false;
+    });
+}
 </script>
 {% else %}
 <div class="empty-state animate-in delay-2">

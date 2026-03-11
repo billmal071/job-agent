@@ -24,6 +24,7 @@ def index():
         # Filter parameters
         platform_filter = request.args.get("platform")
         status_filter = request.args.get("status")
+        bookmark_filter = request.args.get("bookmarked")
         score_min = request.args.get("score_min", type=float)
         score_max = request.args.get("score_max", type=float)
         page = request.args.get("page", 1, type=int)
@@ -44,9 +45,14 @@ def index():
             except ValueError:
                 pass
 
+        bookmarked = None
+        if bookmark_filter == "1":
+            bookmarked = True
+
         jobs = job_repo.list_all(
             platform=platform,
             status=status,
+            bookmarked=bookmarked,
             limit=per_page,
             offset=offset,
         )
@@ -74,8 +80,36 @@ def index():
             current_status=status_filter or "",
             current_score_min=score_min,
             current_score_max=score_max,
+            current_bookmarked=bookmark_filter or "",
             page=page,
         )
+    finally:
+        session.close()
+
+
+@bp.route("/<int:job_id>/bookmark", methods=["POST"])
+def toggle_bookmark(job_id: int):
+    """Toggle bookmark on a job. Returns HTMX snippet."""
+    session = get_session(current_app.config["SETTINGS"])
+    try:
+        job_repo = JobRepository(session)
+        job = job_repo.toggle_bookmark(job_id)
+        session.commit()
+
+        if job is None:
+            return '<span class="text-muted">Not found</span>', 404
+
+        icon = "bi-bookmark-fill" if job.bookmarked else "bi-bookmark"
+        cls = "btn-warning" if job.bookmarked else "btn-ghost"
+        return (
+            f'<button class="btn {cls} btn-sm" '
+            f'hx-post="/jobs/{job_id}/bookmark" '
+            f'hx-swap="outerHTML" title="Toggle bookmark">'
+            f'<i class="bi {icon}"></i></button>'
+        )
+    except Exception:
+        session.rollback()
+        return '<span class="text-muted">Error</span>', 500
     finally:
         session.close()
 

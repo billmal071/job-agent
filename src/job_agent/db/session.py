@@ -44,9 +44,29 @@ def get_session(settings: Settings | None = None) -> Session:
 
 
 def init_db(settings: Settings | None = None) -> None:
-    """Create all database tables."""
+    """Create all database tables and migrate missing columns."""
     engine = get_engine(settings)
     Base.metadata.create_all(engine)
+    _migrate(engine)
+
+
+def _migrate(engine) -> None:
+    """Add columns that may be missing from an older schema."""
+    import sqlalchemy
+
+    migrations = [
+        ("jobs", "bookmarked", "BOOLEAN DEFAULT 0"),
+        ("jobs", "duplicate_of_id", "INTEGER REFERENCES jobs(id)"),
+    ]
+
+    with engine.connect() as conn:
+        for table, column, col_def in migrations:
+            try:
+                conn.execute(sqlalchemy.text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
+                conn.commit()
+            except sqlalchemy.exc.OperationalError:
+                # Column already exists
+                conn.rollback()
 
 
 def reset_engine() -> None:

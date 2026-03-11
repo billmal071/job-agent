@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from flask import Blueprint, render_template, current_app
+from flask import Blueprint, render_template, current_app, request, jsonify
 
 from job_agent.db.session import get_session
 from job_agent.db.repository import JobRepository
@@ -102,6 +102,42 @@ def approve_all():
     except Exception:
         session.rollback()
         return '<div class="alert alert-danger">Failed to approve jobs</div>', 500
+    finally:
+        session.close()
+
+
+@bp.route("/bulk-action", methods=["POST"])
+def bulk_action():
+    """Approve or reject multiple queued jobs. Expects JSON {action, job_ids}."""
+    session = get_session(current_app.config["SETTINGS"])
+    try:
+        data = request.get_json(silent=True) or {}
+        action = data.get("action")
+        job_ids = data.get("job_ids", [])
+
+        if action not in ("approve", "reject"):
+            return jsonify(ok=False, message="Invalid action"), 400
+        if not job_ids or not isinstance(job_ids, list):
+            return jsonify(ok=False, message="No jobs selected"), 400
+
+        target_status = (
+            JobStatus.APPROVED if action == "approve" else JobStatus.REJECTED
+        )
+        job_repo = JobRepository(session)
+        count = 0
+        for jid in job_ids:
+            result = job_repo.update_status(jid, target_status)
+            if result is not None:
+                count += 1
+        session.commit()
+
+        verb = "Approved" if action == "approve" else "Rejected"
+        return jsonify(
+            ok=True, message=f"{verb} {count} job{'s' if count != 1 else ''}"
+        )
+    except Exception:
+        session.rollback()
+        return jsonify(ok=False, message="Failed to process bulk action"), 500
     finally:
         session.close()
 

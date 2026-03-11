@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import getpass
+from pathlib import Path
 
 import click
 
@@ -159,6 +160,129 @@ def cmd_dashboard(ctx: click.Context) -> None:
     )
 
 
+@cli.group("bot")
+@click.pass_context
+def cmd_bot(ctx: click.Context) -> None:
+    """Manage interactive bots (Telegram, Discord)."""
+    pass
+
+
+@cmd_bot.command("telegram")
+@click.pass_context
+def cmd_bot_telegram(ctx: click.Context) -> None:
+    """Start the interactive Telegram bot (long-polling)."""
+    from job_agent.bots.telegram_bot import TelegramBot
+
+    settings = ctx.obj["settings"]
+    init_db(settings)
+    bot = TelegramBot(settings)
+    click.echo("Starting Telegram bot... (Ctrl+C to stop)")
+    bot.start()
+
+
+@cmd_bot.command("setup")
+@click.pass_context
+def cmd_bot_setup(ctx: click.Context) -> None:
+    """Interactive setup wizard for Telegram and Discord bots."""
+    click.echo("=== Bot Setup ===\n")
+
+    # --- Telegram ---
+    click.echo("-- Telegram Bot --")
+    click.echo("  1. Message @BotFather on Telegram and send /newbot")
+    click.echo("  2. Follow the prompts to name your bot")
+    click.echo("  3. Copy the bot token BotFather gives you\n")
+
+    if click.confirm("Set up Telegram bot now?", default=True):
+        token = click.prompt("  Bot token (from BotFather)")
+        click.echo("\n  To get your chat ID:")
+        click.echo("  1. Send /start to your new bot in Telegram")
+        click.echo(f"  2. Visit: https://api.telegram.org/bot{token}/getUpdates")
+        click.echo("  3. Look for \"chat\":{\"id\":XXXXXXX} in the response\n")
+        chat_id = click.prompt("  Your chat ID")
+
+        click.echo("\n  Add these to your .env file:")
+        click.echo(f"    TELEGRAM_BOT_TOKEN={token}")
+        click.echo(f"    TELEGRAM_CHAT_ID={chat_id}")
+
+        env_path = Path(".env")
+        if click.confirm("\n  Write to .env automatically?", default=True):
+            lines = []
+            if env_path.exists():
+                existing = env_path.read_text()
+                for line in existing.splitlines():
+                    if not line.startswith(("TELEGRAM_BOT_TOKEN=", "TELEGRAM_CHAT_ID=")):
+                        lines.append(line)
+            lines.append(f"TELEGRAM_BOT_TOKEN={token}")
+            lines.append(f"TELEGRAM_CHAT_ID={chat_id}")
+            env_path.write_text("\n".join(lines) + "\n")
+            click.echo("  Saved to .env\n")
+        click.echo("  Start with: job-agent bot telegram\n")
+
+    # --- Discord ---
+    click.echo("-- Discord Bot --")
+    click.echo("  1. Go to https://discord.com/developers/applications")
+    click.echo("  2. Create a New Application")
+    click.echo("  3. Go to Bot tab and copy the token")
+    click.echo("  4. Copy Application ID and Public Key from General tab")
+    click.echo("  5. Invite bot: OAuth2 > URL Generator > scopes: bot, applications.commands\n")
+
+    if click.confirm("Set up Discord bot now?", default=False):
+        bot_token = click.prompt("  Bot token")
+        app_id = click.prompt("  Application ID")
+        pub_key = click.prompt("  Public Key")
+
+        click.echo("\n  Add these to your .env file:")
+        click.echo(f"    DISCORD_BOT_TOKEN={bot_token}")
+        click.echo(f"    DISCORD_APPLICATION_ID={app_id}")
+        click.echo(f"    DISCORD_PUBLIC_KEY={pub_key}")
+
+        env_path = Path(".env")
+        if click.confirm("\n  Write to .env automatically?", default=True):
+            lines = []
+            if env_path.exists():
+                existing = env_path.read_text()
+                for line in existing.splitlines():
+                    if not line.startswith((
+                        "DISCORD_BOT_TOKEN=",
+                        "DISCORD_APPLICATION_ID=",
+                        "DISCORD_PUBLIC_KEY=",
+                    )):
+                        lines.append(line)
+            lines.append(f"DISCORD_BOT_TOKEN={bot_token}")
+            lines.append(f"DISCORD_APPLICATION_ID={app_id}")
+            lines.append(f"DISCORD_PUBLIC_KEY={pub_key}")
+            env_path.write_text("\n".join(lines) + "\n")
+            click.echo("  Saved to .env\n")
+
+        click.echo("  Next steps:")
+        click.echo("    1. Set Interactions Endpoint URL in Discord Developer Portal")
+        click.echo("       to: https://your-domain/discord/interactions")
+        click.echo("    2. Register commands: job-agent bot discord-register --guild-id YOUR_GUILD_ID")
+        click.echo("    3. Start the dashboard: job-agent dashboard\n")
+
+    click.echo("Done! Run 'job-agent bot telegram' or 'job-agent dashboard' to get started.")
+
+
+@cmd_bot.command("discord-register")
+@click.option(
+    "--guild-id", default=None, help="Guild ID for instant command availability."
+)
+@click.pass_context
+def cmd_bot_discord_register(ctx: click.Context, guild_id: str | None) -> None:
+    """Register Discord slash commands."""
+    from job_agent.bots.discord_interactions import DiscordInteractionHandler
+
+    settings = ctx.obj["settings"]
+    handler = DiscordInteractionHandler(settings)
+    if handler.register_commands(guild_id=guild_id):
+        scope = f"guild {guild_id}" if guild_id else "global (may take up to 1h)"
+        click.echo(f"Discord commands registered ({scope}).")
+    else:
+        click.echo(
+            "Failed to register Discord commands. Check bot_token and application_id."
+        )
+
+
 @cli.command("setup")
 @click.pass_context
 def cmd_setup(ctx: click.Context) -> None:
@@ -197,6 +321,10 @@ def cmd_setup(ctx: click.Context) -> None:
                     click.echo(f"    {p} credentials saved.\n")
                 finally:
                     session.close()
+
+    # Step 4: Bot setup
+    if click.confirm("Step 4: Set up Telegram or Discord bot notifications?"):
+        ctx.invoke(cmd_bot_setup)
 
     click.echo("\nSetup complete! Next steps:")
     click.echo(

@@ -84,6 +84,45 @@
     </div>
 </div>
 
+<!-- Follow-up Reminders -->
+{% if followups %}
+<div class="card animate-in delay-5">
+    <div class="card-header">
+        <h5><i class="bi bi-bell" style="margin-right: 0.3rem; opacity: 0.5;"></i> Follow-up Reminders</h5>
+        <span class="text-sm text-muted">{{ followups|length }} application{{ 's' if followups|length != 1 }} pending 7+ days</span>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Job Title</th>
+                        <th>Company</th>
+                        <th>Applied</th>
+                        <th>Days Ago</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in followups %}
+                    <tr class="row-link" onclick="window.location='/jobs/{{ app.job.id }}'">
+                        <td style="font-weight: 600;">{{ app.job.title }}</td>
+                        <td>{{ app.job.company }}</td>
+                        <td class="mono" style="font-size: 0.78rem;">{{ app.applied_at.strftime('%m/%d') if app.applied_at else '-' }}</td>
+                        <td>
+                            {% if app.applied_at %}
+                            {% set days = ((now() - app.applied_at).days) if now is defined else '?' %}
+                            <span class="badge badge-amber">{{ days }}d</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Recent Activity -->
 <div class="card animate-in delay-5">
     <div class="card-header">

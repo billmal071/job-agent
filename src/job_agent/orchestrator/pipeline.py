@@ -167,6 +167,10 @@ def discover_jobs(
             stored: list[Job] = []
             for posting in postings:
                 if not job_repo.exists(posting.external_id, posting.platform):
+                    # Check cross-platform duplicate
+                    duplicate_of = job_repo.find_cross_platform_duplicate(
+                        posting.title, posting.company, posting.platform
+                    )
                     job = job_repo.create(
                         external_id=posting.external_id,
                         platform=posting.platform,
@@ -178,9 +182,19 @@ def discover_jobs(
                         salary=posting.salary,
                         easy_apply=posting.easy_apply,
                         remote=posting.remote,
+                        duplicate_of_id=duplicate_of.id if duplicate_of else None,
                     )
-                    stored.append(job)
-                    log.info("job_discovered", title=job.title, company=job.company)
+                    if duplicate_of:
+                        job.status = JobStatus.REJECTED
+                        log.info(
+                            "job_duplicate_skipped",
+                            title=job.title,
+                            company=job.company,
+                            original_platform=duplicate_of.platform.value,
+                        )
+                    else:
+                        stored.append(job)
+                        log.info("job_discovered", title=job.title, company=job.company)
 
             session.commit()
             driver.close()

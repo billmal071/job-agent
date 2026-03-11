@@ -64,6 +64,7 @@ class JobRepository:
         self,
         platform: Platform | None = None,
         status: JobStatus | None = None,
+        bookmarked: bool | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[Job]:
@@ -72,6 +73,8 @@ class JobRepository:
             stmt = stmt.where(Job.platform == platform)
         if status:
             stmt = stmt.where(Job.status == status)
+        if bookmarked is not None:
+            stmt = stmt.where(Job.bookmarked == bookmarked)
         stmt = stmt.order_by(Job.discovered_at.desc()).limit(limit).offset(offset)
         return list(self.session.scalars(stmt).all())
 
@@ -82,9 +85,35 @@ class JobRepository:
             self.session.flush()
         return job
 
+    def toggle_bookmark(self, job_id: int) -> Job | None:
+        """Toggle the bookmarked flag on a job. Returns updated job or None."""
+        job = self.get_by_id(job_id)
+        if job:
+            job.bookmarked = not job.bookmarked
+            self.session.flush()
+        return job
+
     def count_by_status(self) -> dict[str, int]:
         stmt = select(Job.status, func.count(Job.id)).group_by(Job.status)
         return {status.value: count for status, count in self.session.execute(stmt)}
+
+    def find_cross_platform_duplicate(
+        self, title: str, company: str, platform: Platform
+    ) -> Job | None:
+        """Find an existing job with the same title+company on a different platform."""
+        norm_title = title.strip().lower()
+        norm_company = company.strip().lower()
+        stmt = (
+            select(Job)
+            .where(
+                func.lower(func.trim(Job.title)) == norm_title,
+                func.lower(func.trim(Job.company)) == norm_company,
+                Job.platform != platform,
+            )
+            .order_by(Job.discovered_at.asc())
+            .limit(1)
+        )
+        return self.session.scalars(stmt).first()
 
 
 class MatchResultRepository:
@@ -151,6 +180,21 @@ class ApplicationRepository:
         if status:
             stmt = stmt.where(Application.status == status)
         stmt = stmt.order_by(Application.created_at.desc()).limit(limit)
+        return list(self.session.scalars(stmt).all())
+
+    def list_needing_followup(self, days: int = 7) -> list[Application]:
+        """Return submitted applications with no response after N days."""
+        from datetime import timedelta
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        stmt = (
+            select(Application)
+            .where(
+                Application.status == ApplicationStatus.SUBMITTED,
+                Application.applied_at <= cutoff,
+            )
+            .order_by(Application.applied_at.asc())
+        )
         return list(self.session.scalars(stmt).all())
 
     def count_today(self, platform: Platform) -> int:

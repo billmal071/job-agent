@@ -1,4 +1,4 @@
-"""Tests for application retry route."""
+"""Tests for application retry and document download routes."""
 
 from __future__ import annotations
 
@@ -162,6 +162,161 @@ def test_retry_not_found():
                 resp = client.post("/applications/retry/9999")
                 assert resp.status_code == 404
                 assert b"not found" in resp.data
+    finally:
+        session.close()
+        engine.dispose()
+        reset_engine()
+
+
+def test_download_resume(tmp_path):
+    """Download resume returns the file when it exists."""
+    reset_engine()
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    session = Session()
+
+    resume_file = tmp_path / "resume.pdf"
+    resume_file.write_bytes(b"%PDF-fake-content")
+
+    job = Job(
+        external_id="dl-1",
+        platform=Platform.LINKEDIN,
+        title="Dev",
+        company="DlCo",
+        status=JobStatus.APPLIED,
+    )
+    session.add(job)
+    session.flush()
+    application = Application(
+        job_id=job.id,
+        status=ApplicationStatus.SUBMITTED,
+        resume_path=str(resume_file),
+    )
+    session.add(application)
+    session.commit()
+    app_id = application.id
+
+    settings = Settings(
+        _env_file=None,
+        anthropic_api_key="test-key",
+        database_url="sqlite:///:memory:",
+        flask_secret_key="test-secret",
+    )
+
+    try:
+        with patch(
+            "job_agent.dashboard.routes.applications.get_session",
+            return_value=session,
+        ):
+            app = create_app(settings)
+            app.config["TESTING"] = True
+            with app.test_client() as client:
+                resp = client.get(f"/applications/{app_id}/download-resume")
+                assert resp.status_code == 200
+                assert b"%PDF-fake-content" in resp.data
+    finally:
+        session.close()
+        engine.dispose()
+        reset_engine()
+
+
+def test_download_resume_no_path():
+    """Download resume returns 404 when application has no resume path."""
+    reset_engine()
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    session = Session()
+
+    job = Job(
+        external_id="dl-2",
+        platform=Platform.LINKEDIN,
+        title="Dev",
+        company="NoCo",
+        status=JobStatus.APPLIED,
+    )
+    session.add(job)
+    session.flush()
+    application = Application(
+        job_id=job.id,
+        status=ApplicationStatus.SUBMITTED,
+        resume_path="",
+    )
+    session.add(application)
+    session.commit()
+    app_id = application.id
+
+    settings = Settings(
+        _env_file=None,
+        anthropic_api_key="test-key",
+        database_url="sqlite:///:memory:",
+        flask_secret_key="test-secret",
+    )
+
+    try:
+        with patch(
+            "job_agent.dashboard.routes.applications.get_session",
+            return_value=session,
+        ):
+            app = create_app(settings)
+            app.config["TESTING"] = True
+            with app.test_client() as client:
+                resp = client.get(f"/applications/{app_id}/download-resume")
+                assert resp.status_code == 404
+    finally:
+        session.close()
+        engine.dispose()
+        reset_engine()
+
+
+def test_download_cover_letter(tmp_path):
+    """Download cover letter returns the file when it exists."""
+    reset_engine()
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    session = Session()
+
+    cl_file = tmp_path / "cover.pdf"
+    cl_file.write_bytes(b"%PDF-cover-letter")
+
+    job = Job(
+        external_id="dl-3",
+        platform=Platform.LINKEDIN,
+        title="Dev",
+        company="ClCo",
+        status=JobStatus.APPLIED,
+    )
+    session.add(job)
+    session.flush()
+    application = Application(
+        job_id=job.id,
+        status=ApplicationStatus.SUBMITTED,
+        cover_letter_path=str(cl_file),
+    )
+    session.add(application)
+    session.commit()
+    app_id = application.id
+
+    settings = Settings(
+        _env_file=None,
+        anthropic_api_key="test-key",
+        database_url="sqlite:///:memory:",
+        flask_secret_key="test-secret",
+    )
+
+    try:
+        with patch(
+            "job_agent.dashboard.routes.applications.get_session",
+            return_value=session,
+        ):
+            app = create_app(settings)
+            app.config["TESTING"] = True
+            with app.test_client() as client:
+                resp = client.get(f"/applications/{app_id}/download-cover-letter")
+                assert resp.status_code == 200
+                assert b"%PDF-cover-letter" in resp.data
     finally:
         session.close()
         engine.dispose()
