@@ -1,7 +1,8 @@
-"""Settings page routes for credentials and thresholds."""
+"""Settings page routes for credentials, thresholds, and profile generation."""
 
 from __future__ import annotations
 
+import traceback
 from pathlib import Path
 
 from flask import (
@@ -12,6 +13,7 @@ from flask import (
     redirect,
     url_for,
     flash,
+    jsonify,
 )
 
 from job_agent.db.session import get_session
@@ -109,12 +111,20 @@ def index():
             "notification_email": settings.notification_email,
         }
 
+        # List existing profiles
+        profiles_dir = Path("config/profiles")
+        profiles = []
+        if profiles_dir.exists():
+            for p in sorted(profiles_dir.glob("*.yaml")):
+                profiles.append(p.stem)
+
         return render_template(
             "settings/index.html",
             credentials=credentials,
             thresholds=thresholds,
             ai_config=ai_config,
             email_config=email_config,
+            profiles=profiles,
         )
     finally:
         session.close()
@@ -240,4 +250,125 @@ def update_email():
         settings.notification_email = notification_email
 
     flash("Email settings updated.", "success")
+    return redirect(url_for("settings_page.index"))
+
+
+def _extract_text_from_pdf(file_bytes: bytes) -> str:
+    """Extract text from a PDF file using pymupdf."""
+    import fitz  # pymupdf
+
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    text_parts = []
+    for page in doc:
+        text_parts.append(page.get_text())
+    doc.close()
+    return "\n".join(text_parts)
+
+
+def _extract_text_from_docx(file_bytes: bytes) -> str:
+    """Extract text from a DOCX file."""
+    import zipfile
+    import io
+    import xml.etree.ElementTree as ET
+
+    zf = zipfile.ZipFile(io.BytesIO(file_bytes))
+    xml_content = zf.read("word/document.xml")
+    tree = ET.fromstring(xml_content)
+    ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+    paragraphs = []
+    for p in tree.iter(f"{{{ns['w']}}}p"):
+        texts = [t.text for t in p.iter(f"{{{ns['w']}}}t") if t.text]
+        if texts:
+            paragraphs.append("".join(texts))
+    return "\n".join(paragraphs)
+
+
+@bp.route("/generate-profile", methods=["POST"])
+def generate_profile():
+    """Generate a YAML profile from an uploaded CV/resume."""
+    settings = current_app.config["SETTINGS"]
+
+    uploaded = request.files.get("cv_file")
+    profile_name = request.form.get("profile_name", "").strip() or "generated"
+
+    if not uploaded or not uploaded.filename:
+        flash("Please upload a CV file (PDF or DOCX).", "danger")
+        return redirect(url_for("settings_page.index"))
+
+    filename = uploaded.filename.lower()
+    file_bytes = uploaded.read()
+
+    # Extract text
+    try:
+        if filename.endswith(".pdf"):
+            cv_text = _extract_text_from_pdf(file_bytes)
+        elif filename.endswith(".docx"):
+            cv_text = _extract_text_from_docx(file_bytes)
+        else:
+            flash("Unsupported file format. Please upload a PDF or DOCX.", "danger")
+            return redirect(url_for("settings_page.index"))
+    except Exception as e:
+        flash(f"Failed to read file: {e}", "danger")
+        return redirect(url_for("settings_page.index"))
+
+    if not cv_text.strip():
+        flash("Could not extract text from the uploaded file.", "danger")
+        return redirect(url_for("settings_page.index"))
+
+    # Generate profile via AI
+    try:
+        from job_agent.ai.client import AIClient
+        from job_agent.ai.prompts import CV_TO_PROFILE_TEMPLATE
+
+        ai = AIClient(settings)
+        prompt = CV_TO_PROFILE_TEMPLATE.render(cv_text=cv_text[:8000])
+
+        yaml_output = ai.complete(
+            prompt=prompt,
+            system="You are a career analyst. Output only valid YAML, nothing else.",
+            max_tokens=2048,
+            temperature=0.3,
+        )
+
+        # Strip any code fences the model might add
+        yaml_output = yaml_output.strip()
+        if yaml_output.startswith("```"):
+            yaml_output = "\n".join(yaml_output.split("\n")[1:])
+        if yaml_output.endswith("```"):
+            yaml_output = "\n".join(yaml_output.split("\n")[:-1])
+        yaml_output = yaml_output.strip()
+
+        # Validate it's parseable YAML
+        import yaml
+
+        parsed = yaml.safe_load(yaml_output)
+        if not isinstance(parsed, dict) or "name" not in parsed:
+            flash("AI generated invalid profile. Please try again.", "danger")
+            return redirect(url_for("settings_page.index"))
+
+        # Save to config/profiles/
+        safe_name = "".join(
+            c if c.isalnum() or c in "-_" else "-"
+            for c in profile_name.lower()
+        )
+        profile_path = Path("config/profiles") / f"{safe_name}.yaml"
+        profile_path.parent.mkdir(parents=True, exist_ok=True)
+        profile_path.write_text(yaml_output)
+
+        # Also save the uploaded CV as master resume
+        resume_dir = Path("config/resumes")
+        resume_dir.mkdir(parents=True, exist_ok=True)
+        ext = ".pdf" if filename.endswith(".pdf") else ".docx"
+        resume_path = resume_dir / f"master{ext}"
+        resume_path.write_bytes(file_bytes)
+
+        flash(
+            f"Profile generated and saved to {profile_path}. "
+            f"Resume saved to {resume_path}.",
+            "success",
+        )
+    except Exception as e:
+        traceback.print_exc()
+        flash(f"AI generation failed: {e}", "danger")
+
     return redirect(url_for("settings_page.index"))

@@ -176,6 +176,58 @@ Answer the following job application screening question by selecting the best op
 - Output ONLY the exact option text, nothing else
 """)
 
+CV_TO_PROFILE_TEMPLATE = _env.from_string("""\
+You are an expert career analyst. Extract a job search profile from the following CV/resume text.
+
+## CV Content
+{{ cv_text }}
+
+## Instructions
+Analyze the CV and produce a YAML job search profile. Infer the best target role, search keywords, skills, and preferences from the CV content.
+
+Respond with ONLY valid YAML (no code fences, no explanation), following this exact structure:
+
+name: "<inferred target role title>"
+
+search:
+  keywords:
+    - "<keyword 1 based on their experience>"
+    - "<keyword 2>"
+    - "<keyword 3>"
+  locations:
+    - "Remote"
+  experience_level: "<entry|mid|senior|lead - infer from years of experience>"
+  remote_preference: "remote_first"
+  salary_minimum: <infer from experience level, 0 if unsure>
+
+skills:
+  required:
+    - "<top skill 1>"
+    - "<top skill 2>"
+    - "<top skill 3>"
+  preferred:
+    - "<secondary skill 1>"
+    - "<secondary skill 2>"
+    - "<secondary skill 3>"
+
+exclusions:
+  companies: []
+  keywords:
+    - "unpaid"
+    - "intern"
+
+resume_template: "master"
+cover_letter_tone: "professional"
+
+Guidelines:
+- Extract REAL skills from the CV, don't invent them
+- Keywords should be job titles the person is qualified for
+- Experience level: 0-2 years = entry, 2-5 = mid, 5-10 = senior, 10+ = lead
+- Required skills = skills they have strong experience with (mentioned in multiple roles)
+- Preferred skills = skills they have some exposure to
+- Keep lists concise: 3-5 keywords, 3-6 required skills, 3-6 preferred skills
+""")
+
 SCREENING_ANSWER_TEMPLATE = _env.from_string("""\
 Answer the following job application screening question based on the candidate's profile.
 

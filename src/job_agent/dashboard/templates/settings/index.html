@@ -12,6 +12,45 @@
     </div>
 </div>
 
+<!-- Generate Profile from CV -->
+<div class="card animate-in delay-2" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <h5><i class="bi bi-file-earmark-person" style="margin-right: 0.5rem;"></i>Generate Profile from CV</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-sm text-muted" style="margin-bottom: 1rem;">
+            Upload your CV or resume and AI will automatically create a job search profile with your skills, experience level, and preferred roles.
+        </p>
+        <form method="post" action="/settings/generate-profile" enctype="multipart/form-data">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                <div>
+                    <label class="form-label">CV / Resume File</label>
+                    <input type="file" name="cv_file" class="form-control" accept=".pdf,.docx" required>
+                    <div class="text-sm text-muted" style="margin-top: 0.25rem;">PDF or DOCX format</div>
+                </div>
+                <div>
+                    <label class="form-label">Profile Name</label>
+                    <input type="text" name="profile_name" class="form-control" placeholder="e.g. senior-python" value="">
+                    <div class="text-sm text-muted" style="margin-top: 0.25rem;">Saved to config/profiles/&lt;name&gt;.yaml</div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-magic"></i> Generate Profile
+            </button>
+        </form>
+
+        {% if profiles %}
+        <hr class="divider">
+        <div class="form-label mb-2">Existing Profiles</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            {% for p in profiles %}
+            <span class="badge badge-blue">{{ p }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 <div class="settings-grid">
     <!-- AI Provider -->
     <div class="card animate-in delay-2">
