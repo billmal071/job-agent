@@ -84,15 +84,21 @@ class LinkedInDiscovery:
         """Extract job postings from the current search results page."""
         jobs: list[JobPosting] = []
 
-        # Wait for job cards to load
+        # Wait for job cards to load (multiple selector variants for LinkedIn layout changes)
         self.page.wait_for_selector(
-            ".jobs-search-results__list-item, .job-card-container",
+            ".scaffold-layout__list-item, "
+            ".jobs-search-results-list__list-item, "
+            ".jobs-search-results__list-item, "
+            ".job-card-container",
             timeout=10000,
         )
         human_delay(1000, 2000)
 
         cards = self.page.locator(
-            ".jobs-search-results__list-item, .job-card-container"
+            ".scaffold-layout__list-item, "
+            ".jobs-search-results-list__list-item, "
+            ".jobs-search-results__list-item, "
+            ".job-card-container"
         ).all()
 
         for card in cards:
@@ -106,7 +112,9 @@ class LinkedInDiscovery:
                         desc_el = self.page.locator(
                             ".jobs-description__content, "
                             ".jobs-box__html-content, "
-                            ".jobs-description-content__text"
+                            ".jobs-description-content__text, "
+                            ".jobs-description, "
+                            "#job-details"
                         ).first
                         if desc_el.count() > 0:
                             job.description = desc_el.inner_text().strip()
@@ -124,21 +132,25 @@ class LinkedInDiscovery:
         try:
             # Extract title
             title_el = card.locator(
-                ".job-card-list__title, .job-card-container__link"
+                ".job-card-list__title, "
+                ".job-card-container__link, "
+                ".artdeco-entity-lockup__title"
             ).first
             title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
             # Extract company
             company_el = card.locator(
                 ".job-card-container__primary-description, "
-                ".job-card-container__company-name"
+                ".job-card-container__company-name, "
+                ".artdeco-entity-lockup__subtitle"
             ).first
             company = company_el.inner_text().strip() if company_el.count() > 0 else ""
 
             # Extract location
             location_el = card.locator(
                 ".job-card-container__metadata-item, "
-                ".job-card-container__metadata-wrapper"
+                ".job-card-container__metadata-wrapper, "
+                ".artdeco-entity-lockup__caption"
             ).first
             location = (
                 location_el.inner_text().strip() if location_el.count() > 0 else ""
@@ -167,7 +179,8 @@ class LinkedInDiscovery:
                     ".job-card-container__apply-method, "
                     "[data-is-easy-apply-button], "
                     ".jobs-apply-button--top-card, "
-                    "li-icon[type='linkedin-bug']"
+                    "li-icon[type='linkedin-bug'], "
+                    ".job-card-container__footer-item--highlighted"
                 ).count()
                 > 0
                 or "easy apply" in card.inner_text().lower()
@@ -178,7 +191,9 @@ class LinkedInDiscovery:
 
             # Extract salary if visible
             salary = None
-            salary_el = card.locator(".job-card-container__salary-info").first
+            salary_el = card.locator(
+                ".job-card-container__salary-info, .artdeco-entity-lockup__metadata"
+            ).first
             if salary_el.count() > 0:
                 salary = salary_el.inner_text().strip()
 
@@ -202,12 +217,17 @@ class LinkedInDiscovery:
         try:
             self.rate_limiter.wait()
             next_btn = self.page.locator(
-                'button[aria-label="Next"], button.artdeco-pagination__button--next'
+                'button[aria-label="Next"], '
+                "button.artdeco-pagination__button--next, "
+                'button[aria-label="View next page"]'
             )
             if next_btn.count() > 0 and next_btn.is_enabled():
                 human_scroll(self.page, "down", 500)
                 human_delay(500, 1000)
-                human_click(self.page, 'button[aria-label="Next"]')
+                human_click(
+                    self.page,
+                    'button[aria-label="Next"], button[aria-label="View next page"]',
+                )
                 self.page.wait_for_load_state("domcontentloaded")
                 human_delay(2000, 4000)
                 return True
@@ -222,22 +242,33 @@ class LinkedInDiscovery:
         human_delay(2000, 4000)
 
         title = safe_text(
-            self.page, ".t-24.job-details-jobs-unified-top-card__job-title, h1"
+            self.page,
+            ".t-24.job-details-jobs-unified-top-card__job-title, "
+            ".job-details-jobs-unified-top-card__job-title, "
+            ".jobs-unified-top-card__job-title, "
+            "h1.t-24, "
+            "h1",
         )
         company = safe_text(
             self.page,
             ".job-details-jobs-unified-top-card__company-name, "
-            ".jobs-unified-top-card__company-name",
+            ".jobs-unified-top-card__company-name, "
+            ".artdeco-entity-lockup__subtitle",
         )
         location = safe_text(
             self.page,
             ".job-details-jobs-unified-top-card__primary-description-container span, "
-            ".jobs-unified-top-card__bullet",
+            ".jobs-unified-top-card__bullet, "
+            ".artdeco-entity-lockup__caption",
         )
 
         # Get full description
         description = safe_text(
-            self.page, ".jobs-description__content, .jobs-box__html-content"
+            self.page,
+            ".jobs-description__content, "
+            ".jobs-box__html-content, "
+            ".jobs-description, "
+            "#job-details",
         )
 
         # Extract job ID from URL
@@ -250,7 +281,9 @@ class LinkedInDiscovery:
                 ".jobs-apply-button, "
                 "[data-is-easy-apply-button], "
                 "button:has-text('Easy Apply'), "
-                ".jobs-apply-button--top-card"
+                "a:has-text('Easy Apply'), "
+                ".jobs-apply-button--top-card, "
+                ".jobs-s-apply button"
             ).count()
             > 0
             or "easy apply"
@@ -258,7 +291,10 @@ class LinkedInDiscovery:
         )
 
         salary = safe_text(
-            self.page, ".job-details-jobs-unified-top-card__job-insight--highlight span"
+            self.page,
+            ".job-details-jobs-unified-top-card__job-insight--highlight span, "
+            ".salary-main-rail__data-body, "
+            ".job-details-preferences-and-skills .t-14",
         )
 
         self.rate_limiter.success()
@@ -283,7 +319,10 @@ class LinkedInDiscovery:
         human_delay(1500, 3000)
         applied = (
             self.page.locator(
-                '.jobs-apply-button--applied, [aria-label*="Applied"]'
+                ".jobs-apply-button--applied, "
+                '[aria-label*="Applied"], '
+                ':text("Applied"), '
+                ".artdeco-inline-feedback--success"
             ).count()
             > 0
         )

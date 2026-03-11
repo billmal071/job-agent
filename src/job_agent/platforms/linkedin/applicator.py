@@ -208,7 +208,9 @@ class LinkedInApplicator(BaseApplicator):
         if file_input.count() > 0 and Path(resume_path).exists():
             # Check if there's already a resume uploaded
             existing = self.page.locator(
-                ".jobs-document-upload-redesign-card__file-name"
+                ".jobs-document-upload-redesign-card__file-name, "
+                ".jobs-document-upload__file-name, "
+                ".jobs-resume-upload__file-name"
             )
             if existing.count() == 0:
                 file_input.first.set_input_files(resume_path)
@@ -236,7 +238,11 @@ class LinkedInApplicator(BaseApplicator):
 
     def _handle_screening_questions(self, answers: dict[str, str] | None) -> None:
         """Answer screening questions using AI or provided answers dict."""
-        questions = self.page.locator(".jobs-easy-apply-form-section__grouping").all()
+        questions = self.page.locator(
+            ".jobs-easy-apply-form-section__grouping, "
+            ".jobs-easy-apply-form-element, "
+            ".fb-dash-form-element"
+        ).all()
 
         if not questions:
             return
