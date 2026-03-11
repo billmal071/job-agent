@@ -42,26 +42,24 @@ class AuthManager:
                 or p.locator(".feed-identity-module").count() > 0
                 or p.locator('nav[aria-label="Primary"]').count() > 0
             ),
-            Platform.INDEED: lambda p: p.locator(
-                '[data-gnav-element-name="AccountMenu"]'
-            ).count()
-            > 0,
-            Platform.GLASSDOOR: lambda p: p.locator(
-                '[data-test="header-profile"]'
-            ).count()
-            > 0,
-            Platform.ZIPRECRUITER: lambda p: p.locator(
-                '.navbar-user-menu, [data-testid="user-menu"]'
-            ).count()
-            > 0,
-            Platform.DICE: lambda p: p.locator(
-                '[data-testid="header-user-menu"], .user-menu'
-            ).count()
-            > 0,
-            Platform.WELLFOUND: lambda p: p.locator(
-                '[data-test="UserMenu"], .styles_component__NavBarAvatar'
-            ).count()
-            > 0,
+            Platform.INDEED: lambda p: (
+                p.locator('[data-gnav-element-name="AccountMenu"]').count() > 0
+            ),
+            Platform.GLASSDOOR: lambda p: (
+                p.locator('[data-test="header-profile"]').count() > 0
+            ),
+            Platform.ZIPRECRUITER: lambda p: (
+                p.locator('.navbar-user-menu, [data-testid="user-menu"]').count() > 0
+            ),
+            Platform.DICE: lambda p: (
+                p.locator('[data-testid="header-user-menu"], .user-menu').count() > 0
+            ),
+            Platform.WELLFOUND: lambda p: (
+                p.locator(
+                    '[data-test="UserMenu"], .styles_component__NavBarAvatar'
+                ).count()
+                > 0
+            ),
         }
         check = checks.get(platform)
         if not check:
