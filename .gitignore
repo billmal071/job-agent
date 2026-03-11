@@ -28,9 +28,16 @@ Thumbs.db
 # Project-specific
 *.db
 browser_state/
-*.pdf
 config/profiles/*.yaml
 !config/profiles/example.yaml
+config/resumes/
+
+# Scripts - personal/debug
+scripts/*_debug*.py
+scripts/test_*.py
+
+# Demo video (source kept locally, output in GitHub release)
+demo-video/
 
 # Testing
 .coverage

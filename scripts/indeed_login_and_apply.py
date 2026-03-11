@@ -317,7 +317,7 @@ def process_smartapply(page, resume_path, answerer):
 
 def main():
     settings = Settings()
-    profile = load_profile("config/profiles/williams.yaml")
+    profile = load_profile("config/profiles/example.yaml")
     ai_client = AIClient(settings)
     resume_tailor = ResumeTailor(ai_client, settings)
     cover_letter_gen = CoverLetterGenerator(ai_client, settings)

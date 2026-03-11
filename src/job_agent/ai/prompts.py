@@ -81,9 +81,9 @@ Tailor the following master resume for the specific job posting below. Optimize 
 5. Keep the EXACT same section structure as the master resume: PROFESSIONAL SUMMARY, SKILLS, PROFESSIONAL EXPERIENCE, EARLY CAREER, PROJECTS, EDUCATION/CERTIFICATIONS.
 
 ## Formatting Rules (follow exactly)
-- Name as `# MALACHY WILLIAMS CHUKWUEBUKA`
-- Contact line: `Remote | +234-810-7306-387 | [williams.c.malachy@gmail.com](mailto:...) | [Portfolio](https://...) | [LinkedIn](https://...) | [GitHub](https://...)`
-- IMPORTANT: Link labels must be human-readable — use the actual email address, not "Email Address". Use "Portfolio", "LinkedIn", "GitHub" as labels (these are fine since they're recognizable).
+- Preserve the candidate's name exactly as it appears in the master resume, formatted as `# FULL NAME`
+- Preserve the contact line exactly as it appears in the master resume (location, phone, email, links)
+- IMPORTANT: Link labels must be human-readable — use the actual email address, not "Email Address". Use "Portfolio", "LinkedIn", "GitHub" as labels.
 - Section headings as `## SECTION NAME`
 - Each role as: `### Role | Company | Location | *Date Range*`
 - Under each role: a 1-line description paragraph, then bullet points using `- ` (dash space)
