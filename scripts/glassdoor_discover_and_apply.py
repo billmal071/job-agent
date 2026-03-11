@@ -5,8 +5,10 @@ Step 2: Search for jobs using profile keywords
 Step 3: Screen and score jobs via AI
 Step 4: Apply to jobs scoring above threshold
 """
+
 import sys
 import time
+
 sys.path.insert(0, "src")
 
 from pathlib import Path
@@ -19,7 +21,6 @@ from job_agent.config import Settings, load_profile
 from job_agent.db.models import JobStatus, Platform
 from job_agent.db.repository import ApplicationRepository, JobRepository
 from job_agent.db.session import get_session
-from job_agent.platforms.base import JobPosting
 from job_agent.platforms.external_ats import ExternalATSApplicator
 from job_agent.platforms.glassdoor.discovery import GlassdoorDiscovery
 from job_agent.browser.humanizer import human_delay
@@ -79,7 +80,11 @@ def load_glassdoor_session(browser):
     page = ctx.new_page()
 
     # Verify session works
-    page.goto("https://www.glassdoor.com/Job/jobs.htm?sc.keyword=software+engineer", timeout=60000, wait_until="commit")
+    page.goto(
+        "https://www.glassdoor.com/Job/jobs.htm?sc.keyword=software+engineer",
+        timeout=60000,
+        wait_until="commit",
+    )
     time.sleep(5)
     title = page.title().lower()
 
@@ -101,7 +106,9 @@ def load_glassdoor_session(browser):
 
 def discover_jobs(page, profile):
     """Search Glassdoor for jobs matching profile keywords."""
-    rate_limiter = RateLimiter(requests_per_minute=10, failure_threshold=5, cooldown_seconds=60)
+    rate_limiter = RateLimiter(
+        requests_per_minute=10, failure_threshold=5, cooldown_seconds=60
+    )
     discovery = GlassdoorDiscovery(page, rate_limiter)
 
     keywords = profile.get("search", {}).get("keywords", [])
@@ -130,6 +137,7 @@ def discover_jobs(page, profile):
 def screen_job(ai_client, job, profile):
     """Quick AI screen to check if job is a good match."""
     from job_agent.ai.job_matcher import JobMatcher
+
     matcher = JobMatcher(ai_client)
     result = matcher.match(job, profile)
     return result
@@ -186,9 +194,15 @@ def apply_to_job(page, ctx, job, resume_path, cl_path, answerer):
                 # Try direct href navigation
                 if apply_href:
                     target_page = ctx.new_page()
-                    href = apply_href if apply_href.startswith("http") else f"https://www.glassdoor.com{apply_href}"
+                    href = (
+                        apply_href
+                        if apply_href.startswith("http")
+                        else f"https://www.glassdoor.com{apply_href}"
+                    )
                     try:
-                        target_page.goto(href, timeout=45000, wait_until="domcontentloaded")
+                        target_page.goto(
+                            href, timeout=45000, wait_until="domcontentloaded"
+                        )
                     except Exception:
                         pass
                     human_delay(3000, 5000)
@@ -211,7 +225,11 @@ def apply_to_job(page, ctx, job, resume_path, cl_path, answerer):
             result = ats.apply(job, resume_path, cl_path)
             if target_page != page:
                 target_page.close()
-            return ("success", "External ATS") if result else ("fail", "External ATS failed")
+            return (
+                ("success", "External ATS")
+                if result
+                else ("fail", "External ATS failed")
+            )
         if target_page != page:
             target_page.close()
         return "skip", f"Still on Glassdoor: {current[:60]}"
@@ -226,7 +244,7 @@ def apply_to_job(page, ctx, job, resume_path, cl_path, answerer):
             '[data-test="applyModal"], '
             '[class*="applyModal"], '
             '[role="dialog"], '
-            '.modal-content'
+            ".modal-content"
         ).first
         if modal.count() == 0:
             return "skip", "Easy Apply modal not found"
@@ -235,6 +253,7 @@ def apply_to_job(page, ctx, job, resume_path, cl_path, answerer):
         file_input = modal.locator('input[type="file"]').first
         if file_input.count() > 0 and resume_path:
             from pathlib import Path as P
+
             if P(resume_path).exists():
                 try:
                     file_input.set_input_files(resume_path)
@@ -245,13 +264,24 @@ def apply_to_job(page, ctx, job, resume_path, cl_path, answerer):
         # Fill fields in modal using answerer
         if answerer:
             from job_agent.ai.screening import FormField
-            inputs = modal.locator('input[type="text"], input[type="email"], input[type="tel"], textarea, select').all()
+
+            inputs = modal.locator(
+                'input[type="text"], input[type="email"], input[type="tel"], textarea, select'
+            ).all()
             for inp in inputs:
                 try:
-                    current_val = inp.input_value() if inp.evaluate("el => el.tagName") != "SELECT" else ""
+                    current_val = (
+                        inp.input_value()
+                        if inp.evaluate("el => el.tagName") != "SELECT"
+                        else ""
+                    )
                     if current_val and current_val.strip():
                         continue
-                    label = inp.get_attribute("aria-label") or inp.get_attribute("placeholder") or ""
+                    label = (
+                        inp.get_attribute("aria-label")
+                        or inp.get_attribute("placeholder")
+                        or ""
+                    )
                     if not label:
                         # Try associated label
                         inp_id = inp.get_attribute("id") or ""
@@ -262,7 +292,13 @@ def apply_to_job(page, ctx, job, resume_path, cl_path, answerer):
                     if not label:
                         continue
                     tag = inp.evaluate("el => el.tagName.toLowerCase()")
-                    ft = "select" if tag == "select" else "textarea" if tag == "textarea" else "text"
+                    ft = (
+                        "select"
+                        if tag == "select"
+                        else "textarea"
+                        if tag == "textarea"
+                        else "text"
+                    )
                     field = FormField(label=label, field_type=ft, selector="")
                     answer = answerer.answer_field(field)
                     if tag == "select":
@@ -288,7 +324,10 @@ def apply_to_job(page, ctx, job, resume_path, cl_path, answerer):
             human_delay(3000, 5000)
 
             body = page.locator("body").inner_text().lower()
-            if any(p in body for p in ("application submitted", "thank you", "successfully applied")):
+            if any(
+                p in body
+                for p in ("application submitted", "thank you", "successfully applied")
+            ):
                 return "success", "Easy Apply"
 
         return "fail", "Easy Apply incomplete"
@@ -300,7 +339,11 @@ def apply_to_job(page, ctx, job, resume_path, cl_path, answerer):
         if "glassdoor.com" not in page.url:
             ats = ExternalATSApplicator(page, answerer)
             result = ats.apply(job, resume_path, cl_path)
-            return ("success", "External ATS") if result else ("fail", "External ATS failed")
+            return (
+                ("success", "External ATS")
+                if result
+                else ("fail", "External ATS failed")
+            )
         return "skip", "No redirect"
 
 
@@ -356,12 +399,31 @@ def main():
             # Quick title-based filter for obviously irrelevant jobs
             title_lower = job.title.lower()
             skip_keywords = [
-                "clearance", "polygraph", "ts/sci", "secret",
-                "c++", "c#", ".net", "blazor", "ruby", "scala",
-                "ios", "android", "mobile", "data scientist",
-                "machine learning", "ml engineer", "firmware",
-                "embedded", "erp", "blockchain", "salesforce",
-                "junior", "intern", "unpaid", "volunteer",
+                "clearance",
+                "polygraph",
+                "ts/sci",
+                "secret",
+                "c++",
+                "c#",
+                ".net",
+                "blazor",
+                "ruby",
+                "scala",
+                "ios",
+                "android",
+                "mobile",
+                "data scientist",
+                "machine learning",
+                "ml engineer",
+                "firmware",
+                "embedded",
+                "erp",
+                "blockchain",
+                "salesforce",
+                "junior",
+                "intern",
+                "unpaid",
+                "volunteer",
             ]
             if any(kw in title_lower for kw in skip_keywords):
                 print(f"  SKIPPED (title filter): {job.title} @ {job.company}")
@@ -387,11 +449,13 @@ def main():
                         db_job.status = JobStatus.APPROVED
                         approved_jobs.append((db_job, job))
                         stats["approved"] += 1
-                        print(f"  APPROVED ({match.score:.0%}): {job.title} @ {job.company}")
+                        print(
+                            f"  APPROVED ({match.score:.0%}): {job.title} @ {job.company}"
+                        )
                     else:
                         score = match.score if match else 0
                         print(f"  REJECTED ({score:.0%}): {job.title} @ {job.company}")
-                except Exception as e:
+                except Exception:
                     # Auto-approve on screening failure
                     db_job.status = JobStatus.APPROVED
                     approved_jobs.append((db_job, job))
@@ -412,13 +476,14 @@ def main():
         if approved_jobs:
             print("\n=== APPLYING TO JOBS ===")
             for i, (db_job, posting) in enumerate(approved_jobs, 1):
-                print(f"\n[{i}/{len(approved_jobs)}] {posting.title} @ {posting.company}")
+                print(
+                    f"\n[{i}/{len(approved_jobs)}] {posting.title} @ {posting.company}"
+                )
 
                 try:
                     # Generate resume and cover letter
                     resume_dir = Path("~/.job-agent/resumes").expanduser()
                     cl_dir = Path("~/.job-agent/cover_letters").expanduser()
-                    safe_name = f"{posting.company}_{posting.external_id}".replace(" ", "_").replace("/", "_")
 
                     existing_resume = list(resume_dir.glob(f"*{posting.external_id}*"))
                     existing_cl = list(cl_dir.glob(f"*{posting.external_id}*"))
@@ -440,11 +505,17 @@ def main():
                             log.warning("cover_letter_failed", error=str(e))
                             cl_path = ""
 
-                    result, detail = apply_to_job(page, ctx, posting, resume_path, cl_path, answerer)
+                    result, detail = apply_to_job(
+                        page, ctx, posting, resume_path, cl_path, answerer
+                    )
 
                     if result == "success":
                         db_job.status = JobStatus.APPLIED
-                        app_repo.create(job_id=db_job.id, resume_path=resume_path, cover_letter_path=cl_path)
+                        app_repo.create(
+                            job_id=db_job.id,
+                            resume_path=resume_path,
+                            cover_letter_path=cl_path,
+                        )
                         stats["applied"] += 1
                         print(f"  SUCCESS: {detail}")
                     elif result == "fail":
@@ -468,7 +539,7 @@ def main():
         ctx.close()
 
     db_session.close()
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Results: {stats}")
 
 

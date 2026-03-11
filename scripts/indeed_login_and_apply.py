@@ -4,9 +4,11 @@ Step 1: Login with email — user completes OTP manually
 Step 2: Save session state
 Step 3: Navigate to each job and apply via smartapply.indeed.com
 """
+
 import sys
 import json
 import time
+
 sys.path.insert(0, "src")
 
 from pathlib import Path
@@ -17,12 +19,15 @@ from job_agent.ai.resume_tailor import ResumeTailor
 from job_agent.ai.screening import ScreeningAnswerer
 from job_agent.config import Settings, load_profile
 from job_agent.db.models import JobStatus, Platform
-from job_agent.db.repository import ApplicationRepository, CredentialRepository, JobRepository
+from job_agent.db.repository import (
+    ApplicationRepository,
+    CredentialRepository,
+    JobRepository,
+)
 from job_agent.db.session import get_session
 from job_agent.platforms.base import JobPosting
 from job_agent.platforms.external_ats import ExternalATSApplicator
 from job_agent.browser.humanizer import human_delay
-from job_agent.utils.crypto import decrypt
 from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -78,7 +83,11 @@ def login_indeed(browser, username):
     page = ctx.new_page()
 
     # Verify session works
-    page.goto("https://www.indeed.com/viewjob?jk=162a100fceae998c", timeout=60000, wait_until="commit")
+    page.goto(
+        "https://www.indeed.com/viewjob?jk=162a100fceae998c",
+        timeout=60000,
+        wait_until="commit",
+    )
     time.sleep(5)
 
     # Wait through Cloudflare challenge
@@ -91,7 +100,9 @@ def login_indeed(browser, username):
 
     title = page.title().lower()
     if "security check" in title or "additional verification" in title:
-        print("ERROR: Saved session expired/blocked. Run scripts/indeed_login_only.py again.")
+        print(
+            "ERROR: Saved session expired/blocked. Run scripts/indeed_login_only.py again."
+        )
         sys.exit(1)
     if "just a moment" in title:
         print("ERROR: Stuck on Cloudflare. Try again later.")
@@ -117,6 +128,7 @@ def dismiss_modals(page):
 def apply_to_job(page, ctx, job, posting, resume_path, cl_path, answerer):
     """Navigate to job and apply."""
     import re
+
     jk = ""
     url = job.url or ""
     m = re.search(r"jk=([a-f0-9]+)", url)
@@ -147,7 +159,7 @@ def apply_to_job(page, ctx, job, posting, resume_path, cl_path, answerer):
         'button:has-text("Apply now"), '
         'button:has-text("Apply on company site"), '
         'button:has-text("Apply"), '
-        '#indeedApplyButton'
+        "#indeedApplyButton"
     ).first
     if apply_btn.count() == 0:
         return "skip", "No apply button"
@@ -165,8 +177,8 @@ def apply_to_job(page, ctx, job, posting, resume_path, cl_path, answerer):
             apply_href = f"https://www.indeed.com{apply_href}"
         try:
             target_page.goto(apply_href, timeout=45000, wait_until="domcontentloaded")
-        except Exception as e:
-            print(f"    Navigation timeout, checking URL anyway...")
+        except Exception:
+            print("    Navigation timeout, checking URL anyway...")
         human_delay(3000, 5000)
     else:
         # No href — try clicking the button
@@ -213,7 +225,9 @@ def apply_to_job(page, ctx, job, posting, resume_path, cl_path, answerer):
         result = process_smartapply(target_page, resume_path, answerer)
         if target_page != page:
             target_page.close()
-        return ("success", "SmartApply") if result else ("fail", "SmartApply incomplete")
+        return (
+            ("success", "SmartApply") if result else ("fail", "SmartApply incomplete")
+        )
 
     elif "indeed.com" not in current:
         # External ATS
@@ -221,7 +235,9 @@ def apply_to_job(page, ctx, job, posting, resume_path, cl_path, answerer):
         result = ats.apply(posting, resume_path, cl_path)
         if target_page != page:
             target_page.close()
-        return ("success", "External ATS") if result else ("fail", "External ATS failed")
+        return (
+            ("success", "External ATS") if result else ("fail", "External ATS failed")
+        )
 
     if target_page != page:
         target_page.close()
@@ -247,8 +263,11 @@ def process_smartapply(page, resume_path, answerer):
         # Fill fields if answerer available
         if answerer:
             from job_agent.ai.screening import FormField
+
             # Look for questions
-            questions = page.locator('.ia-Questions-item, .ia-BasePage-field, fieldset').all()
+            questions = page.locator(
+                ".ia-Questions-item, .ia-BasePage-field, fieldset"
+            ).all()
             for q in questions:
                 try:
                     label_el = q.locator("label, legend").first
@@ -259,7 +278,9 @@ def process_smartapply(page, resume_path, answerer):
                         continue
 
                     # Check for text input
-                    inp = q.locator('input[type="text"], input[type="number"], textarea').first
+                    inp = q.locator(
+                        'input[type="text"], input[type="number"], textarea'
+                    ).first
                     if inp.count() > 0:
                         current = inp.input_value()
                         if current and current.strip():
@@ -272,8 +293,16 @@ def process_smartapply(page, resume_path, answerer):
                     # Check for select
                     sel = q.locator("select").first
                     if sel.count() > 0:
-                        options = [o.inner_text().strip() for o in q.locator("select option").all()]
-                        field = FormField(label=label, field_type="select", options=options, selector="")
+                        options = [
+                            o.inner_text().strip()
+                            for o in q.locator("select option").all()
+                        ]
+                        field = FormField(
+                            label=label,
+                            field_type="select",
+                            options=options,
+                            selector="",
+                        )
                         answer = answerer.answer_field(field)
                         try:
                             sel.select_option(label=answer.answer)
@@ -287,8 +316,7 @@ def process_smartapply(page, resume_path, answerer):
 
         # Click Continue or Submit
         submit = page.locator(
-            'button:has-text("Submit"), '
-            'button:has-text("Submit your application")'
+            'button:has-text("Submit"), button:has-text("Submit your application")'
         ).first
         if submit.count() > 0 and submit.is_visible():
             submit.click(force=True)
@@ -296,7 +324,14 @@ def process_smartapply(page, resume_path, answerer):
 
             # Check success
             body = page.locator("body").inner_text().lower()
-            if any(p in body for p in ("application submitted", "thank you", "received your application")):
+            if any(
+                p in body
+                for p in (
+                    "application submitted",
+                    "thank you",
+                    "received your application",
+                )
+            ):
                 return True
             continue
 
@@ -375,6 +410,7 @@ def main():
                 # Reuse existing resume/cover letter if available
                 jk = ""
                 import re as _re
+
                 _m = _re.search(r"jk=([a-f0-9]+)", job.url or "")
                 if _m:
                     jk = _m.group(1)
@@ -400,11 +436,17 @@ def main():
                         log.warning("cover_letter_failed", error=str(e))
                         cl_path = ""
 
-                result, detail = apply_to_job(page, ctx, job, posting, resume_path, cl_path, answerer)
+                result, detail = apply_to_job(
+                    page, ctx, job, posting, resume_path, cl_path, answerer
+                )
 
                 if result == "success":
                     job.status = JobStatus.APPLIED
-                    app_repo.create(job_id=job.id, resume_path=resume_path, cover_letter_path=cl_path)
+                    app_repo.create(
+                        job_id=job.id,
+                        resume_path=resume_path,
+                        cover_letter_path=cl_path,
+                    )
                     stats["applied"] += 1
                     print(f"  SUCCESS: {detail}")
                 elif result == "fail":
@@ -420,7 +462,7 @@ def main():
                 log.error("apply_error", job_id=job.id, error=err)
                 if "NS_ERROR_UNKNOWN_HOST" in err or "name resolution" in err.lower():
                     # DNS failure — wait and retry
-                    print(f"  DNS ERROR — waiting 30s for network...")
+                    print("  DNS ERROR — waiting 30s for network...")
                     time.sleep(30)
                     stats["failed"] += 1
                 else:
@@ -434,7 +476,7 @@ def main():
         ctx.close()
 
     db_session.close()
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Results: {stats}")
 
 

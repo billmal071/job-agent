@@ -62,7 +62,11 @@ def _migrate(engine) -> None:
     with engine.connect() as conn:
         for table, column, col_def in migrations:
             try:
-                conn.execute(sqlalchemy.text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
+                conn.execute(
+                    sqlalchemy.text(
+                        f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"
+                    )
+                )
                 conn.commit()
             except sqlalchemy.exc.OperationalError:
                 # Column already exists

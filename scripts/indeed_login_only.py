@@ -2,8 +2,10 @@
 
 Run this once, then the apply script can reuse the session.
 """
+
 import sys
 import time
+
 sys.path.insert(0, "src")
 
 from pathlib import Path
@@ -31,7 +33,11 @@ with Camoufox(headless=False, humanize=True) as browser:
     print(f"Session saved to {STATE_FILE}")
 
     # Quick verify
-    page.goto("https://www.indeed.com/viewjob?jk=162a100fceae998c", timeout=20000, wait_until="commit")
+    page.goto(
+        "https://www.indeed.com/viewjob?jk=162a100fceae998c",
+        timeout=20000,
+        wait_until="commit",
+    )
     time.sleep(3)
     btn = page.locator('button[href*="applystart"]').first
     if btn.count() > 0:

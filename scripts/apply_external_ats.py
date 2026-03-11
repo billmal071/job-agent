@@ -3,9 +3,10 @@
 Uses Camoufox to bypass Cloudflare, navigates to Indeed job pages,
 finds "Apply on company site" links, and applies on external ATS.
 """
+
 import sys
 import json
-import time
+
 sys.path.insert(0, "src")
 
 from camoufox.sync_api import Camoufox
@@ -14,7 +15,7 @@ from job_agent.ai.cover_letter import CoverLetterGenerator
 from job_agent.ai.resume_tailor import ResumeTailor
 from job_agent.ai.screening import ScreeningAnswerer
 from job_agent.config import Settings, load_profile
-from job_agent.db.models import Job, JobStatus, Platform
+from job_agent.db.models import JobStatus, Platform
 from job_agent.db.repository import ApplicationRepository, JobRepository
 from job_agent.db.session import get_session
 from job_agent.platforms.base import JobPosting
@@ -53,8 +54,8 @@ def dismiss_indeed_modals(page):
             'button:has-text("Not now"), '
             'button:has-text("Skip"), '
             '[data-testid="modal-close"], '
-            '.icl-Modal-close, '
-            'button.icl-CloseButton'
+            ".icl-Modal-close, "
+            "button.icl-CloseButton"
         )
         if close_btns.count() > 0:
             close_btns.first.click(force=True)
@@ -80,7 +81,7 @@ def find_external_apply_url(page) -> str | None:
         'a:has-text("Apply on company site")',
         'a:has-text("Apply now")',
         'button:has-text("Apply on")',
-        'a.jobsearch-IndeedApplyButton-newDesign',
+        "a.jobsearch-IndeedApplyButton-newDesign",
         'a[href*="applystart"]',
         'a[data-tn-element="apply-button"]',
     ]
@@ -97,9 +98,9 @@ def find_external_apply_url(page) -> str | None:
     # Strategy 2: Find any external link in the apply area
     try:
         apply_section = page.locator(
-            '#applyButtonLinkContainer, '
-            '.jobsearch-ViewJobButtons-container, '
-            '#jobsearch-ViewjobPaneWrapper'
+            "#applyButtonLinkContainer, "
+            ".jobsearch-ViewJobButtons-container, "
+            "#jobsearch-ViewjobPaneWrapper"
         )
         if apply_section.count() > 0:
             links = apply_section.locator("a[href]").all()
@@ -153,12 +154,13 @@ def main():
             url = job.url or ""
             if "jk=" in url:
                 import re
+
                 m = re.search(r"jk=([a-f0-9]+)", url)
                 if m:
                     jk = m.group(1)
 
             if not jk:
-                print(f"  SKIP: No job key found in URL")
+                print("  SKIP: No job key found in URL")
                 stats["skipped"] += 1
                 continue
 
@@ -204,7 +206,7 @@ def main():
 
                 # Check if Cloudflare blocked us
                 if "just a moment" in page.title().lower():
-                    print(f"  SKIP: Cloudflare blocked")
+                    print("  SKIP: Cloudflare blocked")
                     stats["skipped"] += 1
                     continue
 
@@ -236,21 +238,25 @@ def main():
                             target_page.close()
                         if success:
                             job.status = JobStatus.APPLIED
-                            app_repo.create(job_id=job.id, resume_path=resume_path, cover_letter_path=cl_path)
+                            app_repo.create(
+                                job_id=job.id,
+                                resume_path=resume_path,
+                                cover_letter_path=cl_path,
+                            )
                             stats["applied"] += 1
-                            print(f"  SUCCESS!")
+                            print("  SUCCESS!")
                         else:
                             job.status = JobStatus.APPLY_FAILED
                             stats["failed"] += 1
-                            print(f"  FAILED: Could not complete")
+                            print("  FAILED: Could not complete")
                     else:
                         # Still on Indeed — try clicking the link directly
-                        print(f"  SKIP: Redirect stayed on Indeed")
+                        print("  SKIP: Redirect stayed on Indeed")
                         stats["skipped"] += 1
                 else:
                     # No external link — try clicking apply button
                     apply_btn = page.locator(
-                        '#indeedApplyButton, '
+                        "#indeedApplyButton, "
                         'button[id*="apply"], '
                         'button:has-text("Apply now"), '
                         'button:has-text("Apply")'
@@ -263,18 +269,22 @@ def main():
                             success = ats.apply(posting, resume_path, cl_path)
                             if success:
                                 job.status = JobStatus.APPLIED
-                                app_repo.create(job_id=job.id, resume_path=resume_path, cover_letter_path=cl_path)
+                                app_repo.create(
+                                    job_id=job.id,
+                                    resume_path=resume_path,
+                                    cover_letter_path=cl_path,
+                                )
                                 stats["applied"] += 1
-                                print(f"  SUCCESS!")
+                                print("  SUCCESS!")
                             else:
                                 job.status = JobStatus.APPLY_FAILED
                                 stats["failed"] += 1
-                                print(f"  FAILED: Could not complete")
+                                print("  FAILED: Could not complete")
                         else:
-                            print(f"  SKIP: No external redirect after click")
+                            print("  SKIP: No external redirect after click")
                             stats["skipped"] += 1
                     else:
-                        print(f"  SKIP: No apply button found")
+                        print("  SKIP: No apply button found")
                         stats["skipped"] += 1
 
             except Exception as e:
@@ -290,7 +300,7 @@ def main():
         ctx.close()
 
     session.close()
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Results: {stats}")
 
 

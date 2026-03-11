@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from job_agent.db.models import Base, Job, JobStatus, Platform
+from job_agent.db.models import Base, JobStatus, Platform
 from job_agent.db.repository import JobRepository
 from job_agent.db.session import reset_engine
 

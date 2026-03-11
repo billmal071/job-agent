@@ -79,10 +79,12 @@ def test_poll_returns_updates(mock_urlopen):
 
     resp = MagicMock()
     resp.status = 200
-    resp.read.return_value = json.dumps({
-        "ok": True,
-        "result": [{"update_id": 1, "message": {"text": "/help"}}],
-    }).encode()
+    resp.read.return_value = json.dumps(
+        {
+            "ok": True,
+            "result": [{"update_id": 1, "message": {"text": "/help"}}],
+        }
+    ).encode()
     resp.__enter__ = MagicMock(return_value=resp)
     resp.__exit__ = MagicMock(return_value=False)
     mock_urlopen.return_value = resp

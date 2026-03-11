@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from job_agent.config import Settings
 from job_agent.dashboard.app import create_app
-from job_agent.db.models import Base, Job, JobStatus, Platform
+from job_agent.db.models import Base, Platform
 from job_agent.db.repository import JobRepository
 from job_agent.db.session import reset_engine
 

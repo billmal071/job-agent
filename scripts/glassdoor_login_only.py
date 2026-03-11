@@ -2,8 +2,10 @@
 
 Run this once, then the discovery/apply script can reuse the session.
 """
+
 import sys
 import time
+
 sys.path.insert(0, "src")
 
 from pathlib import Path
@@ -17,7 +19,11 @@ with Camoufox(headless=False, humanize=True) as browser:
     ctx = browser.new_context(viewport={"width": 1920, "height": 1080})
     page = ctx.new_page()
 
-    page.goto("https://www.glassdoor.com/profile/login_input.htm", timeout=30000, wait_until="commit")
+    page.goto(
+        "https://www.glassdoor.com/profile/login_input.htm",
+        timeout=30000,
+        wait_until="commit",
+    )
     time.sleep(3)
 
     print("\n" + "=" * 50)
@@ -31,9 +37,15 @@ with Camoufox(headless=False, humanize=True) as browser:
     print(f"Session saved to {STATE_FILE}")
 
     # Quick verify
-    page.goto("https://www.glassdoor.com/Job/jobs.htm?sc.keyword=software+engineer", timeout=20000, wait_until="commit")
+    page.goto(
+        "https://www.glassdoor.com/Job/jobs.htm?sc.keyword=software+engineer",
+        timeout=20000,
+        wait_until="commit",
+    )
     time.sleep(3)
-    cards = page.locator('[data-test="jobListing"], .react-job-listing, .JobCard_jobCardContainer__arDln').count()
+    cards = page.locator(
+        '[data-test="jobListing"], .react-job-listing, .JobCard_jobCardContainer__arDln'
+    ).count()
     if cards > 0:
         print(f"Login verified - found {cards} job listings!")
     else:

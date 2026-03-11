@@ -11,7 +11,13 @@ from job_agent.ai.job_matcher import JobMatcher
 from job_agent.ai.resume_tailor import ResumeTailor
 from job_agent.browser.manager import BrowserManager
 from job_agent.config import Settings, load_profile
-from job_agent.db.models import Job, JobStatus, OutreachStatus, Platform
+from job_agent.db.models import (
+    ApplicationStatus,
+    Job,
+    JobStatus,
+    OutreachStatus,
+    Platform,
+)
 from job_agent.db.repository import (
     ApplicationRepository,
     JobRepository,
@@ -367,11 +373,25 @@ def run_pipeline(
                                             )
                                         else:
                                             job.status = JobStatus.APPLY_FAILED
+                                            app_repo.create(
+                                                job_id=job.id,
+                                                resume_path=resume_path,
+                                                cover_letter_path=cl_path,
+                                                status=ApplicationStatus.FAILED,
+                                                error_message="Application submission failed",
+                                            )
                                     except Exception as e:
                                         log.error(
                                             "apply_error", job_id=job.id, error=str(e)
                                         )
                                         job.status = JobStatus.APPLY_FAILED
+                                        app_repo.create(
+                                            job_id=job.id,
+                                            resume_path="",
+                                            cover_letter_path="",
+                                            status=ApplicationStatus.FAILED,
+                                            error_message=str(e)[:500],
+                                        )
                                 else:
                                     stats["applied"] += 1  # dry run counts
                             elif score.score >= settings.matching.review_threshold:
@@ -481,6 +501,13 @@ def run_pipeline(
                                     )
                                 else:
                                     job.status = JobStatus.APPLY_FAILED
+                                    app_repo.create(
+                                        job_id=job.id,
+                                        resume_path=resume_path,
+                                        cover_letter_path=cl_path,
+                                        status=ApplicationStatus.FAILED,
+                                        error_message="Application submission failed",
+                                    )
                                     log.warning(
                                         "approved_job_apply_failed", job_id=job.id
                                     )
@@ -489,6 +516,13 @@ def run_pipeline(
                                     "approved_job_error", job_id=job.id, error=str(e)
                                 )
                                 job.status = JobStatus.APPLY_FAILED
+                                app_repo.create(
+                                    job_id=job.id,
+                                    resume_path="",
+                                    cover_letter_path="",
+                                    status=ApplicationStatus.FAILED,
+                                    error_message=str(e)[:500],
+                                )
 
                             session.commit()
 

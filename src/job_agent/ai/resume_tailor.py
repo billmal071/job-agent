@@ -49,7 +49,59 @@ class ResumeTailor:
         return tailored
 
     def generate_pdf(self, markdown_content: str, output_path: str) -> str:
-        """Convert tailored Markdown resume to PDF using weasyprint."""
+        """Convert tailored Markdown resume to PDF. Uses LaTeX if available, else WeasyPrint."""
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+
+        if self.settings.resume.use_latex:
+            try:
+                return self._generate_latex_pdf(markdown_content, output_path)
+            except (FileNotFoundError, OSError) as e:
+                log.warning("latex_unavailable_falling_back", error=str(e))
+
+        return self._generate_weasyprint_pdf(markdown_content, output_path)
+
+    def _generate_latex_pdf(self, markdown_content: str, output_path: str) -> str:
+        """Generate PDF from Markdown via LaTeX for professional typesetting."""
+        import shutil
+        import subprocess
+        import tempfile
+
+        # Check that pdflatex is installed
+        if not shutil.which("pdflatex"):
+            raise FileNotFoundError(
+                "pdflatex not found. Install a TeX distribution (texlive-latex-recommended) or set resume.use_latex=false."
+            )
+
+        latex_content = self._markdown_to_latex(markdown_content)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tex_path = Path(tmpdir) / "resume.tex"
+            tex_path.write_text(latex_content)
+
+            for _ in range(2):  # Run twice for references
+                result = subprocess.run(
+                    [
+                        "pdflatex",
+                        "-interaction=nonstopmode",
+                        "-output-directory",
+                        tmpdir,
+                        str(tex_path),
+                    ],
+                    capture_output=True,
+                    timeout=30,
+                )
+
+            pdf_generated = Path(tmpdir) / "resume.pdf"
+            if not pdf_generated.exists():
+                raise OSError(f"pdflatex failed: {result.stderr.decode()[:500]}")
+
+            shutil.copy2(pdf_generated, output_path)
+
+        log.info("resume_latex_pdf_generated", path=output_path)
+        return output_path
+
+    def _generate_weasyprint_pdf(self, markdown_content: str, output_path: str) -> str:
+        """Fallback: Convert Markdown to PDF using WeasyPrint."""
         from weasyprint import HTML
 
         html_content = self._markdown_to_html(markdown_content)
@@ -129,7 +181,6 @@ class ResumeTailor:
         </html>
         """
 
-        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         HTML(string=styled_html).write_pdf(output_path)
         log.info("resume_pdf_generated", path=output_path)
         return output_path
@@ -179,6 +230,98 @@ class ResumeTailor:
 
             return text
         return resume_path.read_text()
+
+    def _markdown_to_latex(self, markdown: str) -> str:
+        """Convert Markdown resume to a LaTeX document."""
+        import re
+
+        lines = markdown.strip().split("\n")
+        tex_lines = [
+            r"\documentclass[10pt,letterpaper]{article}",
+            r"\usepackage[margin=0.5in]{geometry}",
+            r"\usepackage{enumitem}",
+            r"\usepackage{titlesec}",
+            r"\usepackage[hidelinks]{hyperref}",
+            r"\usepackage{xcolor}",
+            r"\usepackage{fontenc}",
+            r"\pagestyle{empty}",
+            r"\setlength{\parindent}{0pt}",
+            r"\setlength{\parskip}{2pt}",
+            r"\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]",
+            r"\titlespacing{\section}{0pt}{8pt}{4pt}",
+            r"\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}",
+            r"\titlespacing{\subsection}{0pt}{6pt}{2pt}",
+            r"\setlist[itemize]{nosep, leftmargin=14pt, topsep=2pt}",
+            r"\begin{document}",
+        ]
+
+        in_list = False
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                if in_list:
+                    tex_lines.append(r"\end{itemize}")
+                    in_list = False
+                continue
+
+            # Escape LaTeX special chars (except in commands we generate)
+            def _escape(text: str) -> str:
+                text = text.replace("&", r"\&")
+                text = text.replace("%", r"\%")
+                text = text.replace("$", r"\$")
+                text = text.replace("#", r"\#")
+                text = text.replace("_", r"\_")
+                text = text.replace("~", r"\textasciitilde{}")
+                # Convert markdown links to LaTeX hyperlinks
+                text = re.sub(
+                    r"\[(.+?)\]\((.+?)\)",
+                    r"\\href{\2}{\1}",
+                    text,
+                )
+                # Bold
+                text = re.sub(r"\*\*(.+?)\*\*", r"\\textbf{\1}", text)
+                # Italic
+                text = re.sub(r"\*(.+?)\*", r"\\textit{\1}", text)
+                return text
+
+            # Headers
+            if stripped.startswith("# "):
+                if in_list:
+                    tex_lines.append(r"\end{itemize}")
+                    in_list = False
+                name = _escape(stripped[2:])
+                tex_lines.append(r"\begin{center}")
+                tex_lines.append(r"{\LARGE\bfseries " + name + r"}")
+                tex_lines.append(r"\end{center}")
+            elif stripped.startswith("## "):
+                if in_list:
+                    tex_lines.append(r"\end{itemize}")
+                    in_list = False
+                heading = _escape(stripped[3:])
+                tex_lines.append(r"\section*{" + heading + r"}")
+            elif stripped.startswith("### "):
+                if in_list:
+                    tex_lines.append(r"\end{itemize}")
+                    in_list = False
+                subheading = _escape(stripped[4:])
+                tex_lines.append(r"\subsection*{" + subheading + r"}")
+            elif re.match(r"^[-*•+] ", stripped):
+                if not in_list:
+                    tex_lines.append(r"\begin{itemize}")
+                    in_list = True
+                item_text = _escape(re.sub(r"^[-*•+] ", "", stripped))
+                tex_lines.append(r"\item " + item_text)
+            else:
+                if in_list:
+                    tex_lines.append(r"\end{itemize}")
+                    in_list = False
+                tex_lines.append(_escape(stripped) + r"\\")
+
+        if in_list:
+            tex_lines.append(r"\end{itemize}")
+
+        tex_lines.append(r"\end{document}")
+        return "\n".join(tex_lines)
 
     def _markdown_to_html(self, markdown: str) -> str:
         """Simple Markdown to HTML conversion."""
