@@ -27,11 +27,12 @@
                         <th>Platform</th>
                         <th>Status</th>
                         <th>Applied</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for app in applications %}
-                    <tr>
+                    <tr id="app-row-{{ app.id }}">
                         <td><a href="/jobs/{{ app.job.id }}" style="font-weight: 600;">{{ app.job.title }}</a></td>
                         <td>{{ app.job.company }}</td>
                         <td><span class="badge badge-neutral">{{ app.job.platform.value }}</span></td>
@@ -46,6 +47,18 @@
                             <span class="badge {{ status_map.get(app.status.value, 'badge-neutral') }}">{{ app.status.value }}</span>
                         </td>
                         <td class="mono" style="font-size: 0.78rem;">{{ app.applied_at.strftime('%m/%d %H:%M') if app.applied_at else app.created_at.strftime('%m/%d %H:%M') }}</td>
+                        <td>
+                            {% if app.status.value in ('failed', 'withdrawn') %}
+                            <button class="btn btn-ghost btn-sm"
+                                    hx-post="/applications/retry/{{ app.id }}"
+                                    hx-target="#retry-result-{{ app.id }}"
+                                    hx-swap="innerHTML"
+                                    title="Retry this application">
+                                <i class="bi bi-arrow-clockwise"></i> Retry
+                            </button>
+                            <div id="retry-result-{{ app.id }}"></div>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

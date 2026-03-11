@@ -1,4 +1,4 @@
-"""Application listing and CSV export routes."""
+"""Application listing, CSV export, and retry routes."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ import io
 from flask import Blueprint, render_template, request, current_app, Response
 
 from job_agent.db.session import get_session
-from job_agent.db.repository import ApplicationRepository
-from job_agent.db.models import ApplicationStatus
+from job_agent.db.repository import ApplicationRepository, JobRepository
+from job_agent.db.models import Application, ApplicationStatus, JobStatus
 
 bp = Blueprint("applications", __name__)
 
@@ -93,5 +93,55 @@ def export():
             mimetype="text/csv",
             headers={"Content-Disposition": "attachment; filename=applications.csv"},
         )
+    finally:
+        session.close()
+
+
+@bp.route("/retry/<int:app_id>", methods=["POST"])
+def retry(app_id: int):
+    """Retry a failed application by resetting its status.
+
+    Resets the application to PENDING and the job to APPROVED so the
+    apply-approved pipeline will pick it up on the next run.
+    """
+    session = get_session(current_app.config["SETTINGS"])
+    try:
+        job_repo = JobRepository(session)
+        application = session.get(Application, app_id)
+        if application is None:
+            return '<div class="alert alert-danger">Application not found</div>', 404
+
+        if application.status not in (
+            ApplicationStatus.FAILED,
+            ApplicationStatus.WITHDRAWN,
+        ):
+            return (
+                '<div class="alert alert-warning">'
+                f"Cannot retry: status is {application.status.value}"
+                "</div>",
+                400,
+            )
+
+        # Reset application
+        application.status = ApplicationStatus.PENDING
+        application.error_message = ""
+        application.applied_at = None
+
+        # Reset job status to APPROVED so pipeline picks it up
+        job = job_repo.get_by_id(application.job_id)
+        if job:
+            job.status = JobStatus.APPROVED
+
+        session.commit()
+
+        job_title = job.title if job else "Unknown"
+        return (
+            f'<div class="alert alert-success">'
+            f'Retrying: {job_title}. Run "Apply Approved" to process.'
+            f"</div>"
+        )
+    except Exception:
+        session.rollback()
+        return '<div class="alert alert-danger">Failed to retry application</div>', 500
     finally:
         session.close()
