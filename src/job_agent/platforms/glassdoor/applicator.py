@@ -36,9 +36,7 @@ class GlassdoorApplicator(BaseApplicator):
     ) -> bool:
         # Click Apply button
         apply_btn = self.page.locator(
-            '[data-test="applyButton"], '
-            'button:has-text("Apply"), '
-            'a:has-text("Apply")'
+            '[data-test="applyButton"], button:has-text("Apply"), a:has-text("Apply")'
         ).first
         if apply_btn.count() == 0:
             log.warning("no_apply_button", job_id=job.external_id)
@@ -57,8 +55,7 @@ class GlassdoorApplicator(BaseApplicator):
         self._upload_resume(resume_path)
 
         submit_btn = self.page.locator(
-            'button[type="submit"], '
-            'button:has-text("Submit")'
+            'button[type="submit"], button:has-text("Submit")'
         ).first
         if submit_btn.count() > 0:
             submit_btn.click()

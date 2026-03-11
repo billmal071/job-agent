@@ -52,9 +52,7 @@ class TaskRunner:
         thread.start()
         return task_id
 
-    def _execute(
-        self, task_id: str, fn: Callable, args: tuple, kwargs: dict
-    ) -> None:
+    def _execute(self, task_id: str, fn: Callable, args: tuple, kwargs: dict) -> None:
         try:
             result = fn(*args, **kwargs)
             with self._lock:

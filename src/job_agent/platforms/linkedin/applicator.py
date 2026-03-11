@@ -59,9 +59,7 @@ class LinkedInApplicator(BaseApplicator):
         if not apply_btn:
             # No Easy Apply — try external "Apply" link to company ATS
             external_link = self.page.locator(
-                'a:has-text("Apply"), '
-                'a.jobs-apply-button, '
-                'a[href*="/applyredirect"]'
+                'a:has-text("Apply"), a.jobs-apply-button, a[href*="/applyredirect"]'
             ).first
             if external_link.count() > 0:
                 href = external_link.get_attribute("href") or ""
@@ -71,6 +69,7 @@ class LinkedInApplicator(BaseApplicator):
                 # Handle new tab/popup or redirect
                 if "linkedin.com" not in self.page.url:
                     from job_agent.platforms.external_ats import ExternalATSApplicator
+
                     ats = ExternalATSApplicator(self.page, self._get_answerer())
                     return ats.apply(job, resume_path, cover_letter_path)
                 # Check for popup/new tab
@@ -78,6 +77,7 @@ class LinkedInApplicator(BaseApplicator):
                 if len(pages) > 1:
                     new_page = pages[-1]
                     from job_agent.platforms.external_ats import ExternalATSApplicator
+
                     ats = ExternalATSApplicator(new_page, self._get_answerer())
                     result = ats.apply(job, resume_path, cover_letter_path)
                     new_page.close()
@@ -99,7 +99,7 @@ class LinkedInApplicator(BaseApplicator):
         # If click didn't navigate or open modal, try direct navigation
         if "/apply/" not in self.page.url:
             modal = self.page.locator(
-                '.jobs-easy-apply-modal, '
+                ".jobs-easy-apply-modal, "
                 '[data-test-modal-id="easy-apply-modal"], '
                 '[role="dialog"]'
             )
@@ -217,9 +217,7 @@ class LinkedInApplicator(BaseApplicator):
 
     def _handle_cover_letter_upload(self, cover_letter_path: str) -> None:
         """Upload cover letter if applicable."""
-        cover_section = self.page.locator(
-            'text="Cover letter", text="cover letter"'
-        )
+        cover_section = self.page.locator('text="Cover letter", text="cover letter"')
         if cover_section.count() > 0 and Path(cover_letter_path).exists():
             file_inputs = self.page.locator('input[type="file"]').all()
             if len(file_inputs) > 1:
@@ -238,9 +236,7 @@ class LinkedInApplicator(BaseApplicator):
 
     def _handle_screening_questions(self, answers: dict[str, str] | None) -> None:
         """Answer screening questions using AI or provided answers dict."""
-        questions = self.page.locator(
-            ".jobs-easy-apply-form-section__grouping"
-        ).all()
+        questions = self.page.locator(".jobs-easy-apply-form-section__grouping").all()
 
         if not questions:
             return
@@ -278,9 +274,7 @@ class LinkedInApplicator(BaseApplicator):
             except Exception as e:
                 log.debug("screening_question_error", error=str(e))
 
-    def _try_dict_answer(
-        self, group, label: str, answers: dict[str, str]
-    ) -> bool:
+    def _try_dict_answer(self, group, label: str, answers: dict[str, str]) -> bool:
         """Try to answer a question from the static answers dict. Returns True if matched."""
         label_lower = label.lower()
         for key, value in answers.items():
@@ -298,9 +292,7 @@ class LinkedInApplicator(BaseApplicator):
                     return True
 
                 # Try radio buttons
-                radio = group.locator(
-                    f'input[type="radio"][value="{value}"]'
-                ).first
+                radio = group.locator(f'input[type="radio"][value="{value}"]').first
                 if radio.count() > 0:
                     radio.click()
                     return True

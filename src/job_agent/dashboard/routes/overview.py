@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from flask import Blueprint, render_template, current_app
@@ -42,9 +41,7 @@ def index():
         confirmed = sum(
             1 for a in applications if a.status == ApplicationStatus.CONFIRMED
         )
-        failed = sum(
-            1 for a in applications if a.status == ApplicationStatus.FAILED
-        )
+        failed = sum(1 for a in applications if a.status == ApplicationStatus.FAILED)
         success_rate = (
             round((submitted + confirmed) / total_applications * 100, 1)
             if total_applications > 0
@@ -55,11 +52,13 @@ def index():
         recent_runs = run_repo.get_latest(limit=20)
 
         # Available profiles for pipeline actions
-        profiles = sorted(
-            f.name
-            for f in PROFILES_DIR.glob("*.yaml")
-            if f.name != "example.yaml"
-        ) if PROFILES_DIR.is_dir() else []
+        profiles = (
+            sorted(
+                f.name for f in PROFILES_DIR.glob("*.yaml") if f.name != "example.yaml"
+            )
+            if PROFILES_DIR.is_dir()
+            else []
+        )
 
         return render_template(
             "overview/index.html",

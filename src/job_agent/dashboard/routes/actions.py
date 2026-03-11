@@ -19,9 +19,7 @@ def _get_profiles() -> list[str]:
     if not PROFILES_DIR.is_dir():
         return []
     return sorted(
-        f.name
-        for f in PROFILES_DIR.glob("*.yaml")
-        if f.name != "example.yaml"
+        f.name for f in PROFILES_DIR.glob("*.yaml") if f.name != "example.yaml"
     )
 
 
@@ -87,7 +85,7 @@ def _status_snippet(task_id: str) -> str:
         f'hx-swap="outerHTML">'
         f'<div class="alert alert-info" style="display:flex;align-items:center;gap:0.5rem;">'
         f'<span class="spinner"></span> Task started...'
-        f'</div></div>'
+        f"</div></div>"
     )
 
 
@@ -104,22 +102,26 @@ def _render_status(info: dict) -> str:
             f'hx-swap="outerHTML">'
             f'<div class="alert alert-info" style="display:flex;align-items:center;gap:0.5rem;">'
             f'<span class="spinner"></span> {escape(info["name"])} running...'
-            f'</div></div>'
+            f"</div></div>"
         )
     elif status == "completed":
         result = info.get("result", {})
-        details = ", ".join(f"{k}: {v}" for k, v in result.items()) if isinstance(result, dict) else str(result)
+        details = (
+            ", ".join(f"{k}: {v}" for k, v in result.items())
+            if isinstance(result, dict)
+            else str(result)
+        )
         return (
             f'<div id="action-status">'
             f'<div class="alert alert-success">'
-            f'{escape(info["name"])} completed &mdash; {escape(details)}'
-            f'</div></div>'
+            f"{escape(info['name'])} completed &mdash; {escape(details)}"
+            f"</div></div>"
         )
     else:
         error = info.get("error", "Unknown error")
         return (
             f'<div id="action-status">'
             f'<div class="alert alert-danger">'
-            f'{escape(info["name"])} failed: {escape(str(error))}'
-            f'</div></div>'
+            f"{escape(info['name'])} failed: {escape(str(error))}"
+            f"</div></div>"
         )

@@ -22,7 +22,9 @@ class OrchestratorEngine:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    def run_once(self, profile_path: str, platform: str | None = None) -> dict[str, int]:
+    def run_once(
+        self, profile_path: str, platform: str | None = None
+    ) -> dict[str, int]:
         """Run the pipeline once."""
         session = get_session(self.settings)
         run_repo = AgentRunRepository(session)
@@ -37,11 +39,25 @@ class OrchestratorEngine:
             # Check activity window
             now = datetime.now()
             hour = now.hour
-            if not (self.settings.agent.activity_start_hour <= hour < self.settings.agent.activity_end_hour):
+            if not (
+                self.settings.agent.activity_start_hour
+                <= hour
+                < self.settings.agent.activity_end_hour
+            ):
                 log.info("outside_activity_window", hour=hour)
-                run_repo.finish(agent_run.id, RunStatus.CANCELLED, error_message="Outside activity window")
+                run_repo.finish(
+                    agent_run.id,
+                    RunStatus.CANCELLED,
+                    error_message="Outside activity window",
+                )
                 session.commit()
-                return {"discovered": 0, "matched": 0, "applied": 0, "queued": 0, "skipped": 0}
+                return {
+                    "discovered": 0,
+                    "matched": 0,
+                    "applied": 0,
+                    "queued": 0,
+                    "skipped": 0,
+                }
 
             stats = run_pipeline(self.settings, profile_path, platform)
 

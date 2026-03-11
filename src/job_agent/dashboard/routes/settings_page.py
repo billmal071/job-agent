@@ -13,7 +13,6 @@ from flask import (
     redirect,
     url_for,
     flash,
-    jsonify,
 )
 
 from job_agent.db.session import get_session
@@ -50,7 +49,9 @@ def _write_env_var(key: str, value: str) -> None:
     new_lines = []
     for line in lines:
         stripped = line.lstrip("# ").strip()
-        if stripped.startswith(upper_key + "=") or stripped.startswith(upper_key + " ="):
+        if stripped.startswith(upper_key + "=") or stripped.startswith(
+            upper_key + " ="
+        ):
             new_lines.append(f"{upper_key}={value}\n")
             found = True
         else:
@@ -84,11 +85,13 @@ def index():
         credentials = []
         for platform in Platform:
             cred = cred_repo.get(platform)
-            credentials.append({
-                "platform": platform.value,
-                "configured": cred is not None,
-                "username": cred.username if cred else "",
-            })
+            credentials.append(
+                {
+                    "platform": platform.value,
+                    "configured": cred is not None,
+                    "username": cred.username if cred else "",
+                }
+            )
 
         thresholds = {
             "auto_apply": settings.matching.auto_apply_threshold,
@@ -106,7 +109,9 @@ def index():
 
         email_config = {
             "smtp_user": settings.smtp_user,
-            "smtp_user_masked": _mask_key(settings.smtp_user) if settings.smtp_user else "",
+            "smtp_user_masked": _mask_key(settings.smtp_user)
+            if settings.smtp_user
+            else "",
             "smtp_password_set": bool(settings.smtp_password),
             "notification_email": settings.notification_email,
         }
@@ -348,8 +353,7 @@ def generate_profile():
 
         # Save to config/profiles/
         safe_name = "".join(
-            c if c.isalnum() or c in "-_" else "-"
-            for c in profile_name.lower()
+            c if c.isalnum() or c in "-_" else "-" for c in profile_name.lower()
         )
         profile_path = Path("config/profiles") / f"{safe_name}.yaml"
         profile_path.parent.mkdir(parents=True, exist_ok=True)

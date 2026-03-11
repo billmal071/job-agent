@@ -79,6 +79,7 @@ class AIClient:
                     "Anthropic API key required. Set JOB_AGENT_ANTHROPIC_API_KEY env var."
                 )
             import anthropic
+
             self._anthropic = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         elif self.provider == PROVIDER_GEMINI:
             if not settings.gemini_api_key:
@@ -121,23 +122,35 @@ class AIClient:
         for attempt in range(retries):
             try:
                 if self.provider == PROVIDER_ANTHROPIC:
-                    return self._complete_anthropic(prompt, system, max_tokens, temperature)
+                    return self._complete_anthropic(
+                        prompt, system, max_tokens, temperature
+                    )
                 elif self.provider == PROVIDER_GEMINI:
-                    return self._complete_gemini(prompt, system, max_tokens, temperature)
+                    return self._complete_gemini(
+                        prompt, system, max_tokens, temperature
+                    )
                 elif self.provider == PROVIDER_GROQ:
                     return self._complete_openai_compat(
                         API_URLS[PROVIDER_GROQ],
                         self.settings.groq_api_key,
-                        prompt, system, max_tokens, temperature,
+                        prompt,
+                        system,
+                        max_tokens,
+                        temperature,
                     )
                 elif self.provider == PROVIDER_OPENROUTER:
                     return self._complete_openai_compat(
                         API_URLS[PROVIDER_OPENROUTER],
                         self.settings.openrouter_api_key,
-                        prompt, system, max_tokens, temperature,
+                        prompt,
+                        system,
+                        max_tokens,
+                        temperature,
                     )
                 elif self.provider == PROVIDER_OLLAMA:
-                    return self._complete_ollama(prompt, system, max_tokens, temperature)
+                    return self._complete_ollama(
+                        prompt, system, max_tokens, temperature
+                    )
                 else:
                     raise ValueError(f"Unknown provider: {self.provider}")
             except Exception as e:
@@ -152,7 +165,7 @@ class AIClient:
                     log.warning("ai_rate_limited", wait=wait, attempt=attempt + 1)
                     time.sleep(wait)
                 elif err_class == "server":
-                    wait = 2 ** attempt
+                    wait = 2**attempt
                     log.warning("ai_server_error", wait=wait, attempt=attempt + 1)
                     time.sleep(wait)
                 else:
@@ -166,11 +179,21 @@ class AIClient:
     @staticmethod
     def _classify_error(err_str: str) -> str:
         """Classify an API error for retry decisions."""
-        if "401" in err_str or "403" in err_str or "unauthorized" in err_str or "forbidden" in err_str:
+        if (
+            "401" in err_str
+            or "403" in err_str
+            or "unauthorized" in err_str
+            or "forbidden" in err_str
+        ):
             return "auth"
         if "rate" in err_str or "429" in err_str:
             return "rate_limit"
-        if "500" in err_str or "502" in err_str or "503" in err_str or "server" in err_str:
+        if (
+            "500" in err_str
+            or "502" in err_str
+            or "503" in err_str
+            or "server" in err_str
+        ):
             return "server"
         return "other"
 
@@ -178,7 +201,6 @@ class AIClient:
         self, prompt: str, system: str, max_tokens: int, temperature: float
     ) -> str:
         """Complete using Anthropic Claude API."""
-        import anthropic
 
         kwargs: dict[str, Any] = {
             "model": self.model,
@@ -212,7 +234,14 @@ class AIClient:
         contents = []
         if system:
             contents.append({"role": "user", "parts": [{"text": system}]})
-            contents.append({"role": "model", "parts": [{"text": "Understood. I will follow these instructions."}]})
+            contents.append(
+                {
+                    "role": "model",
+                    "parts": [
+                        {"text": "Understood. I will follow these instructions."}
+                    ],
+                }
+            )
         contents.append({"role": "user", "parts": [{"text": prompt}]})
 
         payload = {

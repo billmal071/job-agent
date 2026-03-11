@@ -28,15 +28,17 @@ class TestTailor:
         ai.complete.return_value = "# Tailored Resume\n..."
         tailor = ResumeTailor(ai, settings)
 
-        result = tailor.tailor(_make_job(), ["Python", "Django"], master_resume="# My Resume")
+        result = tailor.tailor(
+            _make_job(), ["Python", "Django"], master_resume="# My Resume"
+        )
 
         assert result == "# Tailored Resume\n..."
         ai.complete.assert_called_once()
 
-    def test_missing_master_resume_raises(self, settings):
+    def test_missing_master_resume_raises(self, settings, tmp_path):
         ai = MagicMock()
+        settings.resume.master_resume = str(tmp_path / "nonexistent.pdf")
         tailor = ResumeTailor(ai, settings)
-        # Default master_resume path won't exist
         with pytest.raises(FileNotFoundError, match="Master resume not found"):
             tailor.tailor(_make_job(), ["Python"])
 
@@ -50,8 +52,10 @@ class TestTailorAndSave:
         from unittest.mock import patch
 
         pdf_path = str(tmp_path / "out.pdf")
-        with patch.object(tailor, "tailor", return_value="# Tailored") as mock_tailor, \
-             patch.object(tailor, "generate_pdf", return_value=pdf_path) as mock_pdf:
+        with (
+            patch.object(tailor, "tailor", return_value="# Tailored") as mock_tailor,
+            patch.object(tailor, "generate_pdf", return_value=pdf_path) as mock_pdf,
+        ):
             result = tailor.tailor_and_save(
                 _make_job(),
                 ["Python"],

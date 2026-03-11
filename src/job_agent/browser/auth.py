@@ -37,15 +37,31 @@ class AuthManager:
         checks = {
             Platform.LINKEDIN: lambda p: (
                 p.locator(".global-nav__me").count() > 0
-                or p.locator('[data-control-name="identity_welcome_message"]').count() > 0
+                or p.locator('[data-control-name="identity_welcome_message"]').count()
+                > 0
                 or p.locator(".feed-identity-module").count() > 0
                 or p.locator('nav[aria-label="Primary"]').count() > 0
             ),
-            Platform.INDEED: lambda p: p.locator('[data-gnav-element-name="AccountMenu"]').count() > 0,
-            Platform.GLASSDOOR: lambda p: p.locator('[data-test="header-profile"]').count() > 0,
-            Platform.ZIPRECRUITER: lambda p: p.locator('.navbar-user-menu, [data-testid="user-menu"]').count() > 0,
-            Platform.DICE: lambda p: p.locator('[data-testid="header-user-menu"], .user-menu').count() > 0,
-            Platform.WELLFOUND: lambda p: p.locator('[data-test="UserMenu"], .styles_component__NavBarAvatar').count() > 0,
+            Platform.INDEED: lambda p: p.locator(
+                '[data-gnav-element-name="AccountMenu"]'
+            ).count()
+            > 0,
+            Platform.GLASSDOOR: lambda p: p.locator(
+                '[data-test="header-profile"]'
+            ).count()
+            > 0,
+            Platform.ZIPRECRUITER: lambda p: p.locator(
+                '.navbar-user-menu, [data-testid="user-menu"]'
+            ).count()
+            > 0,
+            Platform.DICE: lambda p: p.locator(
+                '[data-testid="header-user-menu"], .user-menu'
+            ).count()
+            > 0,
+            Platform.WELLFOUND: lambda p: p.locator(
+                '[data-test="UserMenu"], .styles_component__NavBarAvatar'
+            ).count()
+            > 0,
         }
         check = checks.get(platform)
         if not check:
@@ -106,7 +122,9 @@ class AuthManager:
         log.info("linkedin_login_success")
         return page
 
-    def _wait_for_oauth_login(self, page: Page, platform: str, success_url_part: str) -> None:
+    def _wait_for_oauth_login(
+        self, page: Page, platform: str, success_url_part: str
+    ) -> None:
         """Wait for user to complete OAuth/Google login manually."""
         log.warning(
             f"{platform}_manual_oauth",
@@ -128,12 +146,15 @@ class AuthManager:
         human_delay(2000, 3000)
 
         # Check if already logged in by looking for profile/account indicators
-        logged_in = page.locator(
-            '[data-gnav-element-name="AccountMenu"], '
-            'a[href*="/account"], '
-            '[data-testid="gnav-header-account"], '
-            '#AccountMenu'
-        ).count() > 0
+        logged_in = (
+            page.locator(
+                '[data-gnav-element-name="AccountMenu"], '
+                'a[href*="/account"], '
+                '[data-testid="gnav-header-account"], '
+                "#AccountMenu"
+            ).count()
+            > 0
+        )
         if logged_in:
             log.info("indeed_already_logged_in")
             return page
@@ -153,14 +174,23 @@ class AuthManager:
                 break
 
         # Check if redirected to logged-in state
-        if "indeed.com" in page.url and "auth" not in page.url and "login" not in page.url:
+        if (
+            "indeed.com" in page.url
+            and "auth" not in page.url
+            and "login" not in page.url
+        ):
             log.info("indeed_already_logged_in")
             return page
 
         # Try Google auth button first, fall back to email/password
-        google_btn = page.locator('button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]')
+        google_btn = page.locator(
+            'button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]'
+        )
         if google_btn.count() > 0:
-            human_click(page, 'button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]')
+            human_click(
+                page,
+                'button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]',
+            )
             self._wait_for_oauth_login(page, "indeed", "indeed.com")
         else:
             email_field = page.locator('[name="__email"]')
@@ -191,18 +221,24 @@ class AuthManager:
         # Handle Cloudflare challenge on homepage
         for _ in range(6):
             if "just a moment" in page.title().lower():
-                log.warning("glassdoor_cloudflare_challenge", message="Waiting for Cloudflare...")
+                log.warning(
+                    "glassdoor_cloudflare_challenge",
+                    message="Waiting for Cloudflare...",
+                )
                 human_delay(5000, 8000)
             else:
                 break
 
         # Check if already logged in
-        logged_in = page.locator(
-            '[data-test="profile-button"], '
-            'a[href*="/member/profile"], '
-            '#ProfileButton, '
-            '[data-test="header-profile"]'
-        ).count() > 0
+        logged_in = (
+            page.locator(
+                '[data-test="profile-button"], '
+                'a[href*="/member/profile"], '
+                "#ProfileButton, "
+                '[data-test="header-profile"]'
+            ).count()
+            > 0
+        )
         if logged_in:
             log.info("glassdoor_already_logged_in")
             return page
@@ -215,7 +251,10 @@ class AuthManager:
         # Handle Cloudflare challenge on login page
         for _ in range(6):
             if "just a moment" in page.title().lower():
-                log.warning("glassdoor_cloudflare_challenge", message="Waiting for Cloudflare...")
+                log.warning(
+                    "glassdoor_cloudflare_challenge",
+                    message="Waiting for Cloudflare...",
+                )
                 human_delay(5000, 8000)
             else:
                 break
@@ -226,15 +265,24 @@ class AuthManager:
             return page
 
         # Try Google auth button first, fall back to email/password
-        google_btn = page.locator('button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]')
+        google_btn = page.locator(
+            'button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]'
+        )
         if google_btn.count() > 0:
-            human_click(page, 'button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]')
+            human_click(
+                page,
+                'button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]',
+            )
             self._wait_for_oauth_login(page, "glassdoor", "glassdoor.com")
         else:
             # Check if login form is actually present
-            username_field = page.locator('[name="username"], [name="email"], #userEmail')
+            username_field = page.locator(
+                '[name="username"], [name="email"], #userEmail'
+            )
             if username_field.count() > 0:
-                human_type(page, '[name="username"], [name="email"], #userEmail', username)
+                human_type(
+                    page, '[name="username"], [name="email"], #userEmail', username
+                )
                 human_type(page, '[name="password"]', password)
                 human_delay(500, 1000)
                 human_click(page, '[type="submit"]')

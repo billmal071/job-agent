@@ -28,10 +28,16 @@ class GlassdoorDiscovery:
     def _dismiss_one_tap(self) -> None:
         """Dismiss Google One Tap auth popup if present."""
         try:
-            one_tap = self.page.locator('iframe[src*="accounts.google.com/gsi"], #credential_picker_container')
+            one_tap = self.page.locator(
+                'iframe[src*="accounts.google.com/gsi"], #credential_picker_container'
+            )
             if one_tap.count() > 0:
-                self.page.evaluate("document.querySelector('#credential_picker_container')?.remove()")
-                self.page.evaluate("document.querySelector('iframe[src*=\"accounts.google.com/gsi\"]')?.remove()")
+                self.page.evaluate(
+                    "document.querySelector('#credential_picker_container')?.remove()"
+                )
+                self.page.evaluate(
+                    "document.querySelector('iframe[src*=\"accounts.google.com/gsi\"]')?.remove()"
+                )
         except Exception:
             pass
 
@@ -113,21 +119,36 @@ class GlassdoorDiscovery:
                 title_el = card.locator('[data-test="job-title"], .job-title').first
                 title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
-                company_el = card.locator('[data-test="emp-name"], [class*="EmployerProfile_employerNameContainer"], .employer-name').first
-                company = company_el.inner_text().strip() if company_el.count() > 0 else ""
+                company_el = card.locator(
+                    '[data-test="emp-name"], [class*="EmployerProfile_employerNameContainer"], .employer-name'
+                ).first
+                company = (
+                    company_el.inner_text().strip() if company_el.count() > 0 else ""
+                )
                 # Clean up company name (remove rating suffix like "3.8")
                 import re as _re
-                company = _re.sub(r'\s*\d+\.\d+\s*$', '', company).strip()
 
-                location_el = card.locator('[data-test="emp-location"], .location').first
-                location = location_el.inner_text().strip() if location_el.count() > 0 else ""
+                company = _re.sub(r"\s*\d+\.\d+\s*$", "", company).strip()
 
-                link_el = card.locator("a[href*='/job-listing/'], a[data-test='job-title']").first
+                location_el = card.locator(
+                    '[data-test="emp-location"], .location'
+                ).first
+                location = (
+                    location_el.inner_text().strip() if location_el.count() > 0 else ""
+                )
+
+                link_el = card.locator(
+                    "a[href*='/job-listing/'], a[data-test='job-title']"
+                ).first
                 url = ""
                 external_id = ""
                 if link_el.count() > 0:
                     href = link_el.get_attribute("href") or ""
-                    url = href if href.startswith("http") else f"https://www.glassdoor.com{href}"
+                    url = (
+                        href
+                        if href.startswith("http")
+                        else f"https://www.glassdoor.com{href}"
+                    )
                     # Try jobListingId param first, then extract from URL path
                     match = re.search(r"jobListingId=(\d+)", url)
                     if match:
@@ -145,27 +166,36 @@ class GlassdoorDiscovery:
                 if not external_id or not title:
                     continue
 
-                salary_el = card.locator('[data-test="detailSalary"], .salary-estimate').first
-                salary = salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                salary_el = card.locator(
+                    '[data-test="detailSalary"], .salary-estimate'
+                ).first
+                salary = (
+                    salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                )
 
                 # Check for Easy Apply badge
-                easy_apply = card.locator(
-                    '[data-test="applyButton"], '
-                    ".easy-apply-badge, "
-                    ":text('Easy Apply'), :text('Apply Now')"
-                ).count() > 0
+                easy_apply = (
+                    card.locator(
+                        '[data-test="applyButton"], '
+                        ".easy-apply-badge, "
+                        ":text('Easy Apply'), :text('Apply Now')"
+                    ).count()
+                    > 0
+                )
 
-                jobs.append(JobPosting(
-                    external_id=external_id,
-                    platform=Platform.GLASSDOOR,
-                    title=title,
-                    company=company,
-                    location=location,
-                    url=url,
-                    salary=salary,
-                    easy_apply=easy_apply,
-                    remote="remote" in location.lower(),
-                ))
+                jobs.append(
+                    JobPosting(
+                        external_id=external_id,
+                        platform=Platform.GLASSDOOR,
+                        title=title,
+                        company=company,
+                        location=location,
+                        url=url,
+                        salary=salary,
+                        easy_apply=easy_apply,
+                        remote="remote" in location.lower(),
+                    )
+                )
             except Exception as e:
                 log.debug("glassdoor_card_error", error=str(e))
 
@@ -174,7 +204,9 @@ class GlassdoorDiscovery:
     def _next_page(self) -> bool:
         try:
             self.rate_limiter.wait()
-            next_btn = self.page.locator('button[data-test="pagination-next"], a.nextButton')
+            next_btn = self.page.locator(
+                'button[data-test="pagination-next"], a.nextButton'
+            )
             if next_btn.count() > 0 and next_btn.is_enabled():
                 next_btn.click()
                 self.page.wait_for_load_state("domcontentloaded")
@@ -190,20 +222,25 @@ class GlassdoorDiscovery:
         self._safe_goto(job_url)
         human_delay(2000, 4000)
 
-        title = safe_text(self.page,'[data-test="jobTitle"], .e1tk4kwz5')
-        company = safe_text(self.page,'[data-test="employerName"], .e1tk4kwz4')
-        location = safe_text(self.page,'[data-test="location"], .e1tk4kwz1')
-        description = safe_text(self.page,'[data-test="jobDescriptionContent"], .jobDescriptionContent')
+        title = safe_text(self.page, '[data-test="jobTitle"], .e1tk4kwz5')
+        company = safe_text(self.page, '[data-test="employerName"], .e1tk4kwz4')
+        location = safe_text(self.page, '[data-test="location"], .e1tk4kwz1')
+        description = safe_text(
+            self.page, '[data-test="jobDescriptionContent"], .jobDescriptionContent'
+        )
 
         match = re.search(r"jobListingId=(\d+)", job_url)
         external_id = match.group(1) if match else ""
 
         # Check for apply button on detail page
-        easy_apply = self.page.locator(
-            '[data-test="applyButton"], '
-            'button:has-text("Apply"), '
-            'a:has-text("Apply")'
-        ).count() > 0
+        easy_apply = (
+            self.page.locator(
+                '[data-test="applyButton"], '
+                'button:has-text("Apply"), '
+                'a:has-text("Apply")'
+            ).count()
+            > 0
+        )
 
         self.rate_limiter.success()
         return JobPosting(

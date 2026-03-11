@@ -54,11 +54,15 @@ class LinkedInOutreach:
 
         for card in cards[:limit]:
             try:
-                name_el = card.locator(".entity-result__title-text a span[aria-hidden='true']").first
+                name_el = card.locator(
+                    ".entity-result__title-text a span[aria-hidden='true']"
+                ).first
                 name = name_el.inner_text().strip() if name_el.count() > 0 else ""
 
                 title_el = card.locator(".entity-result__primary-subtitle").first
-                person_title = title_el.inner_text().strip() if title_el.count() > 0 else ""
+                person_title = (
+                    title_el.inner_text().strip() if title_el.count() > 0 else ""
+                )
 
                 link_el = card.locator(".entity-result__title-text a").first
                 profile_url = ""
@@ -66,12 +70,14 @@ class LinkedInOutreach:
                     profile_url = link_el.get_attribute("href") or ""
 
                 if name and profile_url:
-                    people.append({
-                        "name": name,
-                        "title": person_title,
-                        "company": company,
-                        "profile_url": profile_url,
-                    })
+                    people.append(
+                        {
+                            "name": name,
+                            "title": person_title,
+                            "company": company,
+                            "profile_url": profile_url,
+                        }
+                    )
             except Exception as e:
                 log.debug("people_parse_error", error=str(e))
 
@@ -102,7 +108,9 @@ class LinkedInOutreach:
             daily_count = outreach_repo.count_today(Platform.LINKEDIN)
             max_per_day = self.settings.platforms.linkedin.max_connections_per_day
             if daily_count >= max_per_day:
-                log.warning("connection_daily_limit", count=daily_count, max=max_per_day)
+                log.warning(
+                    "connection_daily_limit", count=daily_count, max=max_per_day
+                )
                 return False
 
             # Generate personalized note
@@ -118,8 +126,7 @@ class LinkedInOutreach:
 
             # Click Connect button
             connect_btn = self.page.locator(
-                'button[aria-label*="Connect"], '
-                'button:has-text("Connect")'
+                'button[aria-label*="Connect"], button:has-text("Connect")'
             ).first
             if connect_btn.count() == 0:
                 # Try the More menu
@@ -127,7 +134,9 @@ class LinkedInOutreach:
                 if more_btn.count() > 0:
                     human_click(self.page, 'button[aria-label="More actions"]')
                     human_delay(500, 1000)
-                    connect_option = self.page.locator('div[aria-label*="Connect"]').first
+                    connect_option = self.page.locator(
+                        'div[aria-label*="Connect"]'
+                    ).first
                     if connect_option.count() == 0:
                         log.warning("no_connect_button", profile=profile_url)
                         return False
@@ -155,8 +164,7 @@ class LinkedInOutreach:
 
             # Click Send
             send_btn = self.page.locator(
-                'button[aria-label="Send invitation"], '
-                'button[aria-label="Send now"]'
+                'button[aria-label="Send invitation"], button[aria-label="Send now"]'
             ).first
             if send_btn.count() > 0:
                 send_btn.click()
@@ -213,8 +221,7 @@ class LinkedInOutreach:
 
             # Click Message button
             msg_btn = self.page.locator(
-                'button[aria-label*="Message"], '
-                'a[href*="messaging"]'
+                'button[aria-label*="Message"], a[href*="messaging"]'
             ).first
             if msg_btn.count() == 0:
                 log.warning("no_message_button", profile=profile_url)
@@ -230,8 +237,7 @@ class LinkedInOutreach:
 
             # Type message
             msg_field = self.page.locator(
-                '.msg-form__contenteditable, '
-                'div[role="textbox"]'
+                '.msg-form__contenteditable, div[role="textbox"]'
             ).first
             if msg_field.count() > 0:
                 msg_field.click()
@@ -240,8 +246,7 @@ class LinkedInOutreach:
 
             # Send
             send_btn = self.page.locator(
-                'button.msg-form__send-button, '
-                'button[type="submit"]'
+                'button.msg-form__send-button, button[type="submit"]'
             ).first
             if send_btn.count() > 0:
                 send_btn.click()

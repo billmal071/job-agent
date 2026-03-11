@@ -48,9 +48,7 @@ class ZipRecruiterApplicator(BaseApplicator):
         self._upload_resume(resume_path)
 
         submit_btn = self.page.locator(
-            'button:has-text("Submit"), '
-            'button:has-text("Apply"), '
-            'button[type="submit"]'
+            'button:has-text("Submit"), button:has-text("Apply"), button[type="submit"]'
         ).first
         if submit_btn.count() > 0:
             submit_btn.click()

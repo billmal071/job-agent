@@ -51,35 +51,39 @@ def export():
 
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow([
-            "Application ID",
-            "Job ID",
-            "Job Title",
-            "Company",
-            "Platform",
-            "Status",
-            "Applied At",
-            "Resume Path",
-            "Cover Letter Path",
-            "Error Message",
-            "Created At",
-        ])
+        writer.writerow(
+            [
+                "Application ID",
+                "Job ID",
+                "Job Title",
+                "Company",
+                "Platform",
+                "Status",
+                "Applied At",
+                "Resume Path",
+                "Cover Letter Path",
+                "Error Message",
+                "Created At",
+            ]
+        )
 
         for app in applications:
             job = app.job
-            writer.writerow([
-                app.id,
-                app.job_id,
-                job.title if job else "",
-                job.company if job else "",
-                job.platform.value if job else "",
-                app.status.value,
-                app.applied_at.isoformat() if app.applied_at else "",
-                app.resume_path,
-                app.cover_letter_path,
-                app.error_message,
-                app.created_at.isoformat() if app.created_at else "",
-            ])
+            writer.writerow(
+                [
+                    app.id,
+                    app.job_id,
+                    job.title if job else "",
+                    job.company if job else "",
+                    job.platform.value if job else "",
+                    app.status.value,
+                    app.applied_at.isoformat() if app.applied_at else "",
+                    app.resume_path,
+                    app.cover_letter_path,
+                    app.error_message,
+                    app.created_at.isoformat() if app.created_at else "",
+                ]
+            )
 
         csv_content = output.getvalue()
         output.close()

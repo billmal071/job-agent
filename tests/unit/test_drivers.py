@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -22,11 +22,13 @@ def _make_job(platform=Platform.LINKEDIN) -> JobPosting:
 
 # --------------- LinkedIn ---------------
 
+
 class TestLinkedInDriver:
     @pytest.fixture
     def driver(self, settings):
         bm = MagicMock()
         from job_agent.platforms.linkedin.driver import LinkedInDriver
+
         return LinkedInDriver(settings, bm)
 
     def test_ensure_page_raises_when_not_logged_in(self, driver):
@@ -48,11 +50,13 @@ class TestLinkedInDriver:
 
 # --------------- Indeed ---------------
 
+
 class TestIndeedDriver:
     @pytest.fixture
     def driver(self, settings):
         bm = MagicMock()
         from job_agent.platforms.indeed.driver import IndeedDriver
+
         return IndeedDriver(settings, bm)
 
     def test_ensure_page_raises_when_not_logged_in(self, driver):
@@ -62,11 +66,13 @@ class TestIndeedDriver:
 
 # --------------- Glassdoor ---------------
 
+
 class TestGlassdoorDriver:
     @pytest.fixture
     def driver(self, settings):
         bm = MagicMock()
         from job_agent.platforms.glassdoor.driver import GlassdoorDriver
+
         return GlassdoorDriver(settings, bm)
 
     def test_ensure_page_raises_when_not_logged_in(self, driver):
@@ -76,11 +82,13 @@ class TestGlassdoorDriver:
 
 # --------------- Dice ---------------
 
+
 class TestDiceDriver:
     @pytest.fixture
     def driver(self, settings):
         bm = MagicMock()
         from job_agent.platforms.dice.driver import DiceDriver
+
         return DiceDriver(settings, bm)
 
     def test_ensure_page_raises_when_not_logged_in(self, driver):
@@ -90,11 +98,13 @@ class TestDiceDriver:
 
 # --------------- Wellfound ---------------
 
+
 class TestWellfoundDriver:
     @pytest.fixture
     def driver(self, settings):
         bm = MagicMock()
         from job_agent.platforms.wellfound.driver import WellfoundDriver
+
         return WellfoundDriver(settings, bm)
 
     def test_ensure_page_raises_when_not_logged_in(self, driver):
@@ -104,11 +114,13 @@ class TestWellfoundDriver:
 
 # --------------- ZipRecruiter ---------------
 
+
 class TestZipRecruiterDriver:
     @pytest.fixture
     def driver(self, settings):
         bm = MagicMock()
         from job_agent.platforms.ziprecruiter.driver import ZipRecruiterDriver
+
         return ZipRecruiterDriver(settings, bm)
 
     def test_ensure_page_raises_when_not_logged_in(self, driver):

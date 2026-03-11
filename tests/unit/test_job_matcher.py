@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from job_agent.ai.job_matcher import JobMatcher, MatchScore
+from job_agent.ai.job_matcher import JobMatcher
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting
 

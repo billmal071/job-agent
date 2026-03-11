@@ -33,7 +33,9 @@ class EmailNotifier(Notifier):
             msg["From"] = self.settings.smtp_user
             msg["To"] = self.settings.notification_email
 
-            with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port) as server:
+            with smtplib.SMTP(
+                self.settings.smtp_host, self.settings.smtp_port
+            ) as server:
                 server.starttls()
                 server.login(self.settings.smtp_user, self.settings.smtp_password)
                 server.send_message(msg)

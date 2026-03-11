@@ -63,8 +63,11 @@ class ZipRecruiterDriver(PlatformDriver):
         if not self._discovery:
             raise RuntimeError("Not logged in.")
         return self._discovery.search(
-            query=query, location=location, remote=remote,
-            experience_level=experience_level, limit=limit,
+            query=query,
+            location=location,
+            remote=remote,
+            experience_level=experience_level,
+            limit=limit,
         )
 
     def get_job_details(self, job_url: str) -> JobPosting:

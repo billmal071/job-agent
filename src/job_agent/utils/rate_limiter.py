@@ -98,8 +98,7 @@ class CircuitBreaker:
             failures=self._failure_count,
             cooldown_remaining=max(
                 0,
-                self.cooldown_seconds
-                - (time.monotonic() - self._last_failure_time),
+                self.cooldown_seconds - (time.monotonic() - self._last_failure_time),
             ),
         )
         return False

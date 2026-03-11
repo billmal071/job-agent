@@ -75,11 +75,19 @@ class IndeedDiscovery:
                 title_el = card.locator("h2.jobTitle a, .jobTitle > a").first
                 title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
-                company_el = card.locator('[data-testid="company-name"], .companyName').first
-                company = company_el.inner_text().strip() if company_el.count() > 0 else ""
+                company_el = card.locator(
+                    '[data-testid="company-name"], .companyName'
+                ).first
+                company = (
+                    company_el.inner_text().strip() if company_el.count() > 0 else ""
+                )
 
-                location_el = card.locator('[data-testid="text-location"], .companyLocation').first
-                location = location_el.inner_text().strip() if location_el.count() > 0 else ""
+                location_el = card.locator(
+                    '[data-testid="text-location"], .companyLocation'
+                ).first
+                location = (
+                    location_el.inner_text().strip() if location_el.count() > 0 else ""
+                )
 
                 # Extract job URL and ID
                 link_el = card.locator("h2.jobTitle a, .jobTitle > a").first
@@ -98,27 +106,36 @@ class IndeedDiscovery:
                 if not external_id or not title:
                     continue
 
-                salary_el = card.locator(".salary-snippet-container, .metadata.salary-snippet-container").first
-                salary = salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                salary_el = card.locator(
+                    ".salary-snippet-container, .metadata.salary-snippet-container"
+                ).first
+                salary = (
+                    salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                )
 
                 # Check for Easy Apply / Indeed Apply badge
-                easy_apply = card.locator(
-                    ".iaLabel, .indeed-apply-badge, "
-                    "[data-indeed-apply-button], "
-                    ":text('Easily apply'), :text('Apply now')"
-                ).count() > 0
+                easy_apply = (
+                    card.locator(
+                        ".iaLabel, .indeed-apply-badge, "
+                        "[data-indeed-apply-button], "
+                        ":text('Easily apply'), :text('Apply now')"
+                    ).count()
+                    > 0
+                )
 
-                jobs.append(JobPosting(
-                    external_id=external_id,
-                    platform=Platform.INDEED,
-                    title=title,
-                    company=company,
-                    location=location,
-                    url=url,
-                    salary=salary,
-                    easy_apply=easy_apply,
-                    remote="remote" in location.lower(),
-                ))
+                jobs.append(
+                    JobPosting(
+                        external_id=external_id,
+                        platform=Platform.INDEED,
+                        title=title,
+                        company=company,
+                        location=location,
+                        url=url,
+                        salary=salary,
+                        easy_apply=easy_apply,
+                        remote="remote" in location.lower(),
+                    )
+                )
             except Exception as e:
                 log.debug("indeed_card_error", error=str(e))
 
@@ -128,7 +145,9 @@ class IndeedDiscovery:
         """Navigate to next page of results."""
         try:
             self.rate_limiter.wait()
-            next_link = self.page.locator('a[data-testid="pagination-page-next"], a[aria-label="Next Page"]')
+            next_link = self.page.locator(
+                'a[data-testid="pagination-page-next"], a[aria-label="Next Page"]'
+            )
             if next_link.count() > 0:
                 next_link.click()
                 self.page.wait_for_load_state("domcontentloaded")
@@ -145,21 +164,32 @@ class IndeedDiscovery:
         self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
-        title = safe_text(self.page,".jobsearch-JobInfoHeader-title, h1")
-        company = safe_text(self.page,'[data-testid="inlineHeader-companyName"], .jobsearch-InlineCompanyRating-companyHeader')
-        location = safe_text(self.page,'[data-testid="inlineHeader-companyLocation"], .jobsearch-InlineCompanyRating > div:last-child')
-        description = safe_text(self.page,"#jobDescriptionText, .jobsearch-jobDescriptionText")
+        title = safe_text(self.page, ".jobsearch-JobInfoHeader-title, h1")
+        company = safe_text(
+            self.page,
+            '[data-testid="inlineHeader-companyName"], .jobsearch-InlineCompanyRating-companyHeader',
+        )
+        location = safe_text(
+            self.page,
+            '[data-testid="inlineHeader-companyLocation"], .jobsearch-InlineCompanyRating > div:last-child',
+        )
+        description = safe_text(
+            self.page, "#jobDescriptionText, .jobsearch-jobDescriptionText"
+        )
 
         match = re.search(r"jk=([a-f0-9]+)", job_url)
         external_id = match.group(1) if match else ""
 
         # Check for apply button on detail page
-        easy_apply = self.page.locator(
-            '#indeedApplyButton, '
-            'button[id*="apply"], '
-            'a[href*="apply"], '
-            ':text("Easily apply")'
-        ).count() > 0
+        easy_apply = (
+            self.page.locator(
+                "#indeedApplyButton, "
+                'button[id*="apply"], '
+                'a[href*="apply"], '
+                ':text("Easily apply")'
+            ).count()
+            > 0
+        )
 
         self.rate_limiter.success()
         return JobPosting(

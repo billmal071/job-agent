@@ -10,7 +10,15 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
-from flask import Blueprint, render_template, current_app, request, redirect, url_for, flash
+from flask import (
+    Blueprint,
+    render_template,
+    current_app,
+    request,
+    redirect,
+    url_for,
+    flash,
+)
 
 from job_agent.ai.client import AIClient
 from job_agent.ai.cold_email import ColdEmailGenerator
@@ -59,7 +67,11 @@ def index():
 
         # Compute summary stats
         total = len(all_messages)
-        sent = sum(1 for m in all_messages if m.status not in (OutreachStatus.PENDING, OutreachStatus.DRAFTED))
+        sent = sum(
+            1
+            for m in all_messages
+            if m.status not in (OutreachStatus.PENDING, OutreachStatus.DRAFTED)
+        )
         drafted = sum(1 for m in all_messages if m.status == OutreachStatus.DRAFTED)
         accepted = sum(1 for m in all_messages if m.status == OutreachStatus.ACCEPTED)
         replied = sum(1 for m in all_messages if m.status == OutreachStatus.REPLIED)
@@ -67,9 +79,7 @@ def index():
             1 for m in all_messages if m.status == OutreachStatus.FOLLOW_UP_SENT
         )
         failed = sum(1 for m in all_messages if m.status == OutreachStatus.FAILED)
-        response_rate = (
-            round((accepted + replied) / sent * 100, 1) if sent > 0 else 0.0
-        )
+        response_rate = round((accepted + replied) / sent * 100, 1) if sent > 0 else 0.0
 
         stats = {
             "total": total,
@@ -121,7 +131,10 @@ def generate_email(job_id: int):
 
         # Dedup check
         if outreach_repo.exists_email_for_job(job_id, recipient_name):
-            flash(f"Email draft already exists for {recipient_name} on this job.", "warning")
+            flash(
+                f"Email draft already exists for {recipient_name} on this job.",
+                "warning",
+            )
             return redirect(url_for("outreach.index", tab="emails"))
 
         # Get matched skills from match result
@@ -236,7 +249,9 @@ def send_email(message_id: int):
     try:
         # Validate SMTP config
         if not settings.smtp_user or not settings.smtp_password:
-            flash("SMTP not configured. Go to Settings > Email to set up Gmail.", "error")
+            flash(
+                "SMTP not configured. Go to Settings > Email to set up Gmail.", "error"
+            )
             return redirect(url_for("outreach.index", tab="emails"))
 
         outreach_repo = OutreachRepository(session)
@@ -288,7 +303,10 @@ def send_email(message_id: int):
         return redirect(url_for("outreach.index", tab="emails"))
     except smtplib.SMTPAuthenticationError:
         session.rollback()
-        flash("SMTP authentication failed. Check your Gmail address and App Password in Settings.", "error")
+        flash(
+            "SMTP authentication failed. Check your Gmail address and App Password in Settings.",
+            "error",
+        )
         return redirect(url_for("outreach.index", tab="emails"))
     except Exception as e:
         session.rollback()
@@ -306,7 +324,9 @@ def quick_apply():
     try:
         # Validate SMTP
         if not settings.smtp_user or not settings.smtp_password:
-            flash("SMTP not configured. Go to Settings > Email to set up Gmail.", "error")
+            flash(
+                "SMTP not configured. Go to Settings > Email to set up Gmail.", "error"
+            )
             return redirect(url_for("outreach.index"))
 
         raw_posting = request.form.get("raw_posting", "").strip()
@@ -314,7 +334,9 @@ def quick_apply():
         job_title = request.form.get("job_title", "").strip()
         job_description = request.form.get("job_description", "").strip()
         recipient_email = request.form.get("recipient_email", "").strip()
-        recipient_name = request.form.get("recipient_name", "").strip() or "Hiring Manager"
+        recipient_name = (
+            request.form.get("recipient_name", "").strip() or "Hiring Manager"
+        )
 
         # If raw posting provided, use AI to extract structured fields
         if raw_posting and (not company or not job_title or not recipient_email):
@@ -340,7 +362,9 @@ def quick_apply():
                     job_title = extracted.get("job_title", "")
                 if not recipient_email:
                     recipient_email = extracted.get("recipient_email", "")
-                if recipient_name == "Hiring Manager" and extracted.get("recipient_name"):
+                if recipient_name == "Hiring Manager" and extracted.get(
+                    "recipient_name"
+                ):
                     recipient_name = extracted["recipient_name"]
                 if not job_description:
                     job_description = extracted.get("description", raw_posting)
@@ -350,7 +374,10 @@ def quick_apply():
                     job_description = raw_posting
 
         if not company or not job_title or not recipient_email:
-            flash("Could not extract company, job title, or email. Please fill in the override fields.", "error")
+            flash(
+                "Could not extract company, job title, or email. Please fill in the override fields.",
+                "error",
+            )
             return redirect(url_for("outreach.index"))
 
         # Build candidate summary from profile
@@ -372,10 +399,30 @@ def quick_apply():
         matched_skills: list[str] = []
         if job_description:
             known_skills = [
-                "Python", "Java", "TypeScript", "JavaScript", "React", "Node.js",
-                "Spring Boot", "NestJS", "Docker", "Kubernetes", "AWS", "SQL",
-                "PostgreSQL", "MongoDB", "REST", "APIs", "Terraform", "Next.js",
-                "Express", "Rust", "Go", "DigitalOcean", "Redis", "GraphQL",
+                "Python",
+                "Java",
+                "TypeScript",
+                "JavaScript",
+                "React",
+                "Node.js",
+                "Spring Boot",
+                "NestJS",
+                "Docker",
+                "Kubernetes",
+                "AWS",
+                "SQL",
+                "PostgreSQL",
+                "MongoDB",
+                "REST",
+                "APIs",
+                "Terraform",
+                "Next.js",
+                "Express",
+                "Rust",
+                "Go",
+                "DigitalOcean",
+                "Redis",
+                "GraphQL",
             ]
             desc_lower = job_description.lower()
             matched_skills = [s for s in known_skills if s.lower() in desc_lower]
@@ -396,7 +443,9 @@ def quick_apply():
             url="",
         )
         try:
-            tailored_resume_path = resume_tailor.tailor_and_save(posting, matched_skills)
+            tailored_resume_path = resume_tailor.tailor_and_save(
+                posting, matched_skills
+            )
         except Exception:
             tailored_resume_path = str(Path(settings.resume.master_resume))
 
@@ -455,11 +504,17 @@ def quick_apply():
         )
         session.commit()
 
-        flash(f"Application sent to {recipient_email} for {job_title} at {company}.", "success")
+        flash(
+            f"Application sent to {recipient_email} for {job_title} at {company}.",
+            "success",
+        )
         return redirect(url_for("outreach.index", tab="emails"))
     except smtplib.SMTPAuthenticationError:
         session.rollback()
-        flash("SMTP authentication failed. Check your Gmail App Password in Settings.", "error")
+        flash(
+            "SMTP authentication failed. Check your Gmail App Password in Settings.",
+            "error",
+        )
         return redirect(url_for("outreach.index"))
     except Exception as e:
         session.rollback()

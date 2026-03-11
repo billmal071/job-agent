@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from pathlib import Path
 
-import pytest
 
 from job_agent.ai.cover_letter import CoverLetterGenerator
 from job_agent.db.models import Platform
@@ -39,7 +38,12 @@ class TestGenerate:
         assert result == "Dear Hiring Manager..."
         ai.complete.assert_called_once()
         call_kwargs = ai.complete.call_args
-        assert "enthusiastic" in call_kwargs.kwargs.get("prompt", "") or "enthusiastic" in call_kwargs.args[0] if call_kwargs.args else True
+        assert (
+            "enthusiastic" in call_kwargs.kwargs.get("prompt", "")
+            or "enthusiastic" in call_kwargs.args[0]
+            if call_kwargs.args
+            else True
+        )
 
     def test_default_tone_from_settings(self, settings):
         ai = MagicMock()
@@ -48,7 +52,9 @@ class TestGenerate:
 
         gen.generate(_make_job(), "summary", ["Python"])
         call_kwargs = ai.complete.call_args
-        prompt = call_kwargs.kwargs.get("prompt", call_kwargs.args[0] if call_kwargs.args else "")
+        prompt = call_kwargs.kwargs.get(
+            "prompt", call_kwargs.args[0] if call_kwargs.args else ""
+        )
         assert settings.resume.cover_letter_tone in prompt
 
 

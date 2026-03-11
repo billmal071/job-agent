@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from flask import Blueprint, render_template, request, current_app
+from flask import Blueprint, render_template, current_app
 
 from job_agent.db.session import get_session
 from job_agent.db.repository import JobRepository
@@ -24,14 +24,23 @@ def index():
         # Enrich with parsed match data
         queue_items = []
         for job in queued_jobs:
-            item = {"job": job, "matched_skills": [], "missing_skills": [], "red_flags": []}
+            item = {
+                "job": job,
+                "matched_skills": [],
+                "missing_skills": [],
+                "red_flags": [],
+            }
             if job.match_result:
                 try:
-                    item["matched_skills"] = json.loads(job.match_result.matched_skills or "[]")
+                    item["matched_skills"] = json.loads(
+                        job.match_result.matched_skills or "[]"
+                    )
                 except (json.JSONDecodeError, TypeError):
                     pass
                 try:
-                    item["missing_skills"] = json.loads(job.match_result.missing_skills or "[]")
+                    item["missing_skills"] = json.loads(
+                        job.match_result.missing_skills or "[]"
+                    )
                 except (json.JSONDecodeError, TypeError):
                     pass
                 try:

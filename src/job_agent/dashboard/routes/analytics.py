@@ -78,9 +78,7 @@ def data_timeline():
             .order_by(func.date(Job.discovered_at))
         )
         job_rows = session.execute(job_stmt).all()
-        job_timeline = [
-            {"date": str(row.date), "count": row.count} for row in job_rows
-        ]
+        job_timeline = [{"date": str(row.date), "count": row.count} for row in job_rows]
 
         return jsonify(
             {

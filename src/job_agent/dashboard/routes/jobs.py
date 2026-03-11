@@ -7,7 +7,7 @@ import json
 from flask import Blueprint, render_template, request, current_app
 
 from job_agent.db.session import get_session
-from job_agent.db.repository import JobRepository, MatchResultRepository
+from job_agent.db.repository import JobRepository
 from job_agent.db.models import JobStatus, Platform
 
 bp = Blueprint("jobs", __name__)

@@ -13,6 +13,7 @@ from job_agent.db.models import Base
 def settings():
     """Test settings with in-memory SQLite."""
     s = Settings(
+        _env_file=None,
         anthropic_api_key="test-key",
         database_url="sqlite:///:memory:",
         flask_secret_key="test-secret",

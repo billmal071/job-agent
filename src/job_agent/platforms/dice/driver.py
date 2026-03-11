@@ -40,9 +40,7 @@ class DiceDriver(PlatformDriver):
         auth = AuthManager(context)
         self._page = auth.login(Platform.DICE, username, password)
         self._discovery = DiceDiscovery(self._page, self.rate_limiter)
-        self._applicator = DiceApplicator(
-            self._page, self.rate_limiter, self.settings
-        )
+        self._applicator = DiceApplicator(self._page, self.rate_limiter, self.settings)
         self.browser.save_state("dice")
         log.info("dice_driver_ready")
 
@@ -63,8 +61,11 @@ class DiceDriver(PlatformDriver):
         if not self._discovery:
             raise RuntimeError("Not logged in.")
         return self._discovery.search(
-            query=query, location=location, remote=remote,
-            experience_level=experience_level, limit=limit,
+            query=query,
+            location=location,
+            remote=remote,
+            experience_level=experience_level,
+            limit=limit,
         )
 
     def get_job_details(self, job_url: str) -> JobPosting:

@@ -29,15 +29,20 @@ log = get_logger(__name__)
 # ATS detection
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ATSInfo:
     """Identified ATS platform."""
+
     name: str  # greenhouse, lever, ashby, workday, generic
     base_domain: str
 
 
 _ATS_PATTERNS: list[tuple[str, str]] = [
-    (r"boards\.greenhouse\.io|job-boards\.greenhouse\.io|greenhouse\.io/embed", "greenhouse"),
+    (
+        r"boards\.greenhouse\.io|job-boards\.greenhouse\.io|greenhouse\.io/embed",
+        "greenhouse",
+    ),
     (r"jobs\.lever\.co|lever\.co/.*apply", "lever"),
     (r"jobs\.ashbyhq\.com|ashbyhq\.com", "ashby"),
     (r"myworkday(jobs)?\.com|workday\.com", "workday"),
@@ -64,6 +69,7 @@ def detect_ats(url: str) -> ATSInfo | None:
 # ---------------------------------------------------------------------------
 # External ATS Applicator
 # ---------------------------------------------------------------------------
+
 
 class ExternalATSApplicator:
     """Handles application forms on external ATS platforms.
@@ -92,7 +98,9 @@ class ExternalATSApplicator:
         """Attempt to fill and submit the external ATS application."""
         url = self.page.url
         # If still on the job board (not redirected), skip
-        if any(domain in url for domain in ("indeed.com", "glassdoor.com", "linkedin.com")):
+        if any(
+            domain in url for domain in ("indeed.com", "glassdoor.com", "linkedin.com")
+        ):
             log.warning("still_on_job_board", url=url)
             return False
 
@@ -100,7 +108,9 @@ class ExternalATSApplicator:
         email_addr = self._detect_email_apply()
         if email_addr:
             log.info("email_apply_detected", email=email_addr, job=job.title)
-            return self._send_email_application(email_addr, job, resume_path, cover_letter_path)
+            return self._send_email_application(
+                email_addr, job, resume_path, cover_letter_path
+            )
 
         ats = detect_ats(url)
         ats_name = ats.name if ats else "generic"
@@ -161,7 +171,12 @@ class ExternalATSApplicator:
 
         # Check if page has no form at all but has an email address
         try:
-            has_form = self.page.locator("form, input[type='file'], input[type='text']").count() > 0
+            has_form = (
+                self.page.locator(
+                    "form, input[type='file'], input[type='text']"
+                ).count()
+                > 0
+            )
             if not has_form:
                 # No form — look for any email address on the page
                 body = self.page.locator("body").inner_text()
@@ -169,7 +184,14 @@ class ExternalATSApplicator:
                     r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", body
                 )
                 # Filter out common non-apply emails
-                skip = {"privacy@", "support@", "info@", "help@", "noreply@", "no-reply@"}
+                skip = {
+                    "privacy@",
+                    "support@",
+                    "info@",
+                    "help@",
+                    "noreply@",
+                    "no-reply@",
+                }
                 for email in emails:
                     if not any(email.lower().startswith(s) for s in skip):
                         log.info("email_no_form_found", email=email)
@@ -228,9 +250,7 @@ class ExternalATSApplicator:
             cl = Path(cover_letter_path)
             with open(cl, "rb") as f:
                 att = MIMEApplication(f.read(), _subtype="plain")
-                att.add_header(
-                    "Content-Disposition", "attachment", filename=cl.name
-                )
+                att.add_header("Content-Disposition", "attachment", filename=cl.name)
                 msg.attach(att)
 
         try:
@@ -255,7 +275,10 @@ class ExternalATSApplicator:
         human_delay(2000, 3000)
 
         # Upload resume
-        self._upload_file(resume_path, 'input[type="file"][name*="resume"], input[data-field="resume"]')
+        self._upload_file(
+            resume_path,
+            'input[type="file"][name*="resume"], input[data-field="resume"]',
+        )
         if not resume_path:
             # Try generic file input
             self._upload_file_first(resume_path)
@@ -291,7 +314,7 @@ class ExternalATSApplicator:
             'a.postings-btn:has-text("Apply"), '
             'a:has-text("Apply for this job"), '
             'a:has-text("Apply now"), '
-            '.posting-btn-submit a'
+            ".posting-btn-submit a"
         ).first
         if apply_btn.count() > 0:
             log.info("lever_clicking_apply_button")
@@ -315,11 +338,13 @@ class ExternalATSApplicator:
             log.warning("lever_hcaptcha_detected")
             try:
                 # Scroll hCaptcha into view
-                hcaptcha.evaluate("el => el.scrollIntoView({behavior: 'smooth', block: 'center'})")
+                hcaptcha.evaluate(
+                    "el => el.scrollIntoView({behavior: 'smooth', block: 'center'})"
+                )
                 human_delay(1000, 2000)
                 # Use frame_locator to access hCaptcha iframe content
                 captcha_frame = self.page.frame_locator('iframe[src*="hcaptcha"]')
-                checkbox = captcha_frame.locator('#checkbox')
+                checkbox = captcha_frame.locator("#checkbox")
                 if checkbox.count() > 0:
                     checkbox.click()
                     log.info("hcaptcha_checkbox_clicked")
@@ -333,7 +358,7 @@ class ExternalATSApplicator:
         # Note: #btn-submit can match hCaptcha hidden button, so use data-qa
         return self._click_submit(
             'button[data-qa="btn-submit"], '
-            'button.template-btn-submit, '
+            "button.template-btn-submit, "
             'button:has-text("Submit application"), '
             'button:has-text("Submit"), '
             'button[type="submit"]:visible, '
@@ -383,10 +408,16 @@ class ExternalATSApplicator:
 
         # Detect CAPTCHA or login-required pages early
         body_text = self.page.locator("body").inner_text().lower()
-        if any(kw in body_text for kw in ("captcha", "type the above code", "verify you are human")):
+        if any(
+            kw in body_text
+            for kw in ("captcha", "type the above code", "verify you are human")
+        ):
             log.warning("generic_ats_captcha_detected")
             return False
-        if any(kw in body_text for kw in ("create an account", "sign up to apply", "register to apply")):
+        if any(
+            kw in body_text
+            for kw in ("create an account", "sign up to apply", "register to apply")
+        ):
             log.warning("generic_ats_requires_account")
             return False
 
@@ -427,7 +458,7 @@ class ExternalATSApplicator:
             # Look for submit or continue
             submit = self.page.locator(
                 'button[data-qa="btn-submit"], '
-                'button.template-btn-submit, '
+                "button.template-btn-submit, "
                 'button[type="submit"]:visible:has-text("Submit"), '
                 'button:has-text("Submit Application"), '
                 'button:has-text("Submit application"), '
@@ -437,7 +468,9 @@ class ExternalATSApplicator:
             ).first
             if submit.count() > 0:
                 try:
-                    submit.evaluate("el => el.scrollIntoView({behavior: 'smooth', block: 'center'})")
+                    submit.evaluate(
+                        "el => el.scrollIntoView({behavior: 'smooth', block: 'center'})"
+                    )
                     human_delay(500, 1000)
                 except Exception:
                     pass
@@ -486,6 +519,7 @@ class ExternalATSApplicator:
         if not file_path:
             return False
         from pathlib import Path
+
         if not Path(file_path).exists():
             return False
 
@@ -525,9 +559,16 @@ class ExternalATSApplicator:
 
         # Strategy 1: fieldsets and form groups (most ATS use these)
         group_selectors = [
-            ".field", ".form-field", ".form-group", ".form__field",
-            "[data-field]", ".application-field", ".question",
-            "fieldset", ".field-group", ".input-wrapper",
+            ".field",
+            ".form-field",
+            ".form-group",
+            ".form__field",
+            "[data-field]",
+            ".application-field",
+            ".question",
+            "fieldset",
+            ".field-group",
+            ".input-wrapper",
             # Greenhouse specific
             "#application_form .field",
             # Lever specific
@@ -562,7 +603,9 @@ class ExternalATSApplicator:
     def _parse_field_group(self, group) -> FormField | None:
         """Parse a form field group into a FormField."""
         # Find label
-        label_el = group.locator("label, legend, .field-label, .label, [class*='label']").first
+        label_el = group.locator(
+            "label, legend, .field-label, .label, [class*='label']"
+        ).first
         if label_el.count() == 0:
             return None
 
@@ -651,7 +694,9 @@ class ExternalATSApplicator:
     def _extract_standalone_fields(self) -> list[FormField]:
         """Fallback: scan all visible inputs."""
         fields: list[FormField] = []
-        inputs = self.page.locator("input:visible, select:visible, textarea:visible").all()
+        inputs = self.page.locator(
+            "input:visible, select:visible, textarea:visible"
+        ).all()
 
         for el in inputs:
             try:
@@ -672,15 +717,42 @@ class ExternalATSApplicator:
                 selector = self._unique_selector(el)
 
                 if tag == "select":
-                    options = [o.inner_text().strip() for o in el.locator("option").all() if o.inner_text().strip()]
-                    fields.append(FormField(label=label, field_type="select", options=options, selector=selector))
+                    options = [
+                        o.inner_text().strip()
+                        for o in el.locator("option").all()
+                        if o.inner_text().strip()
+                    ]
+                    fields.append(
+                        FormField(
+                            label=label,
+                            field_type="select",
+                            options=options,
+                            selector=selector,
+                        )
+                    )
                 elif tag == "textarea":
-                    fields.append(FormField(label=label, field_type="textarea", selector=selector, current_value=el.input_value()))
+                    fields.append(
+                        FormField(
+                            label=label,
+                            field_type="textarea",
+                            selector=selector,
+                            current_value=el.input_value(),
+                        )
+                    )
                 elif input_type == "checkbox":
-                    fields.append(FormField(label=label, field_type="checkbox", selector=selector))
+                    fields.append(
+                        FormField(label=label, field_type="checkbox", selector=selector)
+                    )
                 else:
                     ft = "number" if input_type == "number" else "text"
-                    fields.append(FormField(label=label, field_type=ft, selector=selector, current_value=el.input_value()))
+                    fields.append(
+                        FormField(
+                            label=label,
+                            field_type=ft,
+                            selector=selector,
+                            current_value=el.input_value(),
+                        )
+                    )
             except Exception:
                 continue
 
@@ -714,7 +786,10 @@ class ExternalATSApplicator:
                 except Exception:
                     # Fuzzy match
                     for opt in field.options:
-                        if answer.answer.lower() in opt.lower() or opt.lower() in answer.answer.lower():
+                        if (
+                            answer.answer.lower() in opt.lower()
+                            or opt.lower() in answer.answer.lower()
+                        ):
                             el.select_option(label=opt)
                             break
             elif field.field_type == "radio":
@@ -725,7 +800,12 @@ class ExternalATSApplicator:
                         lbl.click()
                         break
             elif field.field_type == "checkbox":
-                should = answer.answer.strip().lower() in ("yes", "true", "1", "checked")
+                should = answer.answer.strip().lower() in (
+                    "yes",
+                    "true",
+                    "1",
+                    "checked",
+                )
                 if should and not el.is_checked():
                     el.click()
                 elif not should and el.is_checked():
@@ -764,7 +844,9 @@ class ExternalATSApplicator:
 
         # Scroll into view using JS (handles nested scrollable containers)
         try:
-            btn.evaluate("el => el.scrollIntoView({behavior: 'smooth', block: 'center'})")
+            btn.evaluate(
+                "el => el.scrollIntoView({behavior: 'smooth', block: 'center'})"
+            )
             human_delay(1000, 2000)
         except Exception:
             pass
@@ -820,7 +902,7 @@ class ExternalATSApplicator:
             el_id = el.get_attribute("id")
             if el_id:
                 # Escape special CSS characters in IDs (e.g. React aria IDs with colons)
-                escaped = re.sub(r'([:\[\]\.#>+~,\(\)])', r'\\\1', el_id)
+                escaped = re.sub(r"([:\[\]\.#>+~,\(\)])", r"\\\1", el_id)
                 return f"#{escaped}"
             name = el.get_attribute("name")
             tag = el.evaluate("el => el.tagName.toLowerCase()")

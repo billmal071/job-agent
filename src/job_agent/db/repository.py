@@ -144,7 +144,9 @@ class ApplicationRepository:
             self.session.flush()
         return app
 
-    def list_all(self, status: ApplicationStatus | None = None, limit: int = 100) -> list[Application]:
+    def list_all(
+        self, status: ApplicationStatus | None = None, limit: int = 100
+    ) -> list[Application]:
         stmt = select(Application)
         if status:
             stmt = stmt.where(Application.status == status)
@@ -158,9 +160,8 @@ class ApplicationRepository:
             .join(Job)
             .where(
                 Job.platform == platform,
-                Application.applied_at >= datetime(
-                    today.year, today.month, today.day, tzinfo=timezone.utc
-                ),
+                Application.applied_at
+                >= datetime(today.year, today.month, today.day, tzinfo=timezone.utc),
             )
         )
         return self.session.scalar(stmt) or 0
@@ -239,14 +240,10 @@ class OutreachRepository:
 
     def count_today(self, platform: Platform) -> int:
         today = datetime.now(timezone.utc).date()
-        stmt = (
-            select(func.count(OutreachMessage.id))
-            .where(
-                OutreachMessage.platform == platform,
-                OutreachMessage.sent_at >= datetime(
-                    today.year, today.month, today.day, tzinfo=timezone.utc
-                ),
-            )
+        stmt = select(func.count(OutreachMessage.id)).where(
+            OutreachMessage.platform == platform,
+            OutreachMessage.sent_at
+            >= datetime(today.year, today.month, today.day, tzinfo=timezone.utc),
         )
         return self.session.scalar(stmt) or 0
 
@@ -258,9 +255,7 @@ class CredentialRepository:
     def upsert(
         self, platform: Platform, username: str, encrypted_password: str
     ) -> PlatformCredential:
-        stmt = select(PlatformCredential).where(
-            PlatformCredential.platform == platform
-        )
+        stmt = select(PlatformCredential).where(PlatformCredential.platform == platform)
         cred = self.session.scalars(stmt).first()
         if cred:
             cred.username = username
@@ -276,9 +271,7 @@ class CredentialRepository:
         return cred
 
     def get(self, platform: Platform) -> PlatformCredential | None:
-        stmt = select(PlatformCredential).where(
-            PlatformCredential.platform == platform
-        )
+        stmt = select(PlatformCredential).where(PlatformCredential.platform == platform)
         return self.session.scalars(stmt).first()
 
 
@@ -305,9 +298,5 @@ class AgentRunRepository:
         return run
 
     def get_latest(self, limit: int = 10) -> list[AgentRun]:
-        stmt = (
-            select(AgentRun)
-            .order_by(AgentRun.started_at.desc())
-            .limit(limit)
-        )
+        stmt = select(AgentRun).order_by(AgentRun.started_at.desc()).limit(limit)
         return list(self.session.scalars(stmt).all())

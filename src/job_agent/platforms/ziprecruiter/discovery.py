@@ -62,7 +62,9 @@ class ZipRecruiterDiscovery:
                 break
             jobs.extend(new_jobs)
             self.rate_limiter.success()
-            log.info("ziprecruiter_page_scraped", page=page_num, jobs_found=len(new_jobs))
+            log.info(
+                "ziprecruiter_page_scraped", page=page_num, jobs_found=len(new_jobs)
+            )
 
             if len(jobs) >= limit:
                 break
@@ -93,12 +95,16 @@ class ZipRecruiterDiscovery:
                 company_el = card.locator(
                     ".company_name, a.company-name, [data-testid='company-name']"
                 ).first
-                company = company_el.inner_text().strip() if company_el.count() > 0 else ""
+                company = (
+                    company_el.inner_text().strip() if company_el.count() > 0 else ""
+                )
 
                 location_el = card.locator(
                     ".job_location, .location, [data-testid='job-location']"
                 ).first
-                location = location_el.inner_text().strip() if location_el.count() > 0 else ""
+                location = (
+                    location_el.inner_text().strip() if location_el.count() > 0 else ""
+                )
 
                 # Extract job URL and ID
                 link_el = card.locator(
@@ -126,24 +132,31 @@ class ZipRecruiterDiscovery:
                 salary_el = card.locator(
                     ".salary, .compensation, [data-testid='salary']"
                 ).first
-                salary = salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                salary = (
+                    salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                )
 
                 # Check for 1-Click Apply badge
-                easy_apply = card.locator(
-                    ".one_click_apply, .quick-apply-badge, button:has-text('1-Click Apply')"
-                ).count() > 0
+                easy_apply = (
+                    card.locator(
+                        ".one_click_apply, .quick-apply-badge, button:has-text('1-Click Apply')"
+                    ).count()
+                    > 0
+                )
 
-                jobs.append(JobPosting(
-                    external_id=external_id,
-                    platform=Platform.ZIPRECRUITER,
-                    title=title,
-                    company=company,
-                    location=location,
-                    url=url,
-                    salary=salary,
-                    easy_apply=easy_apply,
-                    remote="remote" in location.lower(),
-                ))
+                jobs.append(
+                    JobPosting(
+                        external_id=external_id,
+                        platform=Platform.ZIPRECRUITER,
+                        title=title,
+                        company=company,
+                        location=location,
+                        url=url,
+                        salary=salary,
+                        easy_apply=easy_apply,
+                        remote="remote" in location.lower(),
+                    )
+                )
             except Exception as e:
                 log.debug("ziprecruiter_card_error", error=str(e))
 
@@ -172,17 +185,18 @@ class ZipRecruiterDiscovery:
         self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
-        title = safe_text(self.page,
-            "h1.job-title, h1[data-testid='job-title'], .job_title h1"
+        title = safe_text(
+            self.page, "h1.job-title, h1[data-testid='job-title'], .job_title h1"
         )
-        company = safe_text(self.page,
-            ".company-name, a[data-testid='company-name'], .hiring-company"
+        company = safe_text(
+            self.page, ".company-name, a[data-testid='company-name'], .hiring-company"
         )
-        location = safe_text(self.page,
-            ".location, [data-testid='job-location'], .job-location"
+        location = safe_text(
+            self.page, ".location, [data-testid='job-location'], .job-location"
         )
-        description = safe_text(self.page,
-            ".job-description, [data-testid='job-description'], .jobDescriptionSection"
+        description = safe_text(
+            self.page,
+            ".job-description, [data-testid='job-description'], .jobDescriptionSection",
         )
 
         # Extract ID from URL

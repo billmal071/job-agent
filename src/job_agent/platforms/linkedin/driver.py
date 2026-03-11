@@ -45,7 +45,9 @@ class LinkedInDriver(PlatformDriver):
         auth = AuthManager(context)
         self._page = auth.login(Platform.LINKEDIN, username, password)
         self._discovery = LinkedInDiscovery(self._page, self.rate_limiter)
-        self._applicator = LinkedInApplicator(self._page, self.rate_limiter, self.settings)
+        self._applicator = LinkedInApplicator(
+            self._page, self.rate_limiter, self.settings
+        )
         self.browser.save_state("linkedin")
         log.info("linkedin_driver_ready")
 

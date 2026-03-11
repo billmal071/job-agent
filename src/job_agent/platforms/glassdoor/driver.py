@@ -38,7 +38,9 @@ class GlassdoorDriver(PlatformDriver):
         context = self.browser.get_context("glassdoor")
         auth = AuthManager(context)
         self._page = auth.login(Platform.GLASSDOOR, username, password)
-        self._applicator = GlassdoorApplicator(self._page, self.rate_limiter, self.settings)
+        self._applicator = GlassdoorApplicator(
+            self._page, self.rate_limiter, self.settings
+        )
         self.browser.save_state("glassdoor")
         log.info("glassdoor_driver_ready")
 

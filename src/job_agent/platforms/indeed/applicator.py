@@ -39,14 +39,13 @@ class IndeedApplicator(BaseApplicator):
         if "indeed.com" not in self.page.url:
             log.info("external_ats_redirect", url=self.page.url)
             from job_agent.platforms.external_ats import ExternalATSApplicator
+
             ats_applicator = ExternalATSApplicator(self.page, self._get_answerer())
             return ats_applicator.apply(job, resume_path, cover_letter_path)
 
         # Click Apply button — try Indeed native first, then external link
         apply_btn = self.page.locator(
-            '#indeedApplyButton, '
-            'button[id*="apply"], '
-            'button:has-text("Apply now")'
+            '#indeedApplyButton, button[id*="apply"], button:has-text("Apply now")'
         ).first
         if apply_btn.count() == 0:
             # Non-easy-apply: look for "Apply on company site" link
@@ -55,7 +54,7 @@ class IndeedApplicator(BaseApplicator):
                 'a:has-text("Apply now"), '
                 'a[href*="apply"], '
                 'button:has-text("Apply on"), '
-                'a.jobsearch-IndeedApplyButton-newDesign'
+                "a.jobsearch-IndeedApplyButton-newDesign"
             ).first
             if external_link.count() > 0:
                 href = external_link.get_attribute("href") or ""
@@ -67,6 +66,7 @@ class IndeedApplicator(BaseApplicator):
 
                 # Check for new tab
                 from job_agent.platforms.external_ats import ExternalATSApplicator
+
                 if len(self.page.context.pages) > pages_before:
                     new_page = self.page.context.pages[-1]
                     if "indeed.com" not in new_page.url:
@@ -91,6 +91,7 @@ class IndeedApplicator(BaseApplicator):
         if "indeed.com" not in self.page.url:
             log.info("external_ats_redirect", url=self.page.url)
             from job_agent.platforms.external_ats import ExternalATSApplicator
+
             ats = ExternalATSApplicator(self.page, self._get_answerer())
             return ats.apply(job, resume_path, cover_letter_path)
 
@@ -139,9 +140,9 @@ class IndeedApplicator(BaseApplicator):
 
                     # Check for validation errors
                     errors = self.page.locator(
-                        '.ia-Questions-errorMessage, '
+                        ".ia-Questions-errorMessage, "
                         '[role="alert"], '
-                        '.css-1s1r2hr'  # Indeed error class
+                        ".css-1s1r2hr"  # Indeed error class
                     )
                     if errors.count() > 0:
                         log.warning(
@@ -292,7 +293,7 @@ class IndeedApplicator(BaseApplicator):
         """Fallback: scan visible inputs with labels or aria-labels."""
         fields: list[FormField] = []
         inputs = self.page.locator(
-            'input:visible, select:visible, textarea:visible'
+            "input:visible, select:visible, textarea:visible"
         ).all()
 
         for el in inputs:
@@ -324,35 +325,43 @@ class IndeedApplicator(BaseApplicator):
                         text = opt.inner_text().strip()
                         if text:
                             options.append(text)
-                    fields.append(FormField(
-                        label=label,
-                        field_type="select",
-                        options=options,
-                        selector=selector,
-                    ))
+                    fields.append(
+                        FormField(
+                            label=label,
+                            field_type="select",
+                            options=options,
+                            selector=selector,
+                        )
+                    )
                 elif tag == "textarea":
-                    fields.append(FormField(
-                        label=label,
-                        field_type="textarea",
-                        selector=selector,
-                        current_value=el.input_value(),
-                    ))
+                    fields.append(
+                        FormField(
+                            label=label,
+                            field_type="textarea",
+                            selector=selector,
+                            current_value=el.input_value(),
+                        )
+                    )
                 elif input_type == "checkbox":
-                    fields.append(FormField(
-                        label=label,
-                        field_type="checkbox",
-                        selector=selector,
-                    ))
+                    fields.append(
+                        FormField(
+                            label=label,
+                            field_type="checkbox",
+                            selector=selector,
+                        )
+                    )
                 elif input_type == "radio":
                     pass  # Radios handled at group level
                 else:
                     ft = "number" if input_type == "number" else "text"
-                    fields.append(FormField(
-                        label=label,
-                        field_type=ft,
-                        selector=selector,
-                        current_value=el.input_value(),
-                    ))
+                    fields.append(
+                        FormField(
+                            label=label,
+                            field_type=ft,
+                            selector=selector,
+                            current_value=el.input_value(),
+                        )
+                    )
             except Exception:
                 continue
 

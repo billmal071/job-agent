@@ -52,7 +52,7 @@ class DiceDiscovery:
         log.info("dice_search", query=query, location=location)
 
         self.rate_limiter.wait()
-        safe_goto(self.page,url)
+        safe_goto(self.page, url)
         # Dice is a React SPA — wait for cards to render
         self.page.wait_for_selector(
             "dhi-search-card, [data-cy='search-card'], .search-card", timeout=15000
@@ -96,12 +96,16 @@ class DiceDiscovery:
                 company_el = card.locator(
                     "a[data-cy='search-result-company-name'], .card-company a, .company-name"
                 ).first
-                company = company_el.inner_text().strip() if company_el.count() > 0 else ""
+                company = (
+                    company_el.inner_text().strip() if company_el.count() > 0 else ""
+                )
 
                 location_el = card.locator(
                     "[data-cy='search-result-location'], .card-location, .job-location"
                 ).first
-                location = location_el.inner_text().strip() if location_el.count() > 0 else ""
+                location = (
+                    location_el.inner_text().strip() if location_el.count() > 0 else ""
+                )
 
                 # Extract job URL and UUID
                 link_el = card.locator(
@@ -116,9 +120,7 @@ class DiceDiscovery:
                     else:
                         url = href
                     # Dice uses UUID in URL: /job-detail/{uuid}
-                    match = re.search(
-                        r"/job-detail/([a-f0-9-]{36})", url
-                    )
+                    match = re.search(r"/job-detail/([a-f0-9-]{36})", url)
                     if match:
                         external_id = match.group(1)
 
@@ -128,24 +130,31 @@ class DiceDiscovery:
                 salary_el = card.locator(
                     "[data-cy='search-result-salary'], .card-salary, .compensation"
                 ).first
-                salary = salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                salary = (
+                    salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                )
 
                 # Check for Easy Apply badge
-                easy_apply = card.locator(
-                    "[data-cy='easy-apply-badge'], .easy-apply-badge, :text('Easy Apply')"
-                ).count() > 0
+                easy_apply = (
+                    card.locator(
+                        "[data-cy='easy-apply-badge'], .easy-apply-badge, :text('Easy Apply')"
+                    ).count()
+                    > 0
+                )
 
-                jobs.append(JobPosting(
-                    external_id=external_id,
-                    platform=Platform.DICE,
-                    title=title,
-                    company=company,
-                    location=location,
-                    url=url,
-                    salary=salary,
-                    easy_apply=easy_apply,
-                    remote="remote" in location.lower(),
-                ))
+                jobs.append(
+                    JobPosting(
+                        external_id=external_id,
+                        platform=Platform.DICE,
+                        title=title,
+                        company=company,
+                        location=location,
+                        url=url,
+                        salary=salary,
+                        easy_apply=easy_apply,
+                        remote="remote" in location.lower(),
+                    )
+                )
             except Exception as e:
                 log.debug("dice_card_error", error=str(e))
 
@@ -174,24 +183,27 @@ class DiceDiscovery:
     def get_details(self, job_url: str) -> JobPosting:
         """Get full job details from Dice."""
         self.rate_limiter.wait()
-        safe_goto(self.page,job_url)
+        safe_goto(self.page, job_url)
         self.page.wait_for_selector(
             "#jobDescription, [data-testid='jobDescription'], .job-description",
             timeout=15000,
         )
         human_delay(2000, 4000)
 
-        title = safe_text(self.page,
-            "h1[data-cy='jobTitle'], h1.job-title, [data-testid='jobTitle']"
+        title = safe_text(
+            self.page, "h1[data-cy='jobTitle'], h1.job-title, [data-testid='jobTitle']"
         )
-        company = safe_text(self.page,
-            "a[data-cy='companyNameLink'], .company-name, [data-testid='companyName']"
+        company = safe_text(
+            self.page,
+            "a[data-cy='companyNameLink'], .company-name, [data-testid='companyName']",
         )
-        location = safe_text(self.page,
-            "[data-cy='locationDetails'], .job-location, [data-testid='location']"
+        location = safe_text(
+            self.page,
+            "[data-cy='locationDetails'], .job-location, [data-testid='location']",
         )
-        description = safe_text(self.page,
-            "#jobDescription, [data-testid='jobDescription'], .job-description"
+        description = safe_text(
+            self.page,
+            "#jobDescription, [data-testid='jobDescription'], .job-description",
         )
 
         match = re.search(r"/job-detail/([a-f0-9-]{36})", job_url)

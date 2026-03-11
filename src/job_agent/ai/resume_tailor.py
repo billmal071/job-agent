@@ -155,11 +155,11 @@ class ResumeTailor:
         resume_path = Path(self.settings.resume.master_resume)
         if not resume_path.exists():
             raise FileNotFoundError(
-                f"Master resume not found: {resume_path}. "
-                f"Create it at {resume_path}"
+                f"Master resume not found: {resume_path}. Create it at {resume_path}"
             )
         if resume_path.suffix.lower() == ".pdf":
             import pymupdf
+
             doc = pymupdf.open(str(resume_path))
             text = "\n".join(page.get_text() for page in doc)
 

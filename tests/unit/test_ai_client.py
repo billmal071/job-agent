@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from job_agent.ai.client import (
     AIClient,
     DEFAULT_MODELS,
-    PROVIDER_ANTHROPIC,
-    PROVIDER_GEMINI,
     PROVIDER_GROQ,
-    PROVIDER_OLLAMA,
 )
 from job_agent.config import Settings
 

@@ -42,7 +42,7 @@ class WellfoundDiscovery:
         log.info("wellfound_search", query=query, location=location)
 
         self.rate_limiter.wait()
-        safe_goto(self.page,url)
+        safe_goto(self.page, url)
         self.page.wait_for_selector(
             'div[data-test="StartupResult"], .styles_component__JobCard, .job-listing',
             timeout=15000,
@@ -89,12 +89,16 @@ class WellfoundDiscovery:
                 company_el = card.locator(
                     'a[data-test="startup-link"], .company-name, h2 a'
                 ).first
-                company = company_el.inner_text().strip() if company_el.count() > 0 else ""
+                company = (
+                    company_el.inner_text().strip() if company_el.count() > 0 else ""
+                )
 
                 location_el = card.locator(
                     '[data-test="job-location"], .location, .job-location'
                 ).first
-                location = location_el.inner_text().strip() if location_el.count() > 0 else ""
+                location = (
+                    location_el.inner_text().strip() if location_el.count() > 0 else ""
+                )
 
                 # Extract job URL and ID
                 link_el = card.locator(
@@ -121,19 +125,23 @@ class WellfoundDiscovery:
                 salary_el = card.locator(
                     '[data-test="compensation"], .salary, .compensation'
                 ).first
-                salary = salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                salary = (
+                    salary_el.inner_text().strip() if salary_el.count() > 0 else None
+                )
 
-                jobs.append(JobPosting(
-                    external_id=external_id,
-                    platform=Platform.WELLFOUND,
-                    title=title,
-                    company=company,
-                    location=location,
-                    url=url,
-                    salary=salary,
-                    easy_apply=True,  # Wellfound has built-in apply
-                    remote="remote" in location.lower(),
-                ))
+                jobs.append(
+                    JobPosting(
+                        external_id=external_id,
+                        platform=Platform.WELLFOUND,
+                        title=title,
+                        company=company,
+                        location=location,
+                        url=url,
+                        salary=salary,
+                        easy_apply=True,  # Wellfound has built-in apply
+                        remote="remote" in location.lower(),
+                    )
+                )
             except Exception as e:
                 log.debug("wellfound_card_error", error=str(e))
 
@@ -168,24 +176,22 @@ class WellfoundDiscovery:
     def get_details(self, job_url: str) -> JobPosting:
         """Get full job details from Wellfound."""
         self.rate_limiter.wait()
-        safe_goto(self.page,job_url)
+        safe_goto(self.page, job_url)
         self.page.wait_for_selector(
             '[data-test="job-description"], .job-description, .description',
             timeout=15000,
         )
         human_delay(2000, 4000)
 
-        title = safe_text(self.page,
-            'h1[data-test="job-title"], h1.job-title, h1'
+        title = safe_text(self.page, 'h1[data-test="job-title"], h1.job-title, h1')
+        company = safe_text(
+            self.page, 'a[data-test="startup-link"], .company-name, h2 a'
         )
-        company = safe_text(self.page,
-            'a[data-test="startup-link"], .company-name, h2 a'
+        location = safe_text(
+            self.page, '[data-test="job-location"], .location, .job-location'
         )
-        location = safe_text(self.page,
-            '[data-test="job-location"], .location, .job-location'
-        )
-        description = safe_text(self.page,
-            '[data-test="job-description"], .job-description, .description'
+        description = safe_text(
+            self.page, '[data-test="job-description"], .job-description, .description'
         )
 
         match = re.search(r"/jobs/(\d+)", job_url)

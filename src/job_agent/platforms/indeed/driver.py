@@ -40,7 +40,9 @@ class IndeedDriver(PlatformDriver):
         auth = AuthManager(context)
         self._page = auth.login(Platform.INDEED, username, password)
         self._discovery = IndeedDiscovery(self._page, self.rate_limiter)
-        self._applicator = IndeedApplicator(self._page, self.rate_limiter, self.settings)
+        self._applicator = IndeedApplicator(
+            self._page, self.rate_limiter, self.settings
+        )
         self.browser.save_state("indeed")
         log.info("indeed_driver_ready")
 

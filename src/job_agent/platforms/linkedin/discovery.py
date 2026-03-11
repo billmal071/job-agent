@@ -140,7 +140,9 @@ class LinkedInDiscovery:
                 ".job-card-container__metadata-item, "
                 ".job-card-container__metadata-wrapper"
             ).first
-            location = location_el.inner_text().strip() if location_el.count() > 0 else ""
+            location = (
+                location_el.inner_text().strip() if location_el.count() > 0 else ""
+            )
 
             # Extract URL
             link_el = card.locator("a[href*='/jobs/view/']").first
@@ -148,7 +150,9 @@ class LinkedInDiscovery:
             external_id = ""
             if link_el.count() > 0:
                 href = link_el.get_attribute("href") or ""
-                url = f"https://www.linkedin.com{href}" if href.startswith("/") else href
+                url = (
+                    f"https://www.linkedin.com{href}" if href.startswith("/") else href
+                )
                 # Extract job ID from URL
                 match = re.search(r"/jobs/view/(\d+)", url)
                 if match:
@@ -164,7 +168,8 @@ class LinkedInDiscovery:
                     "[data-is-easy-apply-button], "
                     ".jobs-apply-button--top-card, "
                     "li-icon[type='linkedin-bug']"
-                ).count() > 0
+                ).count()
+                > 0
                 or "easy apply" in card.inner_text().lower()
             )
 
@@ -197,8 +202,7 @@ class LinkedInDiscovery:
         try:
             self.rate_limiter.wait()
             next_btn = self.page.locator(
-                'button[aria-label="Next"], '
-                'button.artdeco-pagination__button--next'
+                'button[aria-label="Next"], button.artdeco-pagination__button--next'
             )
             if next_btn.count() > 0 and next_btn.is_enabled():
                 human_scroll(self.page, "down", 500)
@@ -217,20 +221,23 @@ class LinkedInDiscovery:
         self.page.goto(job_url, wait_until="domcontentloaded")
         human_delay(2000, 4000)
 
-        title = safe_text(self.page,".t-24.job-details-jobs-unified-top-card__job-title, h1")
-        company = safe_text(self.page,
-            ".job-details-jobs-unified-top-card__company-name, "
-            ".jobs-unified-top-card__company-name"
+        title = safe_text(
+            self.page, ".t-24.job-details-jobs-unified-top-card__job-title, h1"
         )
-        location = safe_text(self.page,
+        company = safe_text(
+            self.page,
+            ".job-details-jobs-unified-top-card__company-name, "
+            ".jobs-unified-top-card__company-name",
+        )
+        location = safe_text(
+            self.page,
             ".job-details-jobs-unified-top-card__primary-description-container span, "
-            ".jobs-unified-top-card__bullet"
+            ".jobs-unified-top-card__bullet",
         )
 
         # Get full description
-        description = safe_text(self.page,
-            ".jobs-description__content, "
-            ".jobs-box__html-content"
+        description = safe_text(
+            self.page, ".jobs-description__content, .jobs-box__html-content"
         )
 
         # Extract job ID from URL
@@ -244,12 +251,14 @@ class LinkedInDiscovery:
                 "[data-is-easy-apply-button], "
                 "button:has-text('Easy Apply'), "
                 ".jobs-apply-button--top-card"
-            ).count() > 0
-            or "easy apply" in (safe_text(self.page, ".jobs-apply-button") or "").lower()
+            ).count()
+            > 0
+            or "easy apply"
+            in (safe_text(self.page, ".jobs-apply-button") or "").lower()
         )
 
-        salary = safe_text(self.page,
-            ".job-details-jobs-unified-top-card__job-insight--highlight span"
+        salary = safe_text(
+            self.page, ".job-details-jobs-unified-top-card__job-insight--highlight span"
         )
 
         self.rate_limiter.success()
@@ -272,9 +281,11 @@ class LinkedInDiscovery:
         self.rate_limiter.wait()
         self.page.goto(job_url, wait_until="domcontentloaded")
         human_delay(1500, 3000)
-        applied = self.page.locator(
-            ".jobs-apply-button--applied, "
-            '[aria-label*="Applied"]'
-        ).count() > 0
+        applied = (
+            self.page.locator(
+                '.jobs-apply-button--applied, [aria-label*="Applied"]'
+            ).count()
+            > 0
+        )
         self.rate_limiter.success()
         return applied

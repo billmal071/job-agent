@@ -38,9 +38,7 @@ def cmd_init_db(ctx: click.Context) -> None:
 
 
 @cli.command("add-credential")
-@click.argument(
-    "platform", type=click.Choice(["linkedin", "indeed", "glassdoor"])
-)
+@click.argument("platform", type=click.Choice(["linkedin", "indeed", "glassdoor"]))
 @click.option("--username", "-u", prompt=True, help="Platform username/email.")
 @click.pass_context
 def cmd_add_credential(ctx: click.Context, platform: str, username: str) -> None:
@@ -103,11 +101,18 @@ def cmd_apply_approved(ctx: click.Context) -> None:
     settings = ctx.obj["settings"]
     init_db(settings)
     stats = apply_approved(settings)
-    click.echo(f"Done: {stats['applied']} applied, {stats['failed']} failed, {stats['skipped']} skipped")
+    click.echo(
+        f"Done: {stats['applied']} applied, {stats['failed']} failed, {stats['skipped']} skipped"
+    )
 
 
 @cli.command("search")
-@click.option("--platform", "-P", default="linkedin", type=click.Choice(["linkedin", "indeed", "glassdoor"]))
+@click.option(
+    "--platform",
+    "-P",
+    default="linkedin",
+    type=click.Choice(["linkedin", "indeed", "glassdoor"]),
+)
 @click.option("--query", "-q", required=True, help="Search query.")
 @click.option("--location", "-l", default="", help="Location filter.")
 @click.option("--limit", "-n", default=25, help="Max results.")
@@ -194,7 +199,9 @@ def cmd_setup(ctx: click.Context) -> None:
                     session.close()
 
     click.echo("\nSetup complete! Next steps:")
-    click.echo("  1. Create a profile: cp config/profiles/example.yaml config/profiles/myprofile.yaml")
+    click.echo(
+        "  1. Create a profile: cp config/profiles/example.yaml config/profiles/myprofile.yaml"
+    )
     click.echo("  2. Edit the profile with your preferences")
     click.echo("  3. Add your master resume to config/resumes/master.md")
     click.echo("  4. Run: job-agent run --profile config/profiles/myprofile.yaml")

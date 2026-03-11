@@ -251,7 +251,7 @@ class BaseApplicator(ABC):
                 human_delay(300, 600)
                 return
         # Fuzzy match on labels
-        label_texts = [l.inner_text().strip() for l in labels]
+        label_texts = [lbl.inner_text().strip() for lbl in labels]
         matched = self._fuzzy_match_option(answer.answer, label_texts)
         if matched:
             for label_el in labels:

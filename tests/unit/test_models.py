@@ -1,6 +1,6 @@
 """Tests for database models and repository."""
 
-from job_agent.db.models import Job, JobStatus, MatchResult, Platform
+from job_agent.db.models import JobStatus, Platform
 from job_agent.db.repository import JobRepository, MatchResultRepository
 
 

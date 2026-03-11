@@ -103,15 +103,11 @@ class PlatformDriver(ABC):
 class OutreachCapable(Protocol):
     """Mixin for platforms that support recruiter outreach."""
 
-    def send_connection_request(
-        self, profile_url: str, note: str = ""
-    ) -> bool:
+    def send_connection_request(self, profile_url: str, note: str = "") -> bool:
         """Send a connection request with an optional note."""
         ...
 
-    def send_inmail(
-        self, profile_url: str, subject: str, message: str
-    ) -> bool:
+    def send_inmail(self, profile_url: str, subject: str, message: str) -> bool:
         """Send an InMail message."""
         ...
 
