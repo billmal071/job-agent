@@ -103,6 +103,30 @@
         </div>
         {% endif %}
 
+        <!-- Resume Preview Actions -->
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header">
+                <h5><i class="bi bi-file-earmark-person"></i> Tailored Resume</h5>
+            </div>
+            <div class="card-body" style="display: grid; gap: 0.5rem;">
+                <button class="btn btn-primary btn-sm"
+                        hx-post="/jobs/{{ job.id }}/preview-resume"
+                        hx-target="#resume-preview-area"
+                        hx-swap="innerHTML"
+                        hx-indicator="#resume-loading">
+                    <i class="bi bi-magic"></i> {{ 'Regenerate' if has_resume_md else 'Generate' }} Preview
+                </button>
+                {% if has_resume_pdf %}
+                <a href="/jobs/{{ job.id }}/download-resume" class="btn btn-ghost btn-sm" target="_blank">
+                    <i class="bi bi-download"></i> Download PDF
+                </a>
+                {% endif %}
+                <div id="resume-loading" class="htmx-indicator" style="text-align: center; padding: 0.5rem;">
+                    <span class="spinner"></span> Generating tailored resume...
+                </div>
+            </div>
+        </div>
+
         {% if job.status.value == 'queued' %}
         <div style="display: grid; gap: 0.5rem;">
             <button class="btn btn-success"
@@ -121,5 +145,22 @@
         </div>
         {% endif %}
     </div>
+</div>
+
+<!-- Resume Preview/Editor Area (full width below) -->
+<div id="resume-preview-area" class="animate-in delay-3" style="margin-top: 1.25rem;">
+    {% if has_resume_md %}
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h5><i class="bi bi-file-earmark-text"></i> Saved Resume Draft</h5>
+            <span class="badge badge-green">Draft saved</span>
+        </div>
+        <div class="card-body">
+            <p class="text-secondary" style="font-size: 0.88rem;">
+                A tailored resume draft exists for this job. Click "Regenerate Preview" to edit it, or download the PDF.
+            </p>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
