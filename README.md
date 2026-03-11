@@ -2,6 +2,10 @@
 
 Autonomous job application agent that automates the entire job search lifecycle: discovering jobs on LinkedIn/Indeed/Glassdoor, scoring them against configurable profiles using AI, tailoring CVs for ATS optimization, auto-applying to high-confidence matches, queuing medium matches for review, and conducting LinkedIn recruiter outreach.
 
+## Demo
+
+https://github.com/billmal071/job-agent/releases/download/v0.1.0/demo.mp4
+
 ## Features
 
 - **Multi-Platform Support** — LinkedIn, Indeed, Glassdoor, ZipRecruiter, Dice, Wellfound
@@ -15,6 +19,7 @@ Autonomous job application agent that automates the entire job search lifecycle:
 - **Anti-Detection** — Stealth browser config, human-like typing/mouse, session rotation
 - **Scheduling** — APScheduler with configurable activity windows
 - **Notifications** — Email (SMTP) and webhooks (Slack/Discord)
+- **CV-to-Profile Generator** — Upload your resume and AI creates your search profile automatically
 - **Security** — Fernet-encrypted credentials, SQLite outside repo
 
 ## Quick Start
@@ -54,7 +59,11 @@ uv run job-agent init-db
 uv run job-agent add-credential linkedin
 # Or add via the dashboard at http://127.0.0.1:5000/settings
 
-# Create your profile
+# Create your profile — Option A: Generate from your CV (recommended)
+# Go to http://127.0.0.1:5000/settings and upload your resume
+# AI will extract your skills, experience, and create a profile automatically
+
+# Create your profile — Option B: Manual
 cp config/profiles/example.yaml config/profiles/myprofile.yaml
 # Edit myprofile.yaml with your preferences
 
