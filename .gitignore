@@ -43,3 +43,4 @@ demo-video/
 .coverage
 htmlcov/
 .pytest_cache/
+Downloads/

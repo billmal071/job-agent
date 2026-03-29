@@ -36,7 +36,7 @@ API_URLS = {
     PROVIDER_GEMINI: "https://generativelanguage.googleapis.com/v1beta",
     PROVIDER_GROQ: "https://api.groq.com/openai/v1",
     PROVIDER_OPENROUTER: "https://openrouter.ai/api/v1",
-    PROVIDER_OLLAMA: "http://localhost:11434",
+    PROVIDER_OLLAMA: "http://localhost:11434",  # overridden by settings.ollama_url
 }
 
 
@@ -107,6 +107,12 @@ class AIClient:
                 f"Supported: {PROVIDER_ANTHROPIC}, {PROVIDER_GEMINI}, {PROVIDER_GROQ}, "
                 f"{PROVIDER_OPENROUTER}, {PROVIDER_OLLAMA}"
             )
+
+        # Use configurable Ollama URL
+        if self.provider == PROVIDER_OLLAMA and settings.ollama_url:
+            self._ollama_url = settings.ollama_url
+        else:
+            self._ollama_url = API_URLS[PROVIDER_OLLAMA]
 
         log.info("ai_client_init", provider=self.provider, model=self.model)
 
@@ -256,7 +262,14 @@ class AIClient:
         resp.raise_for_status()
         data = resp.json()
 
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
+        candidates = data.get("candidates")
+        if not candidates:
+            raise RuntimeError(
+                f"Gemini returned no candidates: {data.get('promptFeedback', data)}"
+            )
+        text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+        if not text:
+            raise RuntimeError(f"Gemini returned empty response: {candidates[0]}")
         usage = data.get("usageMetadata", {})
         log.debug(
             "ai_completion",
@@ -299,7 +312,12 @@ class AIClient:
         resp.raise_for_status()
         data = resp.json()
 
-        text = data["choices"][0]["message"]["content"]
+        choices = data.get("choices")
+        if not choices:
+            raise RuntimeError(f"API returned no choices: {data.get('error', data)}")
+        text = choices[0].get("message", {}).get("content", "")
+        if not text:
+            raise RuntimeError(f"API returned empty response: {choices[0]}")
         usage = data.get("usage", {})
         log.debug(
             "ai_completion",
@@ -314,7 +332,7 @@ class AIClient:
         self, prompt: str, system: str, max_tokens: int, temperature: float
     ) -> str:
         """Complete using local Ollama instance."""
-        url = f"{API_URLS[PROVIDER_OLLAMA]}/api/chat"
+        url = f"{self._ollama_url}/api/chat"
 
         messages = []
         if system:
@@ -331,11 +349,14 @@ class AIClient:
             },
         }
 
-        resp = self._http.post(url, json=payload, timeout=120)
+        timeout = self.settings.agent.ollama_request_timeout
+        resp = self._http.post(url, json=payload, timeout=timeout)
         resp.raise_for_status()
         data = resp.json()
 
-        text = data["message"]["content"]
+        text = data.get("message", {}).get("content", "")
+        if not text:
+            raise RuntimeError(f"Ollama returned empty response: {data}")
         log.debug(
             "ai_completion",
             provider="ollama",

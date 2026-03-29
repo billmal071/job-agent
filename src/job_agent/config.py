@@ -15,6 +15,8 @@ class AgentConfig(BaseModel):
     activity_end_hour: int = 23
     schedule_interval: int = 60
     dry_run: bool = False
+    ai_request_timeout: int = 60  # seconds for AI API requests
+    ollama_request_timeout: int = 120  # seconds for local Ollama requests
 
 
 class MatchingConfig(BaseModel):
@@ -86,6 +88,8 @@ class BrowserConfig(BaseModel):
     state_dir: str = "~/.job-agent/browser_state"
     proxy: str | None = None
     use_camoufox: bool = True
+    viewport_width: int = 1920
+    viewport_height: int = 1080
 
 
 class EmailNotificationConfig(BaseModel):
@@ -167,6 +171,9 @@ class Settings(BaseSettings):
     discord_application_id: str = ""
     discord_public_key: str = ""
 
+    # Ollama
+    ollama_url: str = "http://localhost:11434"
+
     # Proxy
     proxy_url: str = ""
 
@@ -208,8 +215,31 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
+def _strip_env_overridden_keys(
+    yaml_data: dict[str, Any], prefix: str = "JOB_AGENT_"
+) -> dict[str, Any]:
+    """Remove YAML keys that have a corresponding environment variable set.
+
+    This ensures env vars always take precedence over YAML values, since
+    Pydantic treats explicit kwargs as higher priority than env sources.
+    """
+    import os
+
+    result = {}
+    for key, value in yaml_data.items():
+        env_key = f"{prefix}{key.upper()}"
+        if isinstance(value, dict):
+            # Recurse into nested dicts with nested delimiter
+            nested = _strip_env_overridden_keys(value, f"{env_key}__")
+            if nested:
+                result[key] = nested
+        elif env_key not in os.environ:
+            result[key] = value
+    return result
+
+
 def load_settings(config_path: str | Path | None = None) -> Settings:
-    """Load settings from YAML config file, then override with env vars."""
+    """Load settings from YAML config file, with env vars taking precedence."""
     yaml_data: dict[str, Any] = {}
 
     # Load default YAML
@@ -226,7 +256,9 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
                 override = yaml.safe_load(f) or {}
             yaml_data = _deep_merge(yaml_data, override)
 
-    # Pydantic settings will layer env vars on top
+    # Strip keys that have env var overrides so Pydantic uses the env value
+    yaml_data = _strip_env_overridden_keys(yaml_data)
+
     return Settings(**yaml_data)
 
 

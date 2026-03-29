@@ -71,7 +71,8 @@ class BrowserManager:
 
         try:
             self._browser = self._playwright.chromium.launch(**kwargs)
-        except Exception:
+        except Exception as e:
+            log.warning("chrome_launch_failed_trying_chromium", error=str(e))
             kwargs.pop("channel", None)
             self._browser = self._playwright.chromium.launch(**kwargs)
         log.info("browser_started", headless=self.settings.browser.headless)
@@ -86,7 +87,10 @@ class BrowserManager:
 
         state_file = self._state_dir / f"{name}_state.json"
         kwargs: dict = {
-            "viewport": {"width": 1920, "height": 1080},
+            "viewport": {
+                "width": self.settings.browser.viewport_width,
+                "height": self.settings.browser.viewport_height,
+            },
             "locale": "en-US",
             "timezone_id": "America/New_York",
         }
@@ -112,8 +116,11 @@ class BrowserManager:
         """Save browser state (cookies, localStorage) for a context."""
         if name in self._contexts:
             state_file = self._state_dir / f"{name}_state.json"
-            self._contexts[name].storage_state(path=str(state_file))
-            log.info("browser_state_saved", name=name)
+            try:
+                self._contexts[name].storage_state(path=str(state_file))
+                log.info("browser_state_saved", name=name)
+            except Exception as e:
+                log.error("browser_state_save_failed", name=name, error=str(e))
 
     def close_context(self, name: str) -> None:
         """Save state and close a named context."""

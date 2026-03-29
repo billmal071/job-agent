@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from flask import Flask
+from flask import Flask, jsonify
 
 from job_agent.config import Settings
 
@@ -62,6 +62,11 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     app.register_blueprint(actions_bp, url_prefix="/actions")
     app.register_blueprint(discord_bp, url_prefix="/discord")
+
+    # Health check
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok", "version": "0.2.0"})
 
     # Teardown session
     @app.teardown_appcontext

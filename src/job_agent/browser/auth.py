@@ -85,33 +85,53 @@ class AuthManager:
         page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
         human_delay(1000, 2000)
 
-        human_type(page, "#username", username)
-        human_type(page, "#password", password)
-        human_delay(500, 1000)
-        human_click(page, '[type="submit"]')
+        # Check if login form is present (might be blocked by CAPTCHA/challenge)
+        username_field = page.locator("#username")
+        if username_field.count() > 0 and username_field.is_visible():
+            human_type(page, "#username", username)
+            human_type(page, "#password", password)
+            human_delay(500, 1000)
+            human_click(page, '[type="submit"]')
+            page.wait_for_load_state("domcontentloaded")
+            human_delay(2000, 4000)
+        else:
+            log.warning(
+                "linkedin_login_form_not_found",
+                url=page.url,
+                message="Login form not visible — CAPTCHA or challenge page. Waiting for manual login...",
+            )
 
-        page.wait_for_load_state("domcontentloaded")
-        human_delay(2000, 4000)
-
-        # Check for security challenge — wait for manual resolution
-        if "checkpoint" in page.url or not self.is_logged_in(Platform.LINKEDIN, page):
+        # Wait for manual resolution if needed (checkpoint, challenge, or still on login)
+        if (
+            "checkpoint" in page.url
+            or "login" in page.url
+            or "challenge" in page.url
+            or not self.is_logged_in(Platform.LINKEDIN, page)
+        ):
             log.warning(
                 "linkedin_manual_intervention",
                 url=page.url,
                 message="Waiting up to 120s for manual login/verification...",
             )
-            # Wait until the page leaves login/checkpoint URLs
             for _ in range(60):
                 human_delay(2000, 2500)
                 current = page.url
-                if "checkpoint" not in current and "login" not in current:
+                if (
+                    "checkpoint" not in current
+                    and "login" not in current
+                    and "challenge" not in current
+                ):
                     break
             human_delay(3000, 5000)
 
         if not self.is_logged_in(Platform.LINKEDIN, page):
             # Fallback: if we're past login/checkpoint, trust it
             current = page.url
-            if "checkpoint" not in current and "login" not in current:
+            if (
+                "checkpoint" not in current
+                and "login" not in current
+                and "challenge" not in current
+            ):
                 log.info("linkedin_login_success_fallback", url=current)
             else:
                 log.error("linkedin_login_failed", url=current)
