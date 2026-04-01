@@ -61,8 +61,8 @@ class AIClient:
         )
         self._http = httpx.Client(timeout=60)
         self._last_call_time: float = 0
-        # Groq free tier: 30 req/min. Add minimum spacing to avoid 429s.
-        self._min_call_interval: float = 2.5 if self.provider == PROVIDER_GROQ else 0.0
+        # Groq free tier: 30 req/min + daily token limits. Space calls to avoid 429s.
+        self._min_call_interval: float = 3.0 if self.provider == PROVIDER_GROQ else 0.0
 
         # Guard against model-provider mismatch
         if "claude" in self.model.lower() and self.provider != PROVIDER_ANTHROPIC:

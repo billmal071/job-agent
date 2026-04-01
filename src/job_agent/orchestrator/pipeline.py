@@ -271,15 +271,31 @@ def run_pipeline(
                     driver.set_ai_context(ai_client, profile)
 
                 # Discover
+                consecutive_search_failures = 0
                 for kw in search.get("keywords", []):
+                    if consecutive_search_failures >= 3:
+                        log.error("too_many_search_failures_stopping_discovery")
+                        break
                     for loc in search.get("locations", [""]):
-                        postings = driver.search_jobs(
-                            query=kw,
-                            location=loc,
-                            remote=search.get("remote_preference", "") == "remote_only",
-                            experience_level=search.get("experience_level", ""),
-                            limit=25,
-                        )
+                        try:
+                            postings = driver.search_jobs(
+                                query=kw,
+                                location=loc,
+                                remote=search.get("remote_preference", "")
+                                == "remote_only",
+                                experience_level=search.get("experience_level", ""),
+                                limit=25,
+                            )
+                            consecutive_search_failures = 0
+                        except Exception as e:
+                            consecutive_search_failures += 1
+                            log.warning(
+                                "search_failed",
+                                query=kw,
+                                location=loc,
+                                error=str(e)[:200],
+                            )
+                            continue
 
                         for posting in postings:
                             # Dedup
