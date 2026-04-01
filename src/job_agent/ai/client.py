@@ -60,6 +60,9 @@ class AIClient:
             self.provider, DEFAULT_MODELS[PROVIDER_GEMINI]
         )
         self._http = httpx.Client(timeout=60)
+        self._last_call_time: float = 0
+        # Groq free tier: 30 req/min. Add minimum spacing to avoid 429s.
+        self._min_call_interval: float = 2.5 if self.provider == PROVIDER_GROQ else 0.0
 
         # Guard against model-provider mismatch
         if "claude" in self.model.lower() and self.provider != PROVIDER_ANTHROPIC:
@@ -125,18 +128,25 @@ class AIClient:
         retries: int = 3,
     ) -> str:
         """Send a completion request with retry logic."""
+        # Throttle requests to avoid rate limits on free tiers
+        if self._min_call_interval > 0:
+            elapsed = time.time() - self._last_call_time
+            if elapsed < self._min_call_interval:
+                time.sleep(self._min_call_interval - elapsed)
+
         for attempt in range(retries):
             try:
+                result: str
                 if self.provider == PROVIDER_ANTHROPIC:
-                    return self._complete_anthropic(
+                    result = self._complete_anthropic(
                         prompt, system, max_tokens, temperature
                     )
                 elif self.provider == PROVIDER_GEMINI:
-                    return self._complete_gemini(
+                    result = self._complete_gemini(
                         prompt, system, max_tokens, temperature
                     )
                 elif self.provider == PROVIDER_GROQ:
-                    return self._complete_openai_compat(
+                    result = self._complete_openai_compat(
                         API_URLS[PROVIDER_GROQ],
                         self.settings.groq_api_key,
                         prompt,
@@ -145,7 +155,7 @@ class AIClient:
                         temperature,
                     )
                 elif self.provider == PROVIDER_OPENROUTER:
-                    return self._complete_openai_compat(
+                    result = self._complete_openai_compat(
                         API_URLS[PROVIDER_OPENROUTER],
                         self.settings.openrouter_api_key,
                         prompt,
@@ -154,11 +164,13 @@ class AIClient:
                         temperature,
                     )
                 elif self.provider == PROVIDER_OLLAMA:
-                    return self._complete_ollama(
+                    result = self._complete_ollama(
                         prompt, system, max_tokens, temperature
                     )
                 else:
                     raise ValueError(f"Unknown provider: {self.provider}")
+                self._last_call_time = time.time()
+                return result
             except Exception as e:
                 err_str = str(e).lower()
                 err_class = self._classify_error(err_str)

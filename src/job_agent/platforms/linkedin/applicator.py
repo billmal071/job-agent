@@ -29,6 +29,53 @@ class LinkedInApplicator(BaseApplicator):
         self._answerer = ScreeningAnswerer(self._ai_client, summary, salary)
         return self._answerer
 
+    def _dismiss_login_popup(self) -> bool:
+        """Dismiss LinkedIn sign-in popup/modal if it appears. Returns True if dismissed."""
+        login_modal = self.page.locator(
+            '[data-test-modal-id="join-now-modal"], '
+            ".join-now-modal, "
+            '[role="dialog"]:has-text("Sign in"), '
+            '[role="dialog"]:has-text("Join LinkedIn")'
+        )
+        if login_modal.count() > 0:
+            close_btn = login_modal.locator(
+                'button[aria-label="Dismiss"], '
+                'button[aria-label="Close"], '
+                'button:has-text("✕"), '
+                ".artdeco-modal__dismiss"
+            )
+            if close_btn.count() > 0:
+                close_btn.first.click()
+                human_delay(500, 1000)
+                log.info("login_popup_dismissed")
+                return True
+            # If no close button, try pressing Escape
+            self.page.keyboard.press("Escape")
+            human_delay(500, 1000)
+            if login_modal.count() == 0:
+                log.info("login_popup_dismissed_via_escape")
+                return True
+        return False
+
+    def _verify_logged_in(self) -> bool:
+        """Check if still logged into LinkedIn, re-auth if session expired."""
+        # Look for signs we're logged out
+        login_indicators = self.page.locator(
+            'a[href*="/login"], '
+            'button:has-text("Sign in"), '
+            '.nav__button-secondary:has-text("Sign in")'
+        )
+        logged_in_indicators = self.page.locator(
+            '.global-nav__me, nav[aria-label="Primary"], .feed-identity-module'
+        )
+        if logged_in_indicators.count() > 0:
+            return True
+        if login_indicators.count() > 0:
+            log.warning("linkedin_session_expired_during_apply")
+            return False
+        # Ambiguous — assume logged in
+        return True
+
     def _do_apply(
         self,
         job: JobPosting,
@@ -36,6 +83,14 @@ class LinkedInApplicator(BaseApplicator):
         cover_letter_path: str,
         answers: dict[str, str] | None,
     ) -> bool:
+        # Dismiss any login popups that may have appeared
+        self._dismiss_login_popup()
+
+        # Verify we're still logged in
+        if not self._verify_logged_in():
+            log.error("cannot_apply_not_logged_in", job_id=job.external_id)
+            return False
+
         # Wait for the page to settle and look for Easy Apply button
         # LinkedIn uses <a> tags (not <button>) for Easy Apply
         apply_btn = None
@@ -116,6 +171,50 @@ class LinkedInApplicator(BaseApplicator):
         # Handle multi-step application flow (modal or SDUI page)
         return self._process_modal(resume_path, cover_letter_path, answers)
 
+    def _check_success_confirmation(self) -> bool:
+        """Check if LinkedIn shows an application-sent confirmation."""
+        success = self.page.locator(
+            ':text("Application sent"), '
+            ':text("Your application was sent"), '
+            ".artdeco-inline-feedback--success, "
+            '[data-test-modal-id="post-apply-modal"]'
+        )
+        return success.count() > 0
+
+    def _check_form_errors(self) -> list[str]:
+        """Check for validation errors on the current form step."""
+        errors = []
+        error_els = self.page.locator(
+            ".artdeco-inline-feedback--error, "
+            ".fb-dash-form-element__error-field, "
+            "[data-test-form-element-error], "
+            ".jobs-easy-apply-form-element__error"
+        ).all()
+        for el in error_els:
+            try:
+                text = el.inner_text().strip()
+                if text:
+                    errors.append(text)
+            except Exception:
+                pass
+        return errors
+
+    def _dismiss_discard_dialog(self) -> None:
+        """Dismiss the 'Discard application?' confirmation dialog."""
+        discard_dialog = self.page.locator(
+            '[data-test-modal-id="data-test-easy-apply-discard-confirmation"], '
+            '[role="alertdialog"], '
+            '[role="dialog"]:has-text("Discard")'
+        )
+        if discard_dialog.count() > 0:
+            discard_btn = discard_dialog.locator(
+                'button:has-text("Discard"), button[data-test-dialog-primary-btn]'
+            )
+            if discard_btn.count() > 0:
+                discard_btn.first.click()
+                human_delay(500, 1000)
+                log.info("discard_dialog_dismissed")
+
     def _process_modal(
         self,
         resume_path: str,
@@ -124,9 +223,15 @@ class LinkedInApplicator(BaseApplicator):
     ) -> bool:
         """Process the Easy Apply modal/page steps."""
         max_steps = 10
+        prev_step_html = ""
 
         for step in range(max_steps):
-            human_delay(1000, 2000)
+            human_delay(1500, 3000)
+
+            # Check for success (may have been auto-submitted)
+            if self._check_success_confirmation():
+                log.info("application_submitted", step=step)
+                return True
 
             # Check if we're in a modal or SDUI apply page
             modal = self.page.locator(
@@ -137,8 +242,13 @@ class LinkedInApplicator(BaseApplicator):
             on_apply_page = "/apply/" in self.page.url
 
             if modal.count() == 0 and not on_apply_page:
+                # Check if we landed on a success page
+                if self._check_success_confirmation():
+                    log.info("application_submitted", step=step)
+                    return True
                 log.info("modal_closed_unexpectedly", step=step, url=self.page.url)
                 self._take_screenshot(f"modal_closed_{step}")
+                self._dismiss_discard_dialog()
                 return False
 
             # Handle resume upload
@@ -166,7 +276,7 @@ class LinkedInApplicator(BaseApplicator):
                 aria = (submit_btn.first.get_attribute("aria-label") or "").lower()
                 if "review" in text or "review" in aria:
                     submit_btn.first.click()
-                    human_delay(1500, 3000)
+                    human_delay(2000, 4000)
                     # Now click the final submit
                     final_submit = self.page.locator(
                         '[aria-label="Submit application"], '
@@ -175,12 +285,26 @@ class LinkedInApplicator(BaseApplicator):
                     )
                     if final_submit.count() > 0:
                         final_submit.first.click()
-                        human_delay(2000, 4000)
+                        human_delay(3000, 5000)
+                        if self._check_success_confirmation():
+                            log.info("application_submitted")
+                            return True
+                        # Check for errors after submit
+                        errors = self._check_form_errors()
+                        if errors:
+                            log.warning("submit_validation_errors", errors=errors)
+                            self._take_screenshot(f"submit_errors_{step}")
+                            self._dismiss_discard_dialog()
+                            return False
+                        # Assume success if no errors and modal closed
                         log.info("application_submitted")
                         return True
                 else:
                     submit_btn.first.click()
-                    human_delay(2000, 4000)
+                    human_delay(3000, 5000)
+                    if self._check_success_confirmation():
+                        log.info("application_submitted")
+                        return True
                     log.info("application_submitted")
                     return True
 
@@ -192,14 +316,60 @@ class LinkedInApplicator(BaseApplicator):
                 'button:has-text("Continue")'
             )
             if next_btn.count() > 0:
+                # Capture current state to detect if Next actually advanced
+                try:
+                    cur_html = (
+                        modal.first.inner_html()[:200] if modal.count() > 0 else ""
+                    )
+                except Exception:
+                    cur_html = ""
+
                 next_btn.first.click()
-                human_delay(1000, 2000)
+                human_delay(2000, 3000)
+
+                # Check for validation errors (Next didn't advance)
+                errors = self._check_form_errors()
+                if errors:
+                    log.warning(
+                        "next_validation_errors",
+                        step=step,
+                        errors=errors,
+                    )
+                    self._take_screenshot(f"validation_errors_{step}")
+                    # Try to fill required fields again
+                    self._handle_screening_questions(answers)
+                    human_delay(500, 1000)
+                    # Retry Next
+                    if next_btn.count() > 0:
+                        next_btn.first.click()
+                        human_delay(2000, 3000)
+                        errors2 = self._check_form_errors()
+                        if errors2:
+                            log.error("cannot_resolve_form_errors", errors=errors2)
+                            self._dismiss_discard_dialog()
+                            return False
+
+                # Detect if page didn't change (stuck)
+                try:
+                    new_html = (
+                        modal.first.inner_html()[:200] if modal.count() > 0 else ""
+                    )
+                except Exception:
+                    new_html = ""
+                if new_html and new_html == cur_html == prev_step_html:
+                    log.warning("modal_stuck_same_content", step=step)
+                    self._take_screenshot(f"modal_stuck_{step}")
+                    self._dismiss_discard_dialog()
+                    return False
+                prev_step_html = cur_html
             else:
                 log.warning("no_next_or_submit_button", step=step)
                 self._take_screenshot(f"no_next_submit_{step}")
+                self._dismiss_discard_dialog()
                 break
 
         log.error("max_steps_exceeded")
+        self._dismiss_discard_dialog()
         return False
 
     def _handle_resume_upload(self, resume_path: str) -> None:
