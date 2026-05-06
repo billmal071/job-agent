@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from flask import Blueprint, render_template, request, current_app, send_file
@@ -10,6 +9,7 @@ from flask import Blueprint, render_template, request, current_app, send_file
 from job_agent.db.session import get_session
 from job_agent.db.repository import JobRepository
 from job_agent.db.models import JobStatus, Platform
+from job_agent.utils.json_helpers import parse_json_list
 from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -136,18 +136,9 @@ def detail(job_id: int):
         red_flags = []
 
         if match_result:
-            try:
-                matched_skills = json.loads(match_result.matched_skills or "[]")
-            except (json.JSONDecodeError, TypeError):
-                matched_skills = []
-            try:
-                missing_skills = json.loads(match_result.missing_skills or "[]")
-            except (json.JSONDecodeError, TypeError):
-                missing_skills = []
-            try:
-                red_flags = json.loads(match_result.red_flags or "[]")
-            except (json.JSONDecodeError, TypeError):
-                red_flags = []
+            matched_skills = parse_json_list(match_result.matched_skills)
+            missing_skills = parse_json_list(match_result.missing_skills)
+            red_flags = parse_json_list(match_result.red_flags)
 
         # Check for existing tailored resume
         resume_dir = Path(settings.data_dir / "resumes")
@@ -180,12 +171,9 @@ def preview_resume(job_id: int):
         if job is None:
             return '<div class="alert alert-danger">Job not found</div>', 404
 
-        matched_skills: list[str] = []
-        if job.match_result and job.match_result.matched_skills:
-            try:
-                matched_skills = json.loads(job.match_result.matched_skills)
-            except (ValueError, TypeError):
-                pass
+        matched_skills = parse_json_list(
+            job.match_result.matched_skills if job.match_result else None
+        )
 
         from job_agent.ai.client import AIClient
         from job_agent.ai.resume_tailor import ResumeTailor

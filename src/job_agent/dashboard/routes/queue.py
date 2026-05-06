@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import json
-
 from flask import Blueprint, render_template, current_app, request, jsonify
 
 from job_agent.db.session import get_session
 from job_agent.db.repository import JobRepository
 from job_agent.db.models import JobStatus
+from job_agent.utils.json_helpers import parse_json_list
 from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -34,22 +33,13 @@ def index():
                 "red_flags": [],
             }
             if job.match_result:
-                try:
-                    item["matched_skills"] = json.loads(
-                        job.match_result.matched_skills or "[]"
-                    )
-                except (json.JSONDecodeError, TypeError):
-                    pass
-                try:
-                    item["missing_skills"] = json.loads(
-                        job.match_result.missing_skills or "[]"
-                    )
-                except (json.JSONDecodeError, TypeError):
-                    pass
-                try:
-                    item["red_flags"] = json.loads(job.match_result.red_flags or "[]")
-                except (json.JSONDecodeError, TypeError):
-                    pass
+                item["matched_skills"] = parse_json_list(
+                    job.match_result.matched_skills
+                )
+                item["missing_skills"] = parse_json_list(
+                    job.match_result.missing_skills
+                )
+                item["red_flags"] = parse_json_list(job.match_result.red_flags)
             queue_items.append(item)
 
         return render_template(

@@ -25,27 +25,12 @@ from job_agent.ai.cold_email import ColdEmailGenerator
 from job_agent.db.session import get_session
 from job_agent.db.repository import JobRepository, OutreachRepository
 from job_agent.db.models import JobStatus, OutreachStatus, Platform
+from job_agent.orchestrator.pipeline_steps import build_candidate_summary
 from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
 
 bp = Blueprint("outreach", __name__)
-
-
-def _build_candidate_summary(profile: dict) -> str:
-    """Build a candidate summary string from a profile dict."""
-    parts: list[str] = []
-    if name := profile.get("name"):
-        parts.append(f"Target Role: {name}")
-    search = profile.get("search", {})
-    if exp := search.get("experience_level"):
-        parts.append(f"Experience Level: {exp}")
-    skills = profile.get("skills", {})
-    if req := skills.get("required"):
-        parts.append(f"Required Skills: {', '.join(req)}")
-    if pref := skills.get("preferred"):
-        parts.append(f"Preferred Skills: {', '.join(pref)}")
-    return "\n".join(parts)
 
 
 @bp.route("/")
@@ -159,7 +144,7 @@ def generate_email(job_id: int):
                 if p.name != "example.yaml":
                     try:
                         profile = load_profile(str(p))
-                        candidate_summary = _build_candidate_summary(profile)
+                        candidate_summary = build_candidate_summary(profile)
                         break
                     except Exception as e:
                         log.debug("profile_load_failed", path=str(p), error=str(e))
@@ -393,7 +378,7 @@ def quick_apply():
                 if p.name != "example.yaml":
                     try:
                         profile = load_profile(str(p))
-                        candidate_summary = _build_candidate_summary(profile)
+                        candidate_summary = build_candidate_summary(profile)
                         break
                     except Exception as e:
                         log.debug("profile_load_failed", path=str(p), error=str(e))
