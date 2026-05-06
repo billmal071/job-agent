@@ -149,8 +149,8 @@ class ExternalATSApplicator:
                     # Verify it looks like a job/career email
                     log.info("mailto_link_found", email=email)
                     return email
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("mailto_detection_failed", error=str(e))
 
         # Check page text for "send/email your resume to ..." patterns
         try:
@@ -166,8 +166,8 @@ class ExternalATSApplicator:
                     email = match.group(1).strip()
                     log.info("email_in_text_found", email=email)
                     return email
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("email_text_detection_failed", error=str(e))
 
         # Check if page has no form at all but has an email address
         try:
@@ -196,8 +196,8 @@ class ExternalATSApplicator:
                     if not any(email.lower().startswith(s) for s in skip):
                         log.info("email_no_form_found", email=email)
                         return email
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("email_no_form_detection_failed", error=str(e))
 
         return None
 
@@ -448,8 +448,8 @@ class ExternalATSApplicator:
                             if Path(cover_letter_path).exists():
                                 file_inputs[1].set_input_files(cover_letter_path)
                                 human_delay(500, 1000)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            log.debug("cover_letter_upload_failed", error=str(e))
 
             # Fill form fields
             self._fill_all_fields()
@@ -472,15 +472,15 @@ class ExternalATSApplicator:
                         "el => el.scrollIntoView({behavior: 'smooth', block: 'center'})"
                     )
                     human_delay(500, 1000)
-                except Exception:
-                    pass
+                except Exception as e:
+                    log.debug("submit_scroll_failed", error=str(e))
                 try:
                     submit.click(force=True)
                 except Exception:
                     try:
                         submit.evaluate("el => el.click()")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log.debug("submit_click_failed", error=str(e))
                 human_delay(3000, 5000)
                 # Check for success indicators
                 if self._check_success():
@@ -753,7 +753,8 @@ class ExternalATSApplicator:
                             current_value=el.input_value(),
                         )
                     )
-            except Exception:
+            except Exception as e:
+                log.debug("standalone_field_extract_failed", error=str(e))
                 continue
 
         return fields
@@ -766,8 +767,8 @@ class ExternalATSApplicator:
                 assoc = self.page.locator(f'label[for="{el_id}"]')
                 if assoc.count() > 0:
                     return assoc.inner_text().strip()
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("label_lookup_failed", error=str(e))
         return ""
 
     def _fill_field(self, field: FormField, answer) -> None:
@@ -839,8 +840,8 @@ class ExternalATSApplicator:
         try:
             btn_html = btn.evaluate("el => el.outerHTML.substring(0, 150)")
             log.info("ats_clicking_submit", html=btn_html)
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("submit_html_read_failed", error=str(e))
 
         # Scroll into view using JS (handles nested scrollable containers)
         try:
@@ -848,8 +849,8 @@ class ExternalATSApplicator:
                 "el => el.scrollIntoView({behavior: 'smooth', block: 'center'})"
             )
             human_delay(1000, 2000)
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("submit_scroll_failed", error=str(e))
         try:
             btn.click(force=True)
         except Exception:
@@ -914,6 +915,6 @@ class ExternalATSApplicator:
             aria_label = el.get_attribute("aria-label")
             if aria_label:
                 return f'{tag}[aria-label="{aria_label}"]'
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("unique_selector_failed", error=str(e))
         return ""
