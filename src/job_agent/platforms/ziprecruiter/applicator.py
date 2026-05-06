@@ -5,6 +5,7 @@ from __future__ import annotations
 from job_agent.browser.humanizer import human_delay
 from job_agent.platforms.base import JobPosting
 from job_agent.platforms.base_applicator import BaseApplicator
+from job_agent.platforms.ziprecruiter.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -21,12 +22,7 @@ class ZipRecruiterApplicator(BaseApplicator):
         answers: dict[str, str] | None,
     ) -> bool:
         # Click the 1-Click Apply / Apply button
-        apply_btn = self.page.locator(
-            'button:has-text("1-Click Apply"), '
-            'button:has-text("Apply"), '
-            'a:has-text("Apply Now"), '
-            '[data-testid="apply-button"]'
-        ).first
+        apply_btn = self.page.locator(SELECTORS.apply_button).first
         if apply_btn.count() == 0:
             log.warning("no_apply_button", job_id=job.external_id)
             return False
@@ -47,9 +43,7 @@ class ZipRecruiterApplicator(BaseApplicator):
 
         self._upload_resume(resume_path)
 
-        submit_btn = self.page.locator(
-            'button:has-text("Submit"), button:has-text("Apply"), button[type="submit"]'
-        ).first
+        submit_btn = self.page.locator(SELECTORS.submit_button).first
         if submit_btn.count() > 0:
             submit_btn.click()
             human_delay(2000, 4000)

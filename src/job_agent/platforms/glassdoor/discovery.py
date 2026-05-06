@@ -10,6 +10,7 @@ from playwright.sync_api import Page
 from job_agent.browser.humanizer import human_delay
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting, safe_text
+from job_agent.platforms.glassdoor.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
 
@@ -28,9 +29,7 @@ class GlassdoorDiscovery:
     def _dismiss_one_tap(self) -> None:
         """Dismiss Google One Tap auth popup if present."""
         try:
-            one_tap = self.page.locator(
-                'iframe[src*="accounts.google.com/gsi"], #credential_picker_container'
-            )
+            one_tap = self.page.locator(SELECTORS.one_tap_iframe)
             if one_tap.count() > 0:
                 self.page.evaluate(
                     "document.querySelector('#credential_picker_container')?.remove()"
@@ -107,21 +106,16 @@ class GlassdoorDiscovery:
         """Extract job listings from current page."""
         jobs: list[JobPosting] = []
 
-        self.page.wait_for_selector(
-            '[data-test="jobListing"], .react-job-listing',
-            timeout=10000,
-        )
+        self.page.wait_for_selector(SELECTORS.job_card, timeout=10000)
         human_delay(1000, 2000)
 
-        cards = self.page.locator('[data-test="jobListing"], .react-job-listing').all()
+        cards = self.page.locator(SELECTORS.job_card).all()
         for card in cards:
             try:
-                title_el = card.locator('[data-test="job-title"], .job-title').first
+                title_el = card.locator(SELECTORS.job_title).first
                 title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
-                company_el = card.locator(
-                    '[data-test="emp-name"], [class*="EmployerProfile_employerNameContainer"], .employer-name'
-                ).first
+                company_el = card.locator(SELECTORS.job_company).first
                 company = (
                     company_el.inner_text().strip() if company_el.count() > 0 else ""
                 )
@@ -130,16 +124,12 @@ class GlassdoorDiscovery:
 
                 company = _re.sub(r"\s*\d+\.\d+\s*$", "", company).strip()
 
-                location_el = card.locator(
-                    '[data-test="emp-location"], .location'
-                ).first
+                location_el = card.locator(SELECTORS.job_location).first
                 location = (
                     location_el.inner_text().strip() if location_el.count() > 0 else ""
                 )
 
-                link_el = card.locator(
-                    "a[href*='/job-listing/'], a[data-test='job-title']"
-                ).first
+                link_el = card.locator(SELECTORS.job_url).first
                 url = ""
                 external_id = ""
                 if link_el.count() > 0:
@@ -166,22 +156,13 @@ class GlassdoorDiscovery:
                 if not external_id or not title:
                     continue
 
-                salary_el = card.locator(
-                    '[data-test="detailSalary"], .salary-estimate'
-                ).first
+                salary_el = card.locator(SELECTORS.job_salary).first
                 salary = (
                     salary_el.inner_text().strip() if salary_el.count() > 0 else None
                 )
 
                 # Check for Easy Apply badge
-                easy_apply = (
-                    card.locator(
-                        '[data-test="applyButton"], '
-                        ".easy-apply-badge, "
-                        ":text('Easy Apply'), :text('Apply Now')"
-                    ).count()
-                    > 0
-                )
+                easy_apply = card.locator(SELECTORS.easy_apply_badge).count() > 0
 
                 jobs.append(
                     JobPosting(
@@ -204,9 +185,7 @@ class GlassdoorDiscovery:
     def _next_page(self) -> bool:
         try:
             self.rate_limiter.wait()
-            next_btn = self.page.locator(
-                'button[data-test="pagination-next"], a.nextButton'
-            )
+            next_btn = self.page.locator(SELECTORS.pagination_next)
             if next_btn.count() > 0 and next_btn.is_enabled():
                 next_btn.click()
                 self.page.wait_for_load_state("domcontentloaded")
@@ -222,25 +201,16 @@ class GlassdoorDiscovery:
         self._safe_goto(job_url)
         human_delay(2000, 4000)
 
-        title = safe_text(self.page, '[data-test="jobTitle"], .e1tk4kwz5')
-        company = safe_text(self.page, '[data-test="employerName"], .e1tk4kwz4')
-        location = safe_text(self.page, '[data-test="location"], .e1tk4kwz1')
-        description = safe_text(
-            self.page, '[data-test="jobDescriptionContent"], .jobDescriptionContent'
-        )
+        title = safe_text(self.page, SELECTORS.detail_title)
+        company = safe_text(self.page, SELECTORS.detail_company)
+        location = safe_text(self.page, SELECTORS.detail_location)
+        description = safe_text(self.page, SELECTORS.detail_description)
 
         match = re.search(r"jobListingId=(\d+)", job_url)
         external_id = match.group(1) if match else ""
 
         # Check for apply button on detail page
-        easy_apply = (
-            self.page.locator(
-                '[data-test="applyButton"], '
-                'button:has-text("Apply"), '
-                'a:has-text("Apply")'
-            ).count()
-            > 0
-        )
+        easy_apply = self.page.locator(SELECTORS.detail_easy_apply).count() > 0
 
         self.rate_limiter.success()
         return JobPosting(

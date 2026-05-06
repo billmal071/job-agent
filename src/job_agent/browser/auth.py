@@ -5,6 +5,7 @@ from __future__ import annotations
 from playwright.sync_api import BrowserContext, Page
 
 from job_agent.browser.humanizer import human_click, human_delay, human_type
+from job_agent.browser.selectors import AUTH_SELECTORS
 from job_agent.db.models import Platform
 from job_agent.utils.logging import get_logger
 
@@ -34,44 +35,18 @@ class AuthManager:
 
     def is_logged_in(self, platform: Platform, page: Page) -> bool:
         """Check if currently logged into a platform."""
-        checks = {
-            Platform.LINKEDIN: lambda p: (
-                p.locator(".global-nav__me").count() > 0
-                or p.locator('[data-control-name="identity_welcome_message"]').count()
-                > 0
-                or p.locator(".feed-identity-module").count() > 0
-                or p.locator('nav[aria-label="Primary"]').count() > 0
-            ),
-            Platform.INDEED: lambda p: (
-                p.locator('[data-gnav-element-name="AccountMenu"]').count() > 0
-            ),
-            Platform.GLASSDOOR: lambda p: (
-                p.locator('[data-test="header-profile"]').count() > 0
-            ),
-            Platform.ZIPRECRUITER: lambda p: (
-                p.locator('.navbar-user-menu, [data-testid="user-menu"]').count() > 0
-            ),
-            Platform.DICE: lambda p: (
-                p.locator('[data-testid="header-user-menu"], .user-menu').count() > 0
-            ),
-            Platform.WELLFOUND: lambda p: (
-                p.locator(
-                    '[data-test="UserMenu"], .styles_component__NavBarAvatar'
-                ).count()
-                > 0
-            ),
-        }
-        check = checks.get(platform)
-        if not check:
+        auth = AUTH_SELECTORS.get(platform.value)
+        if not auth:
             return False
         try:
-            return check(page)
+            return page.locator(auth.logged_in_check).count() > 0
         except Exception:
             return False
 
     def _login_linkedin(self, username: str, password: str) -> Page:
+        auth = AUTH_SELECTORS["linkedin"]
         page = self.context.new_page()
-        page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
+        page.goto(auth.homepage_url, wait_until="domcontentloaded")
         human_delay(2000, 3000)
 
         # Already logged in from saved session
@@ -82,16 +57,16 @@ class AuthManager:
             return page
 
         # Not logged in — go to login page
-        page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
+        page.goto(auth.login_url, wait_until="domcontentloaded")
         human_delay(1000, 2000)
 
         # Check if login form is present (might be blocked by CAPTCHA/challenge)
-        username_field = page.locator("#username")
+        username_field = page.locator(auth.username_field)
         if username_field.count() > 0 and username_field.is_visible():
-            human_type(page, "#username", username)
-            human_type(page, "#password", password)
+            human_type(page, auth.username_field, username)
+            human_type(page, auth.password_field, password)
             human_delay(500, 1000)
-            human_click(page, '[type="submit"]')
+            human_click(page, auth.submit_button)
             page.wait_for_load_state("domcontentloaded")
             human_delay(2000, 4000)
         else:
@@ -156,29 +131,21 @@ class AuthManager:
         human_delay(3000, 5000)
 
     def _login_indeed(self, username: str, password: str) -> Page:
+        auth = AUTH_SELECTORS["indeed"]
         page = self.context.new_page()
 
         # Visit homepage first to check session — avoids Cloudflare on /auth
-        page.goto("https://www.indeed.com")
+        page.goto(auth.homepage_url)
         page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 3000)
 
         # Check if already logged in by looking for profile/account indicators
-        logged_in = (
-            page.locator(
-                '[data-gnav-element-name="AccountMenu"], '
-                'a[href*="/account"], '
-                '[data-testid="gnav-header-account"], '
-                "#AccountMenu"
-            ).count()
-            > 0
-        )
-        if logged_in:
+        if page.locator(auth.homepage_logged_in_check).count() > 0:
             log.info("indeed_already_logged_in")
             return page
 
         # Need to log in — navigate to auth page
-        page.goto("https://secure.indeed.com/auth")
+        page.goto(auth.login_url)
         page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 3000)
 
@@ -201,25 +168,20 @@ class AuthManager:
             return page
 
         # Try Google auth button first, fall back to email/password
-        google_btn = page.locator(
-            'button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]'
-        )
+        google_btn = page.locator(auth.google_auth_button)
         if google_btn.count() > 0:
-            human_click(
-                page,
-                'button:has-text("Google"), [data-tn-element="auth-page-google-button"], a[href*="accounts.google.com"]',
-            )
+            human_click(page, auth.google_auth_button)
             self._wait_for_oauth_login(page, "indeed", "indeed.com")
         else:
-            email_field = page.locator('[name="__email"]')
+            email_field = page.locator(auth.username_field)
             if email_field.count() > 0:
-                human_type(page, '[name="__email"]', username)
+                human_type(page, auth.username_field, username)
                 human_click(page, '[data-tn-element="auth-page-email-submit"]')
                 page.wait_for_load_state("domcontentloaded")
                 human_delay(1000, 2000)
 
-                human_type(page, '[name="__password"]', password)
-                human_click(page, '[data-tn-element="auth-page-sign-in-submit"]')
+                human_type(page, auth.password_field, password)
+                human_click(page, auth.submit_button)
                 page.wait_for_load_state("domcontentloaded")
                 human_delay(2000, 4000)
             else:
@@ -229,10 +191,11 @@ class AuthManager:
         return page
 
     def _login_glassdoor(self, username: str, password: str) -> Page:
+        auth = AUTH_SELECTORS["glassdoor"]
         page = self.context.new_page()
 
         # Visit homepage first to check session — avoids Cloudflare on login page
-        page.goto("https://www.glassdoor.com")
+        page.goto(auth.homepage_url)
         page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 3000)
 
@@ -248,21 +211,12 @@ class AuthManager:
                 break
 
         # Check if already logged in
-        logged_in = (
-            page.locator(
-                '[data-test="profile-button"], '
-                'a[href*="/member/profile"], '
-                "#ProfileButton, "
-                '[data-test="header-profile"]'
-            ).count()
-            > 0
-        )
-        if logged_in:
+        if page.locator(auth.homepage_logged_in_check).count() > 0:
             log.info("glassdoor_already_logged_in")
             return page
 
         # Need to log in — navigate to login page
-        page.goto("https://www.glassdoor.com/profile/login_input.htm")
+        page.goto(auth.login_url)
         page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 3000)
 
@@ -283,46 +237,36 @@ class AuthManager:
             return page
 
         # Try Google auth button first, fall back to email/password
-        google_btn = page.locator(
-            'button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]'
-        )
+        google_btn = page.locator(auth.google_auth_button)
         if google_btn.count() > 0:
-            human_click(
-                page,
-                'button:has-text("Google"), [data-provider="google"], a[href*="accounts.google.com"]',
-            )
+            human_click(page, auth.google_auth_button)
             self._wait_for_oauth_login(page, "glassdoor", "glassdoor.com")
         else:
-            # Check if login form is actually present
-            username_field = page.locator(
-                '[name="username"], [name="email"], #userEmail'
-            )
+            username_field = page.locator(auth.username_field)
             if username_field.count() > 0:
-                human_type(
-                    page, '[name="username"], [name="email"], #userEmail', username
-                )
-                human_type(page, '[name="password"]', password)
+                human_type(page, auth.username_field, username)
+                human_type(page, auth.password_field, password)
                 human_delay(500, 1000)
-                human_click(page, '[type="submit"]')
+                human_click(page, auth.submit_button)
                 page.wait_for_load_state("domcontentloaded")
                 human_delay(2000, 4000)
             else:
                 log.warning("glassdoor_login_form_not_found", url=page.url)
-                # Might already be logged in or Cloudflare blocked us
 
         log.info("glassdoor_login_complete")
         return page
 
     def _login_ziprecruiter(self, username: str, password: str) -> Page:
+        auth = AUTH_SELECTORS["ziprecruiter"]
         page = self.context.new_page()
-        page.goto("https://www.ziprecruiter.com/authn/login")
+        page.goto(auth.login_url)
         page.wait_for_load_state("domcontentloaded")
         human_delay(1000, 2000)
 
-        human_type(page, '[name="email"], #email', username)
-        human_type(page, '[name="password"], #password', password)
+        human_type(page, auth.username_field, username)
+        human_type(page, auth.password_field, password)
         human_delay(500, 1000)
-        human_click(page, '[type="submit"]')
+        human_click(page, auth.submit_button)
 
         page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
@@ -331,15 +275,16 @@ class AuthManager:
         return page
 
     def _login_dice(self, username: str, password: str) -> Page:
+        auth = AUTH_SELECTORS["dice"]
         page = self.context.new_page()
-        page.goto("https://www.dice.com/dashboard/login")
+        page.goto(auth.login_url)
         page.wait_for_load_state("domcontentloaded")
         human_delay(1000, 2000)
 
-        human_type(page, '[name="email"], #email', username)
-        human_type(page, '[name="password"], #password', password)
+        human_type(page, auth.username_field, username)
+        human_type(page, auth.password_field, password)
         human_delay(500, 1000)
-        human_click(page, '[type="submit"], button:has-text("Sign In")')
+        human_click(page, auth.submit_button)
 
         page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
@@ -348,15 +293,16 @@ class AuthManager:
         return page
 
     def _login_wellfound(self, username: str, password: str) -> Page:
+        auth = AUTH_SELECTORS["wellfound"]
         page = self.context.new_page()
-        page.goto("https://wellfound.com/login")
+        page.goto(auth.login_url)
         page.wait_for_load_state("domcontentloaded")
         human_delay(1000, 2000)
 
-        human_type(page, '[name="email"], #user_email', username)
-        human_type(page, '[name="password"], #user_password', password)
+        human_type(page, auth.username_field, username)
+        human_type(page, auth.password_field, password)
         human_delay(500, 1000)
-        human_click(page, '[type="submit"], button:has-text("Log in")')
+        human_click(page, auth.submit_button)
 
         page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)

@@ -5,6 +5,7 @@ from __future__ import annotations
 from job_agent.browser.humanizer import human_delay
 from job_agent.platforms.base import JobPosting
 from job_agent.platforms.base_applicator import BaseApplicator
+from job_agent.platforms.dice.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -18,10 +19,7 @@ class DiceApplicator(BaseApplicator):
         from job_agent.platforms.base import safe_goto
 
         safe_goto(self.page, job.url)
-        self.page.wait_for_selector(
-            "#jobDescription, [data-testid='jobDescription'], .job-description",
-            timeout=15000,
-        )
+        self.page.wait_for_selector(SELECTORS.detail_ready, timeout=15000)
 
     def _do_apply(
         self,
@@ -31,12 +29,7 @@ class DiceApplicator(BaseApplicator):
         answers: dict[str, str] | None,
     ) -> bool:
         # Click Apply / Easy Apply button
-        apply_btn = self.page.locator(
-            'button:has-text("Easy Apply"), '
-            'button:has-text("Apply"), '
-            'a[data-cy="apply-button"], '
-            '[data-testid="apply-button"]'
-        ).first
+        apply_btn = self.page.locator(SELECTORS.apply_button).first
         if apply_btn.count() == 0:
             log.warning("no_apply_button", job_id=job.external_id)
             return False
@@ -61,12 +54,7 @@ class DiceApplicator(BaseApplicator):
         for step in range(max_steps):
             human_delay(1000, 2000)
 
-            submit_btn = self.page.locator(
-                'button:has-text("Submit"), '
-                'button:has-text("Apply"), '
-                'button:has-text("Next"), '
-                'button[type="submit"]'
-            ).first
+            submit_btn = self.page.locator(SELECTORS.submit_button).first
             if submit_btn.count() > 0:
                 text = submit_btn.inner_text().strip().lower()
                 if "submit" in text or "apply" in text:

@@ -10,6 +10,7 @@ from playwright.sync_api import Page
 from job_agent.browser.humanizer import human_delay, human_scroll
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting, safe_goto, safe_text
+from job_agent.platforms.wellfound.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
 
@@ -43,10 +44,7 @@ class WellfoundDiscovery:
 
         self.rate_limiter.wait()
         safe_goto(self.page, url)
-        self.page.wait_for_selector(
-            'div[data-test="StartupResult"], .styles_component__JobCard, .job-listing',
-            timeout=15000,
-        )
+        self.page.wait_for_selector(SELECTORS.job_card, timeout=15000)
         human_delay(2000, 4000)
 
         jobs: list[JobPosting] = []
@@ -76,34 +74,24 @@ class WellfoundDiscovery:
         jobs: list[JobPosting] = []
         human_delay(500, 1000)
 
-        cards = self.page.locator(
-            'div[data-test="StartupResult"], .styles_component__JobCard, .job-listing'
-        ).all()
+        cards = self.page.locator(SELECTORS.job_card).all()
         for card in cards:
             try:
-                title_el = card.locator(
-                    'a[data-test="job-title"], .job-title a, h4 a'
-                ).first
+                title_el = card.locator(SELECTORS.job_title).first
                 title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
-                company_el = card.locator(
-                    'a[data-test="startup-link"], .company-name, h2 a'
-                ).first
+                company_el = card.locator(SELECTORS.job_company).first
                 company = (
                     company_el.inner_text().strip() if company_el.count() > 0 else ""
                 )
 
-                location_el = card.locator(
-                    '[data-test="job-location"], .location, .job-location'
-                ).first
+                location_el = card.locator(SELECTORS.job_location).first
                 location = (
                     location_el.inner_text().strip() if location_el.count() > 0 else ""
                 )
 
                 # Extract job URL and ID
-                link_el = card.locator(
-                    'a[data-test="job-title"], .job-title a, h4 a'
-                ).first
+                link_el = card.locator(SELECTORS.job_url).first
                 url = ""
                 external_id = ""
                 if link_el.count() > 0:
@@ -122,9 +110,7 @@ class WellfoundDiscovery:
                 if not external_id or not title:
                     continue
 
-                salary_el = card.locator(
-                    '[data-test="compensation"], .salary, .compensation'
-                ).first
+                salary_el = card.locator(SELECTORS.job_salary).first
                 salary = (
                     salary_el.inner_text().strip() if salary_el.count() > 0 else None
                 )
@@ -152,18 +138,14 @@ class WellfoundDiscovery:
         try:
             self.rate_limiter.wait()
             # Count cards before scroll
-            before_count = self.page.locator(
-                'div[data-test="StartupResult"], .styles_component__JobCard, .job-listing'
-            ).count()
+            before_count = self.page.locator(SELECTORS.job_card).count()
 
             # Scroll to bottom using humanizer
             human_scroll(self.page, "down", 3000)
             human_delay(2000, 4000)
 
             # Wait and count cards after scroll
-            after_count = self.page.locator(
-                'div[data-test="StartupResult"], .styles_component__JobCard, .job-listing'
-            ).count()
+            after_count = self.page.locator(SELECTORS.job_card).count()
 
             if after_count > before_count:
                 return True
@@ -177,22 +159,13 @@ class WellfoundDiscovery:
         """Get full job details from Wellfound."""
         self.rate_limiter.wait()
         safe_goto(self.page, job_url)
-        self.page.wait_for_selector(
-            '[data-test="job-description"], .job-description, .description',
-            timeout=15000,
-        )
+        self.page.wait_for_selector(SELECTORS.detail_ready, timeout=15000)
         human_delay(2000, 4000)
 
-        title = safe_text(self.page, 'h1[data-test="job-title"], h1.job-title, h1')
-        company = safe_text(
-            self.page, 'a[data-test="startup-link"], .company-name, h2 a'
-        )
-        location = safe_text(
-            self.page, '[data-test="job-location"], .location, .job-location'
-        )
-        description = safe_text(
-            self.page, '[data-test="job-description"], .job-description, .description'
-        )
+        title = safe_text(self.page, SELECTORS.detail_title)
+        company = safe_text(self.page, SELECTORS.detail_company)
+        location = safe_text(self.page, SELECTORS.detail_location)
+        description = safe_text(self.page, SELECTORS.detail_description)
 
         match = re.search(r"/jobs/(\d+)", job_url)
         external_id = match.group(1) if match else job_url.rstrip("/").split("/")[-1]
