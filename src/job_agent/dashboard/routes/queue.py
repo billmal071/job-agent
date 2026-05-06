@@ -9,6 +9,9 @@ from flask import Blueprint, render_template, current_app, request, jsonify
 from job_agent.db.session import get_session
 from job_agent.db.repository import JobRepository
 from job_agent.db.models import JobStatus
+from job_agent.utils.logging import get_logger
+
+log = get_logger(__name__)
 
 bp = Blueprint("queue", __name__)
 
@@ -75,8 +78,9 @@ def approve(job_id: int):
             f"Approved: {job.title} @ {job.company}"
             f"</div>"
         )
-    except Exception:
+    except Exception as e:
         session.rollback()
+        log.warning("approve_failed", job_id=job_id, error=str(e))
         return '<div class="alert alert-danger">Failed to approve job</div>', 500
     finally:
         session.close()
@@ -99,8 +103,9 @@ def approve_all():
             f"Approved {count} job{'s' if count != 1 else ''}"
             f"</div>"
         )
-    except Exception:
+    except Exception as e:
         session.rollback()
+        log.warning("approve_all_failed", error=str(e))
         return '<div class="alert alert-danger">Failed to approve jobs</div>', 500
     finally:
         session.close()
@@ -135,8 +140,9 @@ def bulk_action():
         return jsonify(
             ok=True, message=f"{verb} {count} job{'s' if count != 1 else ''}"
         )
-    except Exception:
+    except Exception as e:
         session.rollback()
+        log.warning("bulk_action_failed", error=str(e))
         return jsonify(ok=False, message="Failed to process bulk action"), 500
     finally:
         session.close()
@@ -159,8 +165,9 @@ def reject(job_id: int):
             f"Rejected: {job.title} @ {job.company}"
             f"</div>"
         )
-    except Exception:
+    except Exception as e:
         session.rollback()
+        log.warning("reject_failed", job_id=job_id, error=str(e))
         return '<div class="alert alert-danger">Failed to reject job</div>', 500
     finally:
         session.close()

@@ -10,6 +10,9 @@ from flask import Blueprint, render_template, request, current_app, send_file
 from job_agent.db.session import get_session
 from job_agent.db.repository import JobRepository
 from job_agent.db.models import JobStatus, Platform
+from job_agent.utils.logging import get_logger
+
+log = get_logger(__name__)
 
 bp = Blueprint("jobs", __name__)
 
@@ -107,8 +110,9 @@ def toggle_bookmark(job_id: int):
             f'hx-swap="outerHTML" title="Toggle bookmark">'
             f'<i class="bi {icon}"></i></button>'
         )
-    except Exception:
+    except Exception as e:
         session.rollback()
+        log.warning("bookmark_toggle_failed", job_id=job_id, error=str(e))
         return '<span class="text-muted">Error</span>', 500
     finally:
         session.close()

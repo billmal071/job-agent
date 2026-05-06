@@ -25,6 +25,9 @@ from job_agent.ai.cold_email import ColdEmailGenerator
 from job_agent.db.session import get_session
 from job_agent.db.repository import JobRepository, OutreachRepository
 from job_agent.db.models import JobStatus, OutreachStatus, Platform
+from job_agent.utils.logging import get_logger
+
+log = get_logger(__name__)
 
 bp = Blueprint("outreach", __name__)
 
@@ -158,8 +161,8 @@ def generate_email(job_id: int):
                         profile = load_profile(str(p))
                         candidate_summary = _build_candidate_summary(profile)
                         break
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log.debug("profile_load_failed", path=str(p), error=str(e))
 
         # Generate email via AI
         ai_client = AIClient(settings)
@@ -392,8 +395,8 @@ def quick_apply():
                         profile = load_profile(str(p))
                         candidate_summary = _build_candidate_summary(profile)
                         break
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log.debug("profile_load_failed", path=str(p), error=str(e))
 
         # Extract skills from job description as matched_skills
         matched_skills: list[str] = []
@@ -446,7 +449,8 @@ def quick_apply():
             tailored_resume_path = resume_tailor.tailor_and_save(
                 posting, matched_skills
             )
-        except Exception:
+        except Exception as e:
+            log.warning("resume_tailor_failed", job_title=job_title, error=str(e))
             tailored_resume_path = str(Path(settings.resume.master_resume))
 
         # Generate email via AI

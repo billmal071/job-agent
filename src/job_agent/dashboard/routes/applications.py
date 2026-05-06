@@ -12,6 +12,9 @@ from flask import Blueprint, render_template, request, current_app, Response, se
 from job_agent.db.session import get_session
 from job_agent.db.repository import ApplicationRepository, JobRepository
 from job_agent.db.models import Application, ApplicationStatus, JobStatus
+from job_agent.utils.logging import get_logger
+
+log = get_logger(__name__)
 
 bp = Blueprint("applications", __name__)
 
@@ -190,8 +193,9 @@ def retry(app_id: int):
             f'Retrying: {job_title}. Run "Apply Approved" to process.'
             f"</div>"
         )
-    except Exception:
+    except Exception as e:
         session.rollback()
+        log.warning("retry_failed", app_id=app_id, error=str(e))
         return '<div class="alert alert-danger">Failed to retry application</div>', 500
     finally:
         session.close()
