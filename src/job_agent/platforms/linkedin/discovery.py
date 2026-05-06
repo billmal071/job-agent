@@ -10,6 +10,7 @@ from playwright.sync_api import Page
 from job_agent.browser.humanizer import human_click, human_delay, human_scroll
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting, safe_text
+from job_agent.platforms.linkedin.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
 
@@ -86,20 +87,12 @@ class LinkedInDiscovery:
 
         # Wait for job cards to load (multiple selector variants for LinkedIn layout changes)
         self.page.wait_for_selector(
-            ".scaffold-layout__list-item, "
-            ".jobs-search-results-list__list-item, "
-            ".jobs-search-results__list-item, "
-            ".job-card-container",
+            SELECTORS.job_card,
             timeout=10000,
         )
         human_delay(1000, 2000)
 
-        cards = self.page.locator(
-            ".scaffold-layout__list-item, "
-            ".jobs-search-results-list__list-item, "
-            ".jobs-search-results__list-item, "
-            ".job-card-container"
-        ).all()
+        cards = self.page.locator(SELECTORS.job_card).all()
 
         for card in cards:
             try:
@@ -109,13 +102,7 @@ class LinkedInDiscovery:
                     try:
                         card.click()
                         human_delay(1500, 2500)
-                        desc_el = self.page.locator(
-                            ".jobs-description__content, "
-                            ".jobs-box__html-content, "
-                            ".jobs-description-content__text, "
-                            ".jobs-description, "
-                            "#job-details"
-                        ).first
+                        desc_el = self.page.locator(SELECTORS.detail_description).first
                         if desc_el.count() > 0:
                             job.description = desc_el.inner_text().strip()
                     except Exception:
@@ -131,33 +118,21 @@ class LinkedInDiscovery:
         """Parse a single job card element into a JobPosting."""
         try:
             # Extract title
-            title_el = card.locator(
-                ".job-card-list__title, "
-                ".job-card-container__link, "
-                ".artdeco-entity-lockup__title"
-            ).first
+            title_el = card.locator(SELECTORS.job_title).first
             title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
             # Extract company
-            company_el = card.locator(
-                ".job-card-container__primary-description, "
-                ".job-card-container__company-name, "
-                ".artdeco-entity-lockup__subtitle"
-            ).first
+            company_el = card.locator(SELECTORS.job_company).first
             company = company_el.inner_text().strip() if company_el.count() > 0 else ""
 
             # Extract location
-            location_el = card.locator(
-                ".job-card-container__metadata-item, "
-                ".job-card-container__metadata-wrapper, "
-                ".artdeco-entity-lockup__caption"
-            ).first
+            location_el = card.locator(SELECTORS.job_location).first
             location = (
                 location_el.inner_text().strip() if location_el.count() > 0 else ""
             )
 
             # Extract URL
-            link_el = card.locator("a[href*='/jobs/view/']").first
+            link_el = card.locator(SELECTORS.job_url).first
             url = ""
             external_id = ""
             if link_el.count() > 0:
@@ -175,13 +150,7 @@ class LinkedInDiscovery:
 
             # Check for Easy Apply badge (multiple selector strategies)
             easy_apply = (
-                card.locator(
-                    ".job-card-container__apply-method, "
-                    "[data-is-easy-apply-button], "
-                    ".jobs-apply-button--top-card, "
-                    "li-icon[type='linkedin-bug'], "
-                    ".job-card-container__footer-item--highlighted"
-                ).count()
+                card.locator(SELECTORS.easy_apply_badge).count()
                 > 0
                 or "easy apply" in card.inner_text().lower()
             )
@@ -191,9 +160,7 @@ class LinkedInDiscovery:
 
             # Extract salary if visible
             salary = None
-            salary_el = card.locator(
-                ".job-card-container__salary-info, .artdeco-entity-lockup__metadata"
-            ).first
+            salary_el = card.locator(SELECTORS.job_salary).first
             if salary_el.count() > 0:
                 salary = salary_el.inner_text().strip()
 
@@ -216,11 +183,7 @@ class LinkedInDiscovery:
         """Navigate to the next page of results."""
         try:
             self.rate_limiter.wait()
-            next_btn = self.page.locator(
-                'button[aria-label="Next"], '
-                "button.artdeco-pagination__button--next, "
-                'button[aria-label="View next page"]'
-            )
+            next_btn = self.page.locator(SELECTORS.pagination_next)
             if next_btn.count() > 0 and next_btn.is_enabled():
                 human_scroll(self.page, "down", 500)
                 human_delay(500, 1000)
@@ -241,35 +204,12 @@ class LinkedInDiscovery:
         self.page.goto(job_url, wait_until="domcontentloaded")
         human_delay(2000, 4000)
 
-        title = safe_text(
-            self.page,
-            ".t-24.job-details-jobs-unified-top-card__job-title, "
-            ".job-details-jobs-unified-top-card__job-title, "
-            ".jobs-unified-top-card__job-title, "
-            "h1.t-24, "
-            "h1",
-        )
-        company = safe_text(
-            self.page,
-            ".job-details-jobs-unified-top-card__company-name, "
-            ".jobs-unified-top-card__company-name, "
-            ".artdeco-entity-lockup__subtitle",
-        )
-        location = safe_text(
-            self.page,
-            ".job-details-jobs-unified-top-card__primary-description-container span, "
-            ".jobs-unified-top-card__bullet, "
-            ".artdeco-entity-lockup__caption",
-        )
+        title = safe_text(self.page, SELECTORS.detail_title)
+        company = safe_text(self.page, SELECTORS.detail_company)
+        location = safe_text(self.page, SELECTORS.detail_location)
 
         # Get full description
-        description = safe_text(
-            self.page,
-            ".jobs-description__content, "
-            ".jobs-box__html-content, "
-            ".jobs-description, "
-            "#job-details",
-        )
+        description = safe_text(self.page, SELECTORS.detail_description)
 
         # Extract job ID from URL
         match = re.search(r"/jobs/view/(\d+)", job_url)
@@ -277,25 +217,13 @@ class LinkedInDiscovery:
 
         # Check for Easy Apply (button text or badge)
         easy_apply = (
-            self.page.locator(
-                ".jobs-apply-button, "
-                "[data-is-easy-apply-button], "
-                "button:has-text('Easy Apply'), "
-                "a:has-text('Easy Apply'), "
-                ".jobs-apply-button--top-card, "
-                ".jobs-s-apply button"
-            ).count()
+            self.page.locator(SELECTORS.detail_easy_apply).count()
             > 0
             or "easy apply"
-            in (safe_text(self.page, ".jobs-apply-button") or "").lower()
+            in (safe_text(self.page, SELECTORS.apply_button) or "").lower()
         )
 
-        salary = safe_text(
-            self.page,
-            ".job-details-jobs-unified-top-card__job-insight--highlight span, "
-            ".salary-main-rail__data-body, "
-            ".job-details-preferences-and-skills .t-14",
-        )
+        salary = safe_text(self.page, SELECTORS.detail_salary)
 
         self.rate_limiter.success()
 
@@ -317,14 +245,6 @@ class LinkedInDiscovery:
         self.rate_limiter.wait()
         self.page.goto(job_url, wait_until="domcontentloaded")
         human_delay(1500, 3000)
-        applied = (
-            self.page.locator(
-                ".jobs-apply-button--applied, "
-                '[aria-label*="Applied"], '
-                ':text("Applied"), '
-                ".artdeco-inline-feedback--success"
-            ).count()
-            > 0
-        )
+        applied = self.page.locator(SELECTORS.applied_badge).count() > 0
         self.rate_limiter.success()
         return applied

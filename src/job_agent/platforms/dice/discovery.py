@@ -10,6 +10,7 @@ from playwright.sync_api import Page
 from job_agent.browser.humanizer import human_delay
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting, safe_goto, safe_text
+from job_agent.platforms.dice.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
 
@@ -54,9 +55,7 @@ class DiceDiscovery:
         self.rate_limiter.wait()
         safe_goto(self.page, url)
         # Dice is a React SPA — wait for cards to render
-        self.page.wait_for_selector(
-            "dhi-search-card, [data-cy='search-card'], .search-card", timeout=15000
-        )
+        self.page.wait_for_selector(SELECTORS.job_card, timeout=15000)
         human_delay(2000, 4000)
 
         jobs: list[JobPosting] = []
@@ -83,34 +82,24 @@ class DiceDiscovery:
         jobs: list[JobPosting] = []
         human_delay(1000, 2000)
 
-        cards = self.page.locator(
-            "dhi-search-card, [data-cy='search-card'], .search-card"
-        ).all()
+        cards = self.page.locator(SELECTORS.job_card).all()
         for card in cards:
             try:
-                title_el = card.locator(
-                    "a.card-title-link, [data-cy='card-title'] a, .card-title a"
-                ).first
+                title_el = card.locator(SELECTORS.job_title).first
                 title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
-                company_el = card.locator(
-                    "a[data-cy='search-result-company-name'], .card-company a, .company-name"
-                ).first
+                company_el = card.locator(SELECTORS.job_company).first
                 company = (
                     company_el.inner_text().strip() if company_el.count() > 0 else ""
                 )
 
-                location_el = card.locator(
-                    "[data-cy='search-result-location'], .card-location, .job-location"
-                ).first
+                location_el = card.locator(SELECTORS.job_location).first
                 location = (
                     location_el.inner_text().strip() if location_el.count() > 0 else ""
                 )
 
                 # Extract job URL and UUID
-                link_el = card.locator(
-                    "a.card-title-link, [data-cy='card-title'] a, .card-title a"
-                ).first
+                link_el = card.locator(SELECTORS.job_url).first
                 url = ""
                 external_id = ""
                 if link_el.count() > 0:
@@ -127,20 +116,13 @@ class DiceDiscovery:
                 if not external_id or not title:
                     continue
 
-                salary_el = card.locator(
-                    "[data-cy='search-result-salary'], .card-salary, .compensation"
-                ).first
+                salary_el = card.locator(SELECTORS.job_salary).first
                 salary = (
                     salary_el.inner_text().strip() if salary_el.count() > 0 else None
                 )
 
                 # Check for Easy Apply badge
-                easy_apply = (
-                    card.locator(
-                        "[data-cy='easy-apply-badge'], .easy-apply-badge, :text('Easy Apply')"
-                    ).count()
-                    > 0
-                )
+                easy_apply = card.locator(SELECTORS.easy_apply_badge).count() > 0
 
                 jobs.append(
                     JobPosting(
@@ -164,16 +146,11 @@ class DiceDiscovery:
         """Navigate to next page of results."""
         try:
             self.rate_limiter.wait()
-            next_link = self.page.locator(
-                'a[aria-label="Next"], [data-cy="pagination-next"], li.pagination-next a'
-            )
+            next_link = self.page.locator(SELECTORS.pagination_next)
             if next_link.count() > 0:
                 next_link.click()
                 # SPA navigation — wait for new cards to render
-                self.page.wait_for_selector(
-                    "dhi-search-card, [data-cy='search-card'], .search-card",
-                    timeout=15000,
-                )
+                self.page.wait_for_selector(SELECTORS.job_card, timeout=15000)
                 human_delay(2000, 4000)
                 return True
         except Exception as e:
@@ -184,27 +161,13 @@ class DiceDiscovery:
         """Get full job details from Dice."""
         self.rate_limiter.wait()
         safe_goto(self.page, job_url)
-        self.page.wait_for_selector(
-            "#jobDescription, [data-testid='jobDescription'], .job-description",
-            timeout=15000,
-        )
+        self.page.wait_for_selector(SELECTORS.detail_ready, timeout=15000)
         human_delay(2000, 4000)
 
-        title = safe_text(
-            self.page, "h1[data-cy='jobTitle'], h1.job-title, [data-testid='jobTitle']"
-        )
-        company = safe_text(
-            self.page,
-            "a[data-cy='companyNameLink'], .company-name, [data-testid='companyName']",
-        )
-        location = safe_text(
-            self.page,
-            "[data-cy='locationDetails'], .job-location, [data-testid='location']",
-        )
-        description = safe_text(
-            self.page,
-            "#jobDescription, [data-testid='jobDescription'], .job-description",
-        )
+        title = safe_text(self.page, SELECTORS.detail_title)
+        company = safe_text(self.page, SELECTORS.detail_company)
+        location = safe_text(self.page, SELECTORS.detail_location)
+        description = safe_text(self.page, SELECTORS.detail_description)
 
         match = re.search(r"/job-detail/([a-f0-9-]{36})", job_url)
         external_id = match.group(1) if match else ""

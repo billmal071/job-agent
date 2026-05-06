@@ -10,6 +10,7 @@ from playwright.sync_api import Page
 from job_agent.browser.humanizer import human_delay
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting, safe_goto, safe_text
+from job_agent.platforms.ziprecruiter.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
 
@@ -48,9 +49,7 @@ class ZipRecruiterDiscovery:
         self.rate_limiter.wait()
         safe_goto(self.page, url)
         self.page.wait_for_load_state("domcontentloaded")
-        self.page.wait_for_selector(
-            ".job_result_item, article.job_result, .job-listing", timeout=10000
-        )
+        self.page.wait_for_selector(SELECTORS.job_card, timeout=10000)
         human_delay(2000, 4000)
 
         jobs: list[JobPosting] = []
@@ -77,39 +76,27 @@ class ZipRecruiterDiscovery:
     def _extract_job_cards(self) -> list[JobPosting]:
         """Extract job cards from current page."""
         jobs: list[JobPosting] = []
-        self.page.wait_for_selector(
-            ".job_result_item, article.job_result, .job-listing", timeout=10000
-        )
+        self.page.wait_for_selector(SELECTORS.job_card, timeout=10000)
         human_delay(1000, 2000)
 
-        cards = self.page.locator(
-            ".job_result_item, article.job_result, .job-listing"
-        ).all()
+        cards = self.page.locator(SELECTORS.job_card).all()
         for card in cards:
             try:
-                title_el = card.locator(
-                    ".job_title a, h2.job_title, [data-testid='job-title'] a"
-                ).first
+                title_el = card.locator(SELECTORS.job_title).first
                 title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
-                company_el = card.locator(
-                    ".company_name, a.company-name, [data-testid='company-name']"
-                ).first
+                company_el = card.locator(SELECTORS.job_company).first
                 company = (
                     company_el.inner_text().strip() if company_el.count() > 0 else ""
                 )
 
-                location_el = card.locator(
-                    ".job_location, .location, [data-testid='job-location']"
-                ).first
+                location_el = card.locator(SELECTORS.job_location).first
                 location = (
                     location_el.inner_text().strip() if location_el.count() > 0 else ""
                 )
 
                 # Extract job URL and ID
-                link_el = card.locator(
-                    ".job_title a, h2.job_title a, [data-testid='job-title'] a"
-                ).first
+                link_el = card.locator(SELECTORS.job_url).first
                 url = ""
                 external_id = ""
                 if link_el.count() > 0:
@@ -129,20 +116,13 @@ class ZipRecruiterDiscovery:
                 if not external_id or not title:
                     continue
 
-                salary_el = card.locator(
-                    ".salary, .compensation, [data-testid='salary']"
-                ).first
+                salary_el = card.locator(SELECTORS.job_salary).first
                 salary = (
                     salary_el.inner_text().strip() if salary_el.count() > 0 else None
                 )
 
                 # Check for 1-Click Apply badge
-                easy_apply = (
-                    card.locator(
-                        ".one_click_apply, .quick-apply-badge, button:has-text('1-Click Apply')"
-                    ).count()
-                    > 0
-                )
+                easy_apply = card.locator(SELECTORS.easy_apply_badge).count() > 0
 
                 jobs.append(
                     JobPosting(
@@ -166,9 +146,7 @@ class ZipRecruiterDiscovery:
         """Navigate to next page of results."""
         try:
             self.rate_limiter.wait()
-            next_link = self.page.locator(
-                'a[aria-label="Next"], a.next-page, [data-testid="pagination-next"]'
-            )
+            next_link = self.page.locator(SELECTORS.pagination_next)
             if next_link.count() > 0:
                 next_link.click()
                 self.page.wait_for_load_state("domcontentloaded")
@@ -185,19 +163,10 @@ class ZipRecruiterDiscovery:
         self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
-        title = safe_text(
-            self.page, "h1.job-title, h1[data-testid='job-title'], .job_title h1"
-        )
-        company = safe_text(
-            self.page, ".company-name, a[data-testid='company-name'], .hiring-company"
-        )
-        location = safe_text(
-            self.page, ".location, [data-testid='job-location'], .job-location"
-        )
-        description = safe_text(
-            self.page,
-            ".job-description, [data-testid='job-description'], .jobDescriptionSection",
-        )
+        title = safe_text(self.page, SELECTORS.detail_title)
+        company = safe_text(self.page, SELECTORS.detail_company)
+        location = safe_text(self.page, SELECTORS.detail_location)
+        description = safe_text(self.page, SELECTORS.detail_description)
 
         # Extract ID from URL
         match = re.search(r"/jobs/.*?/([a-f0-9]+)", job_url)

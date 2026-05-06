@@ -6,6 +6,7 @@ from job_agent.ai.screening import FormField, ScreeningAnswerer
 from job_agent.browser.humanizer import human_delay
 from job_agent.platforms.base import JobPosting
 from job_agent.platforms.base_applicator import BaseApplicator
+from job_agent.platforms.indeed.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -44,18 +45,10 @@ class IndeedApplicator(BaseApplicator):
             return ats_applicator.apply(job, resume_path, cover_letter_path)
 
         # Click Apply button — try Indeed native first, then external link
-        apply_btn = self.page.locator(
-            '#indeedApplyButton, button[id*="apply"], button:has-text("Apply now")'
-        ).first
+        apply_btn = self.page.locator(SELECTORS.apply_button).first
         if apply_btn.count() == 0:
             # Non-easy-apply: look for "Apply on company site" link
-            external_link = self.page.locator(
-                'a:has-text("Apply on company site"), '
-                'a:has-text("Apply now"), '
-                'a[href*="apply"], '
-                'button:has-text("Apply on"), '
-                "a.jobsearch-IndeedApplyButton-newDesign"
-            ).first
+            external_link = self.page.locator(SELECTORS.external_apply_link).first
             if external_link.count() > 0:
                 href = external_link.get_attribute("href") or ""
                 log.info("external_apply_link", url=href, job_id=job.external_id)
@@ -126,12 +119,7 @@ class IndeedApplicator(BaseApplicator):
                         )
 
             # Look for continue/submit button
-            continue_btn = self.page.locator(
-                'button[id*="continue"], '
-                'button:has-text("Continue"), '
-                'button:has-text("Submit"), '
-                'button:has-text("Apply")'
-            ).first
+            continue_btn = self.page.locator(SELECTORS.continue_button).first
             if continue_btn.count() > 0:
                 text = continue_btn.inner_text().strip().lower()
                 if "submit" in text or text == "apply":
@@ -139,11 +127,7 @@ class IndeedApplicator(BaseApplicator):
                     human_delay(2000, 4000)
 
                     # Check for validation errors
-                    errors = self.page.locator(
-                        ".ia-Questions-errorMessage, "
-                        '[role="alert"], '
-                        ".css-1s1r2hr"  # Indeed error class
-                    )
+                    errors = self.page.locator(SELECTORS.validation_errors)
                     if errors.count() > 0:
                         log.warning(
                             "indeed_validation_errors",
@@ -169,10 +153,10 @@ class IndeedApplicator(BaseApplicator):
 
         # Try structured field groups first
         group_selectors = [
-            ".ia-Questions-item",
-            ".ia-BasePage-field",
-            "fieldset",
-            '[data-testid="questionItem"]',
+            SELECTORS.field_group_question_item,
+            SELECTORS.field_group_base_page,
+            SELECTORS.field_group_fieldset,
+            SELECTORS.field_group_testid,
         ]
 
         for selector in group_selectors:
@@ -191,7 +175,7 @@ class IndeedApplicator(BaseApplicator):
     def _parse_indeed_field_group(self, group) -> FormField | None:
         """Parse a single Indeed field group into a FormField."""
         # Find label text
-        label_el = group.locator("label, legend, .ia-Questions-title").first
+        label_el = group.locator(SELECTORS.field_label).first
         if label_el.count() == 0:
             return None
 

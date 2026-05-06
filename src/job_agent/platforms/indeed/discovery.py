@@ -10,6 +10,7 @@ from playwright.sync_api import Page
 from job_agent.browser.humanizer import human_delay
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting, safe_text
+from job_agent.platforms.indeed.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 from job_agent.utils.rate_limiter import RateLimiter
 
@@ -66,31 +67,27 @@ class IndeedDiscovery:
     def _extract_job_cards(self) -> list[JobPosting]:
         """Extract job cards from current page."""
         jobs: list[JobPosting] = []
-        self.page.wait_for_selector(".job_seen_beacon, .resultContent", timeout=10000)
+        self.page.wait_for_selector(SELECTORS.job_card, timeout=10000)
         human_delay(1000, 2000)
 
-        cards = self.page.locator(".job_seen_beacon, .resultContent").all()
+        cards = self.page.locator(SELECTORS.job_card).all()
         for card in cards:
             try:
-                title_el = card.locator("h2.jobTitle a, .jobTitle > a").first
+                title_el = card.locator(SELECTORS.job_title).first
                 title = title_el.inner_text().strip() if title_el.count() > 0 else ""
 
-                company_el = card.locator(
-                    '[data-testid="company-name"], .companyName'
-                ).first
+                company_el = card.locator(SELECTORS.job_company).first
                 company = (
                     company_el.inner_text().strip() if company_el.count() > 0 else ""
                 )
 
-                location_el = card.locator(
-                    '[data-testid="text-location"], .companyLocation'
-                ).first
+                location_el = card.locator(SELECTORS.job_location).first
                 location = (
                     location_el.inner_text().strip() if location_el.count() > 0 else ""
                 )
 
                 # Extract job URL and ID
-                link_el = card.locator("h2.jobTitle a, .jobTitle > a").first
+                link_el = card.locator(SELECTORS.job_url).first
                 url = ""
                 external_id = ""
                 if link_el.count() > 0:
@@ -106,21 +103,14 @@ class IndeedDiscovery:
                 if not external_id or not title:
                     continue
 
-                salary_el = card.locator(
-                    ".salary-snippet-container, .metadata.salary-snippet-container"
-                ).first
+                salary_el = card.locator(SELECTORS.job_salary).first
                 salary = (
                     salary_el.inner_text().strip() if salary_el.count() > 0 else None
                 )
 
                 # Check for Easy Apply / Indeed Apply badge
                 easy_apply = (
-                    card.locator(
-                        ".iaLabel, .indeed-apply-badge, "
-                        "[data-indeed-apply-button], "
-                        ":text('Easily apply'), :text('Apply now')"
-                    ).count()
-                    > 0
+                    card.locator(SELECTORS.easy_apply_badge).count() > 0
                 )
 
                 jobs.append(
@@ -145,9 +135,7 @@ class IndeedDiscovery:
         """Navigate to next page of results."""
         try:
             self.rate_limiter.wait()
-            next_link = self.page.locator(
-                'a[data-testid="pagination-page-next"], a[aria-label="Next Page"]'
-            )
+            next_link = self.page.locator(SELECTORS.pagination_next)
             if next_link.count() > 0:
                 next_link.click()
                 self.page.wait_for_load_state("domcontentloaded")
@@ -164,32 +152,16 @@ class IndeedDiscovery:
         self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
-        title = safe_text(self.page, ".jobsearch-JobInfoHeader-title, h1")
-        company = safe_text(
-            self.page,
-            '[data-testid="inlineHeader-companyName"], .jobsearch-InlineCompanyRating-companyHeader',
-        )
-        location = safe_text(
-            self.page,
-            '[data-testid="inlineHeader-companyLocation"], .jobsearch-InlineCompanyRating > div:last-child',
-        )
-        description = safe_text(
-            self.page, "#jobDescriptionText, .jobsearch-jobDescriptionText"
-        )
+        title = safe_text(self.page, SELECTORS.detail_title)
+        company = safe_text(self.page, SELECTORS.detail_company)
+        location = safe_text(self.page, SELECTORS.detail_location)
+        description = safe_text(self.page, SELECTORS.detail_description)
 
         match = re.search(r"jk=([a-f0-9]+)", job_url)
         external_id = match.group(1) if match else ""
 
         # Check for apply button on detail page
-        easy_apply = (
-            self.page.locator(
-                "#indeedApplyButton, "
-                'button[id*="apply"], '
-                'a[href*="apply"], '
-                ':text("Easily apply")'
-            ).count()
-            > 0
-        )
+        easy_apply = self.page.locator(SELECTORS.detail_easy_apply).count() > 0
 
         self.rate_limiter.success()
         return JobPosting(

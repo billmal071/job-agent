@@ -8,6 +8,7 @@ from job_agent.ai.screening import FormField, ScreeningAnswerer
 from job_agent.browser.humanizer import human_delay
 from job_agent.platforms.base import JobPosting
 from job_agent.platforms.base_applicator import BaseApplicator
+from job_agent.platforms.linkedin.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -31,19 +32,9 @@ class LinkedInApplicator(BaseApplicator):
 
     def _dismiss_login_popup(self) -> bool:
         """Dismiss LinkedIn sign-in popup/modal if it appears. Returns True if dismissed."""
-        login_modal = self.page.locator(
-            '[data-test-modal-id="join-now-modal"], '
-            ".join-now-modal, "
-            '[role="dialog"]:has-text("Sign in"), '
-            '[role="dialog"]:has-text("Join LinkedIn")'
-        )
+        login_modal = self.page.locator(SELECTORS.login_popup)
         if login_modal.count() > 0:
-            close_btn = login_modal.locator(
-                'button[aria-label="Dismiss"], '
-                'button[aria-label="Close"], '
-                'button:has-text("✕"), '
-                ".artdeco-modal__dismiss"
-            )
+            close_btn = login_modal.locator(SELECTORS.login_popup_close)
             if close_btn.count() > 0:
                 close_btn.first.click()
                 human_delay(500, 1000)
@@ -60,14 +51,8 @@ class LinkedInApplicator(BaseApplicator):
     def _verify_logged_in(self) -> bool:
         """Check if still logged into LinkedIn, re-auth if session expired."""
         # Look for signs we're logged out
-        login_indicators = self.page.locator(
-            'a[href*="/login"], '
-            'button:has-text("Sign in"), '
-            '.nav__button-secondary:has-text("Sign in")'
-        )
-        logged_in_indicators = self.page.locator(
-            '.global-nav__me, nav[aria-label="Primary"], .feed-identity-module'
-        )
+        login_indicators = self.page.locator(SELECTORS.login_indicators)
+        logged_in_indicators = self.page.locator(SELECTORS.logged_in_indicators)
         if logged_in_indicators.count() > 0:
             return True
         if login_indicators.count() > 0:
@@ -113,9 +98,7 @@ class LinkedInApplicator(BaseApplicator):
 
         if not apply_btn:
             # No Easy Apply — try external "Apply" link to company ATS
-            external_link = self.page.locator(
-                'a:has-text("Apply"), a.jobs-apply-button, a[href*="/applyredirect"]'
-            ).first
+            external_link = self.page.locator(SELECTORS.external_apply_link).first
             if external_link.count() > 0:
                 href = external_link.get_attribute("href") or ""
                 log.info("external_apply_link", url=href[:100], job_id=job.external_id)
@@ -153,11 +136,7 @@ class LinkedInApplicator(BaseApplicator):
 
         # If click didn't navigate or open modal, try direct navigation
         if "/apply/" not in self.page.url:
-            modal = self.page.locator(
-                ".jobs-easy-apply-modal, "
-                '[data-test-modal-id="easy-apply-modal"], '
-                '[role="dialog"]'
-            )
+            modal = self.page.locator(SELECTORS.easy_apply_modal)
             if modal.count() == 0:
                 # Click didn't work — try extracting the href and navigating directly
                 href = apply_btn.first.get_attribute("href")
@@ -173,23 +152,13 @@ class LinkedInApplicator(BaseApplicator):
 
     def _check_success_confirmation(self) -> bool:
         """Check if LinkedIn shows an application-sent confirmation."""
-        success = self.page.locator(
-            ':text("Application sent"), '
-            ':text("Your application was sent"), '
-            ".artdeco-inline-feedback--success, "
-            '[data-test-modal-id="post-apply-modal"]'
-        )
+        success = self.page.locator(SELECTORS.success_confirmation)
         return success.count() > 0
 
     def _check_form_errors(self) -> list[str]:
         """Check for validation errors on the current form step."""
         errors = []
-        error_els = self.page.locator(
-            ".artdeco-inline-feedback--error, "
-            ".fb-dash-form-element__error-field, "
-            "[data-test-form-element-error], "
-            ".jobs-easy-apply-form-element__error"
-        ).all()
+        error_els = self.page.locator(SELECTORS.form_errors).all()
         for el in error_els:
             try:
                 text = el.inner_text().strip()
@@ -201,15 +170,9 @@ class LinkedInApplicator(BaseApplicator):
 
     def _dismiss_discard_dialog(self) -> None:
         """Dismiss the 'Discard application?' confirmation dialog."""
-        discard_dialog = self.page.locator(
-            '[data-test-modal-id="data-test-easy-apply-discard-confirmation"], '
-            '[role="alertdialog"], '
-            '[role="dialog"]:has-text("Discard")'
-        )
+        discard_dialog = self.page.locator(SELECTORS.discard_dialog)
         if discard_dialog.count() > 0:
-            discard_btn = discard_dialog.locator(
-                'button:has-text("Discard"), button[data-test-dialog-primary-btn]'
-            )
+            discard_btn = discard_dialog.locator(SELECTORS.discard_button)
             if discard_btn.count() > 0:
                 discard_btn.first.click()
                 human_delay(500, 1000)
@@ -234,11 +197,7 @@ class LinkedInApplicator(BaseApplicator):
                 return True
 
             # Check if we're in a modal or SDUI apply page
-            modal = self.page.locator(
-                ".jobs-easy-apply-modal, "
-                '[data-test-modal-id="easy-apply-modal"], '
-                '[role="dialog"]'
-            )
+            modal = self.page.locator(SELECTORS.easy_apply_modal)
             on_apply_page = "/apply/" in self.page.url
 
             if modal.count() == 0 and not on_apply_page:
@@ -265,12 +224,7 @@ class LinkedInApplicator(BaseApplicator):
             self._handle_screening_questions(answers)
 
             # Check for submit button (both modal and SDUI selectors)
-            submit_btn = self.page.locator(
-                '[aria-label="Submit application"], '
-                '[aria-label="Review your application"], '
-                'button:has-text("Submit application"), '
-                'button:has-text("Submit")'
-            )
+            submit_btn = self.page.locator(SELECTORS.review_application)
             if submit_btn.count() > 0:
                 text = submit_btn.first.inner_text().strip().lower()
                 aria = (submit_btn.first.get_attribute("aria-label") or "").lower()
@@ -278,11 +232,7 @@ class LinkedInApplicator(BaseApplicator):
                     submit_btn.first.click()
                     human_delay(2000, 4000)
                     # Now click the final submit
-                    final_submit = self.page.locator(
-                        '[aria-label="Submit application"], '
-                        'button:has-text("Submit application"), '
-                        'button:has-text("Submit")'
-                    )
+                    final_submit = self.page.locator(SELECTORS.submit_application)
                     if final_submit.count() > 0:
                         final_submit.first.click()
                         human_delay(3000, 5000)
@@ -309,12 +259,7 @@ class LinkedInApplicator(BaseApplicator):
                     return True
 
             # Click Next to proceed to next step
-            next_btn = self.page.locator(
-                '[aria-label="Continue to next step"], '
-                '[aria-label="Next"], '
-                'button:has-text("Next"), '
-                'button:has-text("Continue")'
-            )
+            next_btn = self.page.locator(SELECTORS.next_step_button)
             if next_btn.count() > 0:
                 # Capture current state to detect if Next actually advanced
                 try:
@@ -377,11 +322,7 @@ class LinkedInApplicator(BaseApplicator):
         file_input = self.page.locator('input[type="file"]')
         if file_input.count() > 0 and Path(resume_path).exists():
             # Check if there's already a resume uploaded
-            existing = self.page.locator(
-                ".jobs-document-upload-redesign-card__file-name, "
-                ".jobs-document-upload__file-name, "
-                ".jobs-resume-upload__file-name"
-            )
+            existing = self.page.locator(SELECTORS.resume_uploaded)
             if existing.count() == 0:
                 file_input.first.set_input_files(resume_path)
                 human_delay(1000, 2000)
@@ -389,7 +330,7 @@ class LinkedInApplicator(BaseApplicator):
 
     def _handle_cover_letter_upload(self, cover_letter_path: str) -> None:
         """Upload cover letter if applicable."""
-        cover_section = self.page.locator('text="Cover letter", text="cover letter"')
+        cover_section = self.page.locator(SELECTORS.cover_letter_section)
         if cover_section.count() > 0 and Path(cover_letter_path).exists():
             file_inputs = self.page.locator('input[type="file"]').all()
             if len(file_inputs) > 1:
@@ -408,11 +349,7 @@ class LinkedInApplicator(BaseApplicator):
 
     def _handle_screening_questions(self, answers: dict[str, str] | None) -> None:
         """Answer screening questions using AI or provided answers dict."""
-        questions = self.page.locator(
-            ".jobs-easy-apply-form-section__grouping, "
-            ".jobs-easy-apply-form-element, "
-            ".fb-dash-form-element"
-        ).all()
+        questions = self.page.locator(SELECTORS.question_groups).all()
 
         if not questions:
             return
@@ -421,7 +358,7 @@ class LinkedInApplicator(BaseApplicator):
 
         for question_group in questions:
             try:
-                label_el = question_group.locator("label, legend, span.t-14").first
+                label_el = question_group.locator(SELECTORS.question_label).first
                 if label_el.count() == 0:
                     continue
                 label = label_el.inner_text().strip()
