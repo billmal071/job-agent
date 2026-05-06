@@ -57,3 +57,18 @@ def setup_logging(log_level: str = "INFO", json_output: bool = False) -> None:
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Get a named structlog logger."""
     return structlog.get_logger(name)
+
+
+def bind_contextvars(**kwargs) -> None:
+    """Bind key-value pairs to structlog context (propagates to all loggers)."""
+    structlog.contextvars.bind_contextvars(**kwargs)
+
+
+def unbind_contextvars(*keys: str) -> None:
+    """Remove keys from structlog context."""
+    structlog.contextvars.unbind_contextvars(*keys)
+
+
+def clear_contextvars() -> None:
+    """Clear all structlog context variables."""
+    structlog.contextvars.clear_contextvars()

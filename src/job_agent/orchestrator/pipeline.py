@@ -32,7 +32,7 @@ from job_agent.orchestrator.pipeline_steps import (
 from job_agent.platforms.base import JobPosting, PlatformDriver
 from job_agent.platforms.linkedin.driver import LinkedInDriver
 from job_agent.utils.crypto import decrypt
-from job_agent.utils.logging import get_logger
+from job_agent.utils.logging import bind_contextvars, get_logger
 
 log = get_logger(__name__)
 
@@ -145,9 +145,10 @@ def _process_approved_queue(
         by_platform.setdefault(job.platform.value, []).append(job)
 
     for plat, jobs in by_platform.items():
+        bind_contextvars(platform=plat)
         cred = CredentialRepository(session).get(Platform(plat))
         if not cred:
-            log.warning("no_credentials_for_approved", platform=plat)
+            log.warning("no_credentials_for_approved")
             continue
 
         try:
@@ -157,8 +158,9 @@ def _process_approved_queue(
                 driver.set_ai_context(ai_client, profile)
 
             for job in jobs:
+                bind_contextvars(job_id=job.id)
                 if settings.agent.dry_run:
-                    log.info("dry_run_approved", job_id=job.id, title=job.title)
+                    log.info("dry_run_approved", title=job.title)
                     job.status = JobStatus.APPLIED
                     app_repo.create(job_id=job.id, resume_path="")
                     stats["applied"] += 1
@@ -349,6 +351,7 @@ def run_pipeline(
     try:
         with BrowserManager(settings) as browser:
             for plat in platforms_to_run:
+                bind_contextvars(platform=plat)
                 driver = get_platform_driver(plat, settings, browser)
 
                 if not _login_driver(driver, plat, session, ai_client, profile):
@@ -383,6 +386,7 @@ def run_pipeline(
                         profile_name=profile.get("name", ""),
                     )
                     stats["discovered"] += 1
+                    bind_contextvars(job_id=job.id)
 
                     # Match
                     score = match_job(
@@ -503,6 +507,7 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
 
         with BrowserManager(settings) as browser:
             for plat, jobs in by_platform.items():
+                bind_contextvars(platform=plat)
                 cred = CredentialRepository(session).get(Platform(plat))
                 if not cred:
                     log.warning("no_credentials_for_approved", platform=plat)
@@ -516,6 +521,7 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
                         driver.set_ai_context(ai_client, profile)
 
                     for job in jobs:
+                        bind_contextvars(job_id=job.id)
                         try:
                             posting = JobPosting(
                                 external_id=job.external_id,

@@ -11,7 +11,7 @@ from job_agent.db.models import RunStatus
 from job_agent.db.repository import AgentRunRepository
 from job_agent.db.session import get_session
 from job_agent.orchestrator.pipeline import run_pipeline
-from job_agent.utils.logging import get_logger
+from job_agent.utils.logging import bind_contextvars, clear_contextvars, get_logger
 
 log = get_logger(__name__)
 
@@ -34,6 +34,9 @@ class OrchestratorEngine:
             platform=platform or "all",
         )
         session.commit()
+
+        # Bind run context so all downstream logs include run_id
+        bind_contextvars(run_id=agent_run.id, platform=platform or "all")
 
         try:
             # Check activity window
@@ -82,6 +85,7 @@ class OrchestratorEngine:
             session.commit()
             raise
         finally:
+            clear_contextvars()
             session.close()
 
     def start(self, profile_path: str, platform: str | None = None) -> None:
