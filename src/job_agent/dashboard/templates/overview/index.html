@@ -72,6 +72,13 @@
                     hx-include="closest form">
                 <i class="bi bi-play-fill"></i> Run Pipeline
             </button>
+            <button type="button" class="btn btn-ghost"
+                    hx-post="/actions/discover-only"
+                    hx-target="#action-status"
+                    hx-swap="outerHTML"
+                    hx-include="closest form">
+                <i class="bi bi-search"></i> Search Only
+            </button>
             <button type="button" class="btn btn-success"
                     hx-post="/actions/apply-approved"
                     hx-target="#action-status"
@@ -127,6 +134,7 @@
 <div class="card animate-in delay-5">
     <div class="card-header">
         <h5><i class="bi bi-terminal" style="margin-right: 0.3rem; opacity: 0.5;"></i> Recent Agent Runs</h5>
+        <a href="/runs/" class="btn btn-ghost btn-sm">View All</a>
     </div>
     <div class="card-body" style="padding: 0;">
         {% if recent_runs %}

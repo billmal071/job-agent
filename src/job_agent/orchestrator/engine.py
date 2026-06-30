@@ -23,7 +23,12 @@ class OrchestratorEngine:
         self.settings = settings
 
     def run_once(
-        self, profile_path: str, platform: str | None = None
+        self,
+        profile_path: str,
+        platform: str | None = None,
+        *,
+        skip_activity_check: bool = False,
+        discover_only: bool = False,
     ) -> dict[str, int]:
         """Run the pipeline once."""
         session = get_session(self.settings)
@@ -39,30 +44,32 @@ class OrchestratorEngine:
         bind_contextvars(run_id=agent_run.id, platform=platform or "all")
 
         try:
-            # Check activity window
-            now = datetime.now()
-            hour = now.hour
-            if not (
-                self.settings.agent.activity_start_hour
-                <= hour
-                < self.settings.agent.activity_end_hour
-            ):
-                log.info("outside_activity_window", hour=hour)
-                run_repo.finish(
-                    agent_run.id,
-                    RunStatus.CANCELLED,
-                    error_message="Outside activity window",
-                )
-                session.commit()
-                return {
-                    "discovered": 0,
-                    "matched": 0,
-                    "applied": 0,
-                    "queued": 0,
-                    "skipped": 0,
-                }
+            if not skip_activity_check:
+                now = datetime.now()
+                hour = now.hour
+                if not (
+                    self.settings.agent.activity_start_hour
+                    <= hour
+                    < self.settings.agent.activity_end_hour
+                ):
+                    log.info("outside_activity_window", hour=hour)
+                    run_repo.finish(
+                        agent_run.id,
+                        RunStatus.CANCELLED,
+                        error_message="Outside activity window",
+                    )
+                    session.commit()
+                    return {
+                        "discovered": 0,
+                        "matched": 0,
+                        "applied": 0,
+                        "queued": 0,
+                        "skipped": 0,
+                    }
 
-            stats = run_pipeline(self.settings, profile_path, platform)
+            stats = run_pipeline(
+                self.settings, profile_path, platform, discover_only=discover_only
+            )
 
             run_repo.finish(
                 agent_run.id,

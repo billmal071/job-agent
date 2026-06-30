@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Run History - Job Agent{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in delay-1">
+    <h2>Run History</h2>
+    <span class="text-sm text-muted">{{ total }} run{{ 's' if total != 1 }} total</span>
+</div>
+
+<!-- Filters -->
+<div class="card animate-in delay-2">
+    <div class="card-body" style="padding: 0.75rem 1rem;">
+        <form style="display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap;"
+              hx-get="/runs/"
+              hx-target="#runs-content"
+              hx-swap="innerHTML"
+              hx-push-url="true"
+              hx-select="#runs-content">
+            <div>
+                <label class="text-sm text-muted" style="display: block; margin-bottom: 0.25rem;">Platform</label>
+                <select name="platform" class="form-control" style="min-width: 140px;">
+                    <option value="">All</option>
+                    {% for p in ['linkedin', 'indeed', 'glassdoor', 'ziprecruiter', 'dice', 'wellfound', 'all'] %}
+                    <option value="{{ p }}" {% if filter_platform == p %}selected{% endif %}>{{ p|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-muted" style="display: block; margin-bottom: 0.25rem;">Status</label>
+                <select name="status" class="form-control" style="min-width: 130px;">
+                    <option value="">All</option>
+                    {% for s in statuses %}
+                    <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-funnel"></i> Filter
+            </button>
+            {% if filter_platform or filter_status %}
+            <a href="/runs/" class="btn btn-ghost btn-sm">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Runs Table -->
+<div id="runs-content">
+<div class="card animate-in delay-3">
+    <div class="card-body" style="padding: 0;">
+        {% if runs %}
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Started</th>
+                        <th>Duration</th>
+                        <th>Platform</th>
+                        <th>Status</th>
+                        <th>Discovered</th>
+                        <th>Matched</th>
+                        <th>Applied</th>
+                        <th>Queued</th>
+                        <th>Skipped</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in runs %}
+                    <tr class="row-link" onclick="window.location='/runs/{{ run.id }}'">
+                        <td class="mono" style="font-size: 0.78rem;">#{{ run.id }}</td>
+                        <td class="mono" style="font-size: 0.78rem;">{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else '-' }}</td>
+                        <td class="mono" style="font-size: 0.78rem;">
+                            {% if run.finished_at and run.started_at %}
+                            {% set delta = (run.finished_at - run.started_at).total_seconds() | int %}
+                            {% if delta >= 3600 %}{{ (delta // 3600) }}h {{ (delta % 3600 // 60) }}m
+                            {% elif delta >= 60 %}{{ (delta // 60) }}m {{ (delta % 60) }}s
+                            {% else %}{{ delta }}s{% endif %}
+                            {% elif run.status.value == 'running' %}
+                            <span class="badge badge-blue">running</span>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>{{ run.platform }}</td>
+                        <td>
+                            {% if run.status.value == 'completed' %}
+                            <span class="badge badge-green">completed</span>
+                            {% elif run.status.value == 'running' %}
+                            <span class="badge badge-blue">running</span>
+                            {% elif run.status.value == 'failed' %}
+                            <span class="badge badge-red">failed</span>
+                            {% elif run.status.value == 'cancelled' %}
+                            <span class="badge badge-amber">cancelled</span>
+                            {% else %}
+                            <span class="badge badge-neutral">{{ run.status.value }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="mono">{{ run.jobs_discovered }}</td>
+                        <td class="mono">{{ run.jobs_matched }}</td>
+                        <td class="mono">{{ run.jobs_applied }}</td>
+                        <td class="mono">{{ run.jobs_queued }}</td>
+                        <td class="mono">{{ run.jobs_skipped }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if total_pages > 1 %}
+        <div style="display: flex; justify-content: center; gap: 0.5rem; padding: 1rem;">
+            {% if page > 1 %}
+            <a href="/runs/?page={{ page - 1 }}&platform={{ filter_platform }}&status={{ filter_status }}"
+               class="btn btn-ghost btn-sm">&laquo; Previous</a>
+            {% endif %}
+            <span class="text-sm text-muted" style="align-self: center;">
+                Page {{ page }} of {{ total_pages }}
+            </span>
+            {% if page < total_pages %}
+            <a href="/runs/?page={{ page + 1 }}&platform={{ filter_platform }}&status={{ filter_status }}"
+               class="btn btn-ghost btn-sm">Next &raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-clock-history"></i></div>
+            <p>No runs found.</p>
+            <p class="text-sm text-muted" style="margin-top: 0.5rem;">
+                Start a pipeline from the <a href="/">Dashboard</a> to see runs here.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+</div>
+{% endblock %}

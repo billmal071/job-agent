@@ -59,9 +59,11 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     from job_agent.dashboard.routes.actions import bp as actions_bp
     from job_agent.dashboard.routes.discord_webhook import bp as discord_bp
+    from job_agent.dashboard.routes.runs import bp as runs_bp
 
     app.register_blueprint(actions_bp, url_prefix="/actions")
     app.register_blueprint(discord_bp, url_prefix="/discord")
+    app.register_blueprint(runs_bp, url_prefix="/runs")
 
     # Health check
     @app.route("/health")

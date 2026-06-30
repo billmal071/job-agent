@@ -316,6 +316,8 @@ def run_pipeline(
     settings: Settings,
     profile_path: str,
     platform_name: str | None = None,
+    *,
+    discover_only: bool = False,
 ) -> dict[str, int]:
     """Run the full discover → match → decide → apply pipeline."""
     profile = load_profile(profile_path)
@@ -400,6 +402,8 @@ def run_pipeline(
 
                     # Decide
                     decision = decide_job(job, score, settings)
+                    if discover_only and decision == "auto_apply":
+                        decision = "queue"
 
                     if decision == "auto_apply":
                         if not settings.agent.dry_run:
@@ -452,21 +456,24 @@ def run_pipeline(
 
                 driver.close()
 
-            # Process approved jobs from the review queue
-            approved_jobs = job_repo.list_by_status(JobStatus.APPROVED)
-            _process_approved_queue(
-                approved_jobs=approved_jobs,
-                settings=settings,
-                browser=browser,
-                session=session,
-                app_repo=app_repo,
-                ai_client=ai_client,
-                resume_tailor=resume_tailor,
-                cover_letter_gen=cover_letter_gen,
-                candidate_summary=candidate_summary,
-                profile=profile,
-                stats=stats,
-            )
+            # Process approved jobs from the review queue (skip in discover-only mode)
+            if discover_only:
+                log.info("discover_only_skipping_apply_queue")
+            else:
+                approved_jobs = job_repo.list_by_status(JobStatus.APPROVED)
+                _process_approved_queue(
+                    approved_jobs=approved_jobs,
+                    settings=settings,
+                    browser=browser,
+                    session=session,
+                    app_repo=app_repo,
+                    ai_client=ai_client,
+                    resume_tailor=resume_tailor,
+                    cover_letter_gen=cover_letter_gen,
+                    candidate_summary=candidate_summary,
+                    profile=profile,
+                    stats=stats,
+                )
 
         log.info("pipeline_complete", **stats)
         return stats

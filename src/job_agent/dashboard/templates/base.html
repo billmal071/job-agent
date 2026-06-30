@@ -84,6 +84,12 @@
                 <div class="nav-section-label" style="margin-top: 0.5rem;">Insights</div>
                 <ul>
                     <li class="nav-item">
+                        <a class="nav-link {% if '/runs' in request.path %}active{% endif %}" href="/runs">
+                            <span class="nav-icon"><i class="bi bi-clock-history"></i></span>
+                            Run History
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if '/analytics' in request.path %}active{% endif %}" href="/analytics">
                             <span class="nav-icon"><i class="bi bi-graph-up"></i></span>
                             Analytics

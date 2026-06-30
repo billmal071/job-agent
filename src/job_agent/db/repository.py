@@ -318,6 +318,19 @@ class CredentialRepository:
         stmt = select(PlatformCredential).where(PlatformCredential.platform == platform)
         return self.session.scalars(stmt).first()
 
+    def list_all(self) -> list[PlatformCredential]:
+        stmt = select(PlatformCredential).order_by(PlatformCredential.platform)
+        return list(self.session.scalars(stmt).all())
+
+    def delete(self, platform: Platform) -> bool:
+        stmt = select(PlatformCredential).where(PlatformCredential.platform == platform)
+        cred = self.session.scalars(stmt).first()
+        if cred:
+            self.session.delete(cred)
+            self.session.flush()
+            return True
+        return False
+
 
 class AgentRunRepository:
     def __init__(self, session: Session):
@@ -344,3 +357,35 @@ class AgentRunRepository:
     def get_latest(self, limit: int = 10) -> list[AgentRun]:
         stmt = select(AgentRun).order_by(AgentRun.started_at.desc()).limit(limit)
         return list(self.session.scalars(stmt).all())
+
+    def get_by_id(self, run_id: int) -> AgentRun | None:
+        return self.session.get(AgentRun, run_id)
+
+    def list_filtered(
+        self,
+        platform: str | None = None,
+        status: RunStatus | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[AgentRun]:
+        stmt = select(AgentRun)
+        if platform:
+            stmt = stmt.where(AgentRun.platform == platform)
+        if status:
+            stmt = stmt.where(AgentRun.status == status)
+        stmt = stmt.order_by(AgentRun.started_at.desc()).limit(limit).offset(offset)
+        return list(self.session.scalars(stmt).all())
+
+    def count_filtered(
+        self,
+        platform: str | None = None,
+        status: RunStatus | None = None,
+    ) -> int:
+        from sqlalchemy import func
+
+        stmt = select(func.count(AgentRun.id))
+        if platform:
+            stmt = stmt.where(AgentRun.platform == platform)
+        if status:
+            stmt = stmt.where(AgentRun.status == status)
+        return self.session.scalar(stmt) or 0

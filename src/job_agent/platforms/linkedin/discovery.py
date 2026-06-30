@@ -57,7 +57,7 @@ class LinkedInDiscovery:
 
         self.rate_limiter.wait()
         self.page.goto(url, wait_until="domcontentloaded")
-        human_delay(2000, 4000)
+        human_delay(3000, 5000)
 
         jobs: list[JobPosting] = []
         page_num = 0
@@ -85,11 +85,19 @@ class LinkedInDiscovery:
         """Extract job postings from the current search results page."""
         jobs: list[JobPosting] = []
 
-        # Wait for job cards to load (multiple selector variants for LinkedIn layout changes)
-        self.page.wait_for_selector(
-            SELECTORS.job_card,
-            timeout=10000,
-        )
+        # Wait for job cards to load; scroll once to trigger lazy rendering
+        try:
+            self.page.wait_for_selector(
+                SELECTORS.job_card,
+                timeout=15000,
+            )
+        except Exception:
+            self.page.evaluate("window.scrollBy(0, 300)")
+            human_delay(1500, 2500)
+            self.page.wait_for_selector(
+                SELECTORS.job_card,
+                timeout=10000,
+            )
         human_delay(1000, 2000)
 
         cards = self.page.locator(SELECTORS.job_card).all()

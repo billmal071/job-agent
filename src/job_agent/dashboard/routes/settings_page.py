@@ -90,6 +90,7 @@ def index():
                     "platform": platform.value,
                     "configured": cred is not None,
                     "username": cred.username if cred else "",
+                    "updated_at": cred.updated_at if cred else None,
                 }
             )
 
@@ -164,6 +165,33 @@ def update_credentials():
         )
         session.commit()
         flash(f"Credentials saved for {platform_value}.", "success")
+        return redirect(url_for("settings_page.index"))
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+@bp.route("/credentials/delete", methods=["POST"])
+def delete_credentials():
+    """Delete credentials for a platform."""
+    session = get_session(current_app.config["SETTINGS"])
+    try:
+        cred_repo = CredentialRepository(session)
+        platform_value = request.form.get("platform", "")
+
+        try:
+            platform = Platform(platform_value)
+        except ValueError:
+            flash(f"Invalid platform: {platform_value}", "danger")
+            return redirect(url_for("settings_page.index"))
+
+        if cred_repo.delete(platform):
+            session.commit()
+            flash(f"Credentials deleted for {platform_value}.", "success")
+        else:
+            flash(f"No credentials found for {platform_value}.", "warning")
         return redirect(url_for("settings_page.index"))
     except Exception:
         session.rollback()

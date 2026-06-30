@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable
@@ -14,6 +14,7 @@ class TaskStatus(Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 @dataclass
@@ -25,6 +26,8 @@ class TaskInfo:
     finished_at: datetime | None = None
     result: Any = None
     error: str | None = None
+    cancel_event: threading.Event = field(default_factory=threading.Event)
+    progress: dict = field(default_factory=dict)
 
 
 class TaskRunner:
@@ -57,15 +60,38 @@ class TaskRunner:
             result = fn(*args, **kwargs)
             with self._lock:
                 task = self._tasks[task_id]
+                if task.status == TaskStatus.CANCELLED:
+                    return
                 task.status = TaskStatus.COMPLETED
                 task.result = result
                 task.finished_at = datetime.now(timezone.utc)
         except Exception as exc:
             with self._lock:
                 task = self._tasks[task_id]
+                if task.status == TaskStatus.CANCELLED:
+                    return
                 task.status = TaskStatus.FAILED
                 task.error = str(exc)
                 task.finished_at = datetime.now(timezone.utc)
+
+    def cancel(self, task_id: str) -> bool:
+        """Signal cancellation for a running task."""
+        with self._lock:
+            info = self._tasks.get(task_id)
+            if info and info.status == TaskStatus.RUNNING:
+                info.cancel_event.set()
+                info.status = TaskStatus.CANCELLED
+                info.finished_at = datetime.now(timezone.utc)
+                info.error = "Cancelled by user"
+                return True
+        return False
+
+    def update_progress(self, task_id: str, data: dict) -> None:
+        """Update progress data for a running task."""
+        with self._lock:
+            info = self._tasks.get(task_id)
+            if info and info.status == TaskStatus.RUNNING:
+                info.progress.update(data)
 
     def get_status(self, task_id: str) -> dict[str, Any] | None:
         """Return status dict for a task, or None if not found."""
@@ -81,6 +107,7 @@ class TaskRunner:
             "finished_at": info.finished_at.isoformat() if info.finished_at else None,
             "result": info.result,
             "error": info.error,
+            "progress": dict(info.progress),
         }
 
     def list_tasks(self) -> list[dict[str, Any]]:

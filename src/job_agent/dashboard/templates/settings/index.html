@@ -123,18 +123,33 @@
         </div>
         <div class="card-body">
             {% for plat in credentials %}
-            <div class="credential-item">
-                <div>
+            <div class="credential-item" style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="flex: 1;">
                     <div style="font-weight: 600; color: var(--text-primary); text-transform: capitalize;">{{ plat.platform }}</div>
                     {% if plat.configured %}
-                    <div class="text-sm text-muted">{{ plat.username }}</div>
+                    <div class="text-sm text-muted">{{ plat.username }}{% if plat.updated_at %} &middot; updated {{ plat.updated_at.strftime('%b %d') }}{% endif %}</div>
                     {% endif %}
                 </div>
                 {% if plat.configured %}
                 <span class="badge badge-green">Active</span>
+                <button class="btn btn-ghost btn-sm"
+                        hx-post="/actions/test-login"
+                        hx-vals='{"platform": "{{ plat.platform }}"}'
+                        hx-target="#login-status-{{ plat.platform }}"
+                        hx-swap="innerHTML">
+                    <i class="bi bi-plug"></i> Test
+                </button>
+                <form method="post" action="/settings/credentials/delete" style="margin: 0;">
+                    <input type="hidden" name="platform" value="{{ plat.platform }}">
+                    <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--danger);"
+                            onclick="return confirm('Delete {{ plat.platform }} credentials?')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
                 {% else %}
                 <span class="badge badge-neutral">Not Set</span>
                 {% endif %}
+                <span id="login-status-{{ plat.platform }}"></span>
             </div>
             {% endfor %}
 

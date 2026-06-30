@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Run #{{ run.id if run else '?' }} - Job Agent{% endblock %}
+
+{% block content %}
+{% if not run %}
+<div class="page-header animate-in delay-1">
+    <h2>Run Not Found</h2>
+</div>
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-question-circle"></i></div>
+            <p>This run does not exist.</p>
+            <a href="/runs/" class="btn btn-primary" style="margin-top: 1rem;">Back to Run History</a>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="page-header animate-in delay-1">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <a href="/runs/" class="btn btn-ghost btn-sm"><i class="bi bi-arrow-left"></i></a>
+        <h2>Run #{{ run.id }}</h2>
+        {% if run.status.value == 'completed' %}
+        <span class="badge badge-green">completed</span>
+        {% elif run.status.value == 'running' %}
+        <span class="badge badge-blue">running</span>
+        {% elif run.status.value == 'failed' %}
+        <span class="badge badge-red">failed</span>
+        {% elif run.status.value == 'cancelled' %}
+        <span class="badge badge-amber">cancelled</span>
+        {% else %}
+        <span class="badge badge-neutral">{{ run.status.value }}</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Run Info -->
+<div class="stat-grid" style="grid-template-columns: repeat(5, 1fr);">
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-info">
+            <div class="stat-value">{{ run.jobs_discovered }}</div>
+            <div class="stat-label">Discovered</div>
+        </div>
+        <div class="stat-icon blue"><i class="bi bi-search"></i></div>
+    </div>
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-info">
+            <div class="stat-value">{{ run.jobs_matched }}</div>
+            <div class="stat-label">Matched</div>
+        </div>
+        <div class="stat-icon purple"><i class="bi bi-bullseye"></i></div>
+    </div>
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-info">
+            <div class="stat-value">{{ run.jobs_applied }}</div>
+            <div class="stat-label">Applied</div>
+        </div>
+        <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
+    </div>
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-info">
+            <div class="stat-value">{{ run.jobs_queued }}</div>
+            <div class="stat-label">Queued</div>
+        </div>
+        <div class="stat-icon amber"><i class="bi bi-inbox"></i></div>
+    </div>
+    <div class="stat-card animate-in delay-2">
+        <div class="stat-info">
+            <div class="stat-value">{{ run.jobs_skipped }}</div>
+            <div class="stat-label">Skipped</div>
+        </div>
+        <div class="stat-icon neutral"><i class="bi bi-skip-forward"></i></div>
+    </div>
+</div>
+
+<!-- Details -->
+<div class="card animate-in delay-3">
+    <div class="card-header">
+        <h5><i class="bi bi-info-circle" style="margin-right: 0.3rem; opacity: 0.5;"></i> Details</h5>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div>
+                <div class="text-sm text-muted">Platform</div>
+                <div style="font-weight: 600;">{{ run.platform }}</div>
+            </div>
+            <div>
+                <div class="text-sm text-muted">Profile</div>
+                <div style="font-weight: 600;">{{ run.profile_name }}</div>
+            </div>
+            <div>
+                <div class="text-sm text-muted">Started</div>
+                <div class="mono" style="font-size: 0.85rem;">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.started_at else '-' }}</div>
+            </div>
+            <div>
+                <div class="text-sm text-muted">Finished</div>
+                <div class="mono" style="font-size: 0.85rem;">{{ run.finished_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.finished_at else '-' }}</div>
+            </div>
+            {% if run.finished_at and run.started_at %}
+            <div>
+                <div class="text-sm text-muted">Duration</div>
+                {% set delta = (run.finished_at - run.started_at).total_seconds() | int %}
+                <div class="mono" style="font-size: 0.85rem;">
+                    {% if delta >= 3600 %}{{ (delta // 3600) }}h {{ (delta % 3600 // 60) }}m {{ (delta % 60) }}s
+                    {% elif delta >= 60 %}{{ (delta // 60) }}m {{ (delta % 60) }}s
+                    {% else %}{{ delta }}s{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if run.error_message %}
+<div class="card animate-in delay-4">
+    <div class="card-header">
+        <h5><i class="bi bi-exclamation-triangle" style="margin-right: 0.3rem; opacity: 0.5; color: var(--danger);"></i> Error</h5>
+    </div>
+    <div class="card-body">
+        <pre style="margin: 0; white-space: pre-wrap; font-size: 0.82rem; color: var(--danger);">{{ run.error_message }}</pre>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
