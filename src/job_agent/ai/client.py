@@ -62,7 +62,9 @@ class AIClient:
         self._http = httpx.Client(timeout=60)
         self._last_call_time: float = 0
         # Groq free tier: 30 req/min + daily token limits. Space calls to avoid 429s.
-        self._min_call_interval: float = 3.0 if self.provider == PROVIDER_GROQ else 0.0
+        self._base_call_interval: float = 4.0 if self.provider == PROVIDER_GROQ else 0.0
+        self._min_call_interval: float = self._base_call_interval
+        self._consecutive_429s: int = 0
 
         # Guard against model-provider mismatch
         if "claude" in self.model.lower() and self.provider != PROVIDER_ANTHROPIC:
@@ -170,6 +172,12 @@ class AIClient:
                 else:
                     raise ValueError(f"Unknown provider: {self.provider}")
                 self._last_call_time = time.time()
+                self._consecutive_429s = 0
+                if self._min_call_interval > self._base_call_interval:
+                    self._min_call_interval = max(
+                        self._base_call_interval,
+                        self._min_call_interval * 0.8,
+                    )
                 return result
             except Exception as e:
                 err_str = str(e).lower()
@@ -179,8 +187,20 @@ class AIClient:
                     log.error("ai_auth_error", error=str(e))
                     raise
                 elif err_class == "rate_limit":
+                    self._consecutive_429s += 1
+                    if self._base_call_interval > 0:
+                        self._min_call_interval = min(
+                            15.0,
+                            self._base_call_interval
+                            + self._consecutive_429s * 2.0,
+                        )
                     wait = 2 ** (attempt + 1)
-                    log.warning("ai_rate_limited", wait=wait, attempt=attempt + 1)
+                    log.warning(
+                        "ai_rate_limited",
+                        wait=wait,
+                        attempt=attempt + 1,
+                        interval=self._min_call_interval,
+                    )
                     time.sleep(wait)
                 elif err_class == "server":
                     wait = 2**attempt

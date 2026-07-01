@@ -132,7 +132,7 @@ class TestGroqRateLimiting:
     def test_groq_has_min_interval(self):
         s = _settings(ai_provider="groq")
         client = AIClient(s)
-        assert client._min_call_interval == 3.0
+        assert client._min_call_interval == 4.0
 
     def test_non_groq_has_no_interval(self):
         s = _settings(ai_provider="gemini")

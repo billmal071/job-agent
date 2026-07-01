@@ -14,6 +14,13 @@ from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
 
+_NOISE_WORDS = frozenset({
+    "a", "an", "the", "and", "or", "of", "in", "to", "for", "with", "at",
+    "on", "is", "are", "was", "we", "our", "you", "your", "i", "ii", "iii",
+    "iv", "v", "sr", "jr", "level", "role", "position", "job", "remote",
+    "hybrid", "onsite", "full", "time", "part", "contract", "temporary",
+})
+
 
 @dataclass
 class MatchScore:
@@ -32,6 +39,33 @@ class JobMatcher:
 
     def __init__(self, ai_client: AIClient):
         self.ai = ai_client
+
+    @staticmethod
+    def _tokenize(text: str) -> set[str]:
+        """Extract meaningful lowercase tokens from text."""
+        tokens = set(re.findall(r"[a-z]+", text.lower()))
+        return tokens - _NOISE_WORDS
+
+    @staticmethod
+    def _title_matches_keywords(title: str, keywords: list[str]) -> bool:
+        """Check if any search keyword shares meaningful tokens with the job title."""
+        title_tokens = JobMatcher._tokenize(title)
+        if not title_tokens:
+            return True
+        for kw in keywords:
+            kw_tokens = JobMatcher._tokenize(kw)
+            if kw_tokens & title_tokens:
+                return True
+        return False
+
+    @staticmethod
+    def _has_skill_overlap(description: str, skills: list[str]) -> bool:
+        """Check if the description mentions any of the given skills."""
+        desc_lower = description.lower()
+        for skill in skills:
+            if skill.lower() in desc_lower:
+                return True
+        return False
 
     def match(self, job: JobPosting, profile: dict[str, Any]) -> MatchScore:
         """Score a job posting against a candidate profile."""
@@ -55,6 +89,42 @@ class JobMatcher:
                     reasoning=f"Excluded keyword '{kw}' found in posting.",
                     red_flags=["excluded_keyword"],
                 )
+
+        # Pre-filter: title must share tokens with at least one search keyword
+        search = profile.get("search", {})
+        search_keywords = search.get("keywords", [])
+        if search_keywords and not self._title_matches_keywords(
+            job.title, search_keywords
+        ):
+            log.info(
+                "prefilter_title_skip",
+                job_title=job.title,
+                reason="no keyword overlap",
+            )
+            return MatchScore(
+                score=0.0,
+                reasoning=f"Title '{job.title}' has no relevance to search keywords.",
+                red_flags=["title_mismatch"],
+            )
+
+        # Pre-filter: description must mention at least one required or preferred skill
+        skills_config = profile.get("skills", {})
+        all_skills = skills_config.get("required", []) + skills_config.get(
+            "preferred", []
+        )
+        if all_skills and job.description and not self._has_skill_overlap(
+            job.description, all_skills
+        ):
+            log.info(
+                "prefilter_skill_skip",
+                job_title=job.title,
+                reason="no skill overlap",
+            )
+            return MatchScore(
+                score=0.0,
+                reasoning="No required or preferred skills found in job description.",
+                red_flags=["no_skill_overlap"],
+            )
 
         # Build prompt
         skills = profile.get("skills", {})
