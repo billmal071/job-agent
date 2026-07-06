@@ -46,7 +46,7 @@ class AuthManager:
     def _login_linkedin(self, username: str, password: str) -> Page:
         auth = AUTH_SELECTORS["linkedin"]
         page = self.context.new_page()
-        page.goto(auth.homepage_url, wait_until="domcontentloaded")
+        page.goto(auth.homepage_url, wait_until="domcontentloaded", timeout=60000)
         human_delay(2000, 3000)
 
         # Already logged in from saved session
@@ -57,7 +57,7 @@ class AuthManager:
             return page
 
         # Not logged in — go to login page
-        page.goto(auth.login_url, wait_until="domcontentloaded")
+        page.goto(auth.login_url, wait_until="domcontentloaded", timeout=60000)
         human_delay(1000, 2000)
 
         # Check if login form is present (might be blocked by CAPTCHA/challenge)

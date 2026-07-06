@@ -158,6 +158,15 @@ class ApplicationRepository:
         self.session.flush()
         return app
 
+    def create_or_update(self, job_id: int, **kwargs) -> Application:
+        existing = self.get_by_job_id(job_id)
+        if existing:
+            for key, value in kwargs.items():
+                setattr(existing, key, value)
+            self.session.flush()
+            return existing
+        return self.create(job_id=job_id, **kwargs)
+
     def get_by_job_id(self, job_id: int) -> Application | None:
         stmt = select(Application).where(Application.job_id == job_id)
         return self.session.scalars(stmt).first()

@@ -102,16 +102,17 @@ def apply_to_job(
 
     if success:
         job.status = JobStatus.APPLIED
-        app_repo.create(
+        app_repo.create_or_update(
             job_id=job.id,
             resume_path=resume_path,
             cover_letter_path=cl_path,
             status=ApplicationStatus.SUBMITTED,
+            error_message=None,
         )
         log.info("job_applied", job_id=job.id, title=job.title, company=job.company)
     else:
         job.status = JobStatus.APPLY_FAILED
-        app_repo.create(
+        app_repo.create_or_update(
             job_id=job.id,
             resume_path=resume_path,
             cover_letter_path=cl_path,

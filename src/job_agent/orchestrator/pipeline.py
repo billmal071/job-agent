@@ -578,6 +578,7 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
                                     platform=plat,
                                 )
                         except Exception as e:
+                            session.rollback()
                             log.error(
                                 "approved_job_error",
                                 job_id=job.id,

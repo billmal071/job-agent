@@ -30,6 +30,26 @@ class LinkedInApplicator(BaseApplicator):
         self._answerer = ScreeningAnswerer(self._ai_client, summary, salary)
         return self._answerer
 
+    def _navigate_to_job(self, job: JobPosting) -> None:
+        """Navigate to LinkedIn job page, ensuring authenticated view."""
+        from job_agent.platforms.base import safe_goto
+
+        # Strip tracking params — use clean /jobs/view/ID URL
+        url = job.url or ""
+        if "/jobs/view/" in url:
+            job_id = url.split("/jobs/view/")[1].split("/")[0].split("?")[0]
+            url = f"https://www.linkedin.com/jobs/view/{job_id}/"
+
+        safe_goto(self.page, url)
+        self.page.wait_for_load_state("domcontentloaded")
+        human_delay(2000, 3000)
+
+        # If we got a logged-out page, dismiss modal and check
+        if not self._verify_logged_in():
+            self._dismiss_login_popup()
+            self.page.keyboard.press("Escape")
+            human_delay(1000, 2000)
+
     def _dismiss_login_popup(self) -> bool:
         """Dismiss LinkedIn sign-in popup/modal if it appears. Returns True if dismissed."""
         login_modal = self.page.locator(SELECTORS.login_popup)
@@ -74,6 +94,11 @@ class LinkedInApplicator(BaseApplicator):
         # Verify we're still logged in
         if not self._verify_logged_in():
             log.error("cannot_apply_not_logged_in", job_id=job.external_id)
+            return False
+
+        # Check if job is closed before attempting to apply
+        if self.page.locator(':text("No longer accepting")').count() > 0:
+            log.info("job_closed_skipping", job_id=job.external_id)
             return False
 
         # Wait for the page to settle and look for Easy Apply button

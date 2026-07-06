@@ -119,6 +119,12 @@ class AIClient:
         else:
             self._ollama_url = API_URLS[PROVIDER_OLLAMA]
 
+        self._fallback_provider: str | None = None
+        self._fallback_model: str | None = None
+        if self.provider == PROVIDER_GROQ and settings.gemini_api_key:
+            self._fallback_provider = PROVIDER_GEMINI
+            self._fallback_model = DEFAULT_MODELS[PROVIDER_GEMINI]
+
         log.info("ai_client_init", provider=self.provider, model=self.model)
 
     def complete(
@@ -211,6 +217,24 @@ class AIClient:
                     if attempt == retries - 1:
                         raise
                     time.sleep(1)
+
+        if self._fallback_provider:
+            log.info(
+                "ai_fallback",
+                from_provider=self.provider,
+                to_provider=self._fallback_provider,
+            )
+            original_model = self.model
+            try:
+                self.model = self._fallback_model
+                if self._fallback_provider == PROVIDER_GEMINI:
+                    return self._complete_gemini(
+                        prompt, system, max_tokens, temperature
+                    )
+            except Exception as fallback_err:
+                log.error("ai_fallback_failed", error=str(fallback_err))
+            finally:
+                self.model = original_model
 
         raise RuntimeError("AI completion failed after retries")
 
