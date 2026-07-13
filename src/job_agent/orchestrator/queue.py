@@ -83,7 +83,7 @@ class ReviewQueueManager:
 
             for job in jobs:
                 # Create an application record - actual apply happens in pipeline
-                app_repo.create(
+                app_repo.create_or_update(
                     job_id=job.id,
                     status=ApplicationStatus.PENDING,
                 )

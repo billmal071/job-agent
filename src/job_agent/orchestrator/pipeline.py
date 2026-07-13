@@ -162,7 +162,7 @@ def _process_approved_queue(
                 if settings.agent.dry_run:
                     log.info("dry_run_approved", title=job.title)
                     job.status = JobStatus.APPLIED
-                    app_repo.create(job_id=job.id, resume_path="")
+                    app_repo.create_or_update(job_id=job.id, resume_path="")
                     stats["applied"] += 1
                     session.commit()
                     continue
@@ -224,7 +224,7 @@ def _process_approved_queue(
                         error=str(e),
                     )
                     job.status = JobStatus.APPLY_FAILED
-                    app_repo.create(
+                    app_repo.create_or_update(
                         job_id=job.id,
                         resume_path="",
                         cover_letter_path="",
@@ -438,7 +438,7 @@ def run_pipeline(
                                     error=str(e),
                                 )
                                 job.status = JobStatus.APPLY_FAILED
-                                app_repo.create(
+                                app_repo.create_or_update(
                                     job_id=job.id,
                                     resume_path="",
                                     cover_letter_path="",
