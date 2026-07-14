@@ -50,11 +50,21 @@ class AuthManager:
         human_delay(2000, 3000)
 
         # Already logged in from saved session
-        if self.is_logged_in(Platform.LINKEDIN, page) or (
-            "login" not in page.url and "checkpoint" not in page.url
-        ):
+        if self.is_logged_in(Platform.LINKEDIN, page):
             log.info("linkedin_session_restored")
             return page
+
+        # URL heuristic: if not on login/checkpoint, verify no public-page indicators
+        if "login" not in page.url and "checkpoint" not in page.url:
+            public_nav = page.locator(
+                'a:has-text("Join now"), '
+                'a.nav__button-secondary, '
+                'button:has-text("Sign in")'
+            )
+            if public_nav.count() == 0:
+                log.info("linkedin_session_restored")
+                return page
+            log.info("linkedin_session_expired_public_page", url=page.url)
 
         # Not logged in — go to login page
         page.goto(auth.login_url, wait_until="domcontentloaded", timeout=60000)
@@ -100,12 +110,18 @@ class AuthManager:
             human_delay(3000, 5000)
 
         if not self.is_logged_in(Platform.LINKEDIN, page):
-            # Fallback: if we're past login/checkpoint, trust it
+            # Fallback: verify we're past login AND not on public homepage
             current = page.url
+            public_nav = page.locator(
+                'a:has-text("Join now"), '
+                'a.nav__button-secondary, '
+                'button:has-text("Sign in")'
+            )
             if (
                 "checkpoint" not in current
                 and "login" not in current
                 and "challenge" not in current
+                and public_nav.count() == 0
             ):
                 log.info("linkedin_login_success_fallback", url=current)
             else:

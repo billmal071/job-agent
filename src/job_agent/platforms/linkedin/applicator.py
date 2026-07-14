@@ -46,11 +46,13 @@ class LinkedInApplicator(BaseApplicator):
         self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 3000)
 
-        # If we got a logged-out page, dismiss modal and check
+        # If we got a logged-out page, dismiss modal and re-check
         if not self._verify_logged_in():
             self._dismiss_login_popup()
             self.page.keyboard.press("Escape")
             human_delay(1000, 2000)
+            if not self._verify_logged_in():
+                raise RuntimeError("LinkedIn session expired — cannot apply")
 
     def _dismiss_login_popup(self) -> bool:
         """Dismiss LinkedIn sign-in popup/modal if it appears. Returns True if dismissed."""
