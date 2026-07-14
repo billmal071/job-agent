@@ -82,8 +82,10 @@ class JobMatcher:
             )
 
         desc_lower = job.description.lower()
+        title_lower = job.title.lower()
         for kw in excluded_keywords:
-            if kw in desc_lower or kw in job.title.lower():
+            pattern = rf"\b{re.escape(kw)}\b"
+            if re.search(pattern, title_lower) or re.search(pattern, desc_lower):
                 return MatchScore(
                     score=0.0,
                     reasoning=f"Excluded keyword '{kw}' found in posting.",

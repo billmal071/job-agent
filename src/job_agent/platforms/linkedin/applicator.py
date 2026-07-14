@@ -32,13 +32,15 @@ class LinkedInApplicator(BaseApplicator):
 
     def _navigate_to_job(self, job: JobPosting) -> None:
         """Navigate to LinkedIn job page, ensuring authenticated view."""
+        import re
+
         from job_agent.platforms.base import safe_goto
 
-        # Strip tracking params — use clean /jobs/view/ID URL
+        # Extract numeric job ID and use clean /jobs/view/ID/ URL
         url = job.url or ""
-        if "/jobs/view/" in url:
-            job_id = url.split("/jobs/view/")[1].split("/")[0].split("?")[0]
-            url = f"https://www.linkedin.com/jobs/view/{job_id}/"
+        match = re.search(r"/jobs/view/(?:.*?-)?(\d+)", url)
+        if match:
+            url = f"https://www.linkedin.com/jobs/view/{match.group(1)}/"
 
         safe_goto(self.page, url)
         self.page.wait_for_load_state("domcontentloaded")
@@ -52,29 +54,53 @@ class LinkedInApplicator(BaseApplicator):
 
     def _dismiss_login_popup(self) -> bool:
         """Dismiss LinkedIn sign-in popup/modal if it appears. Returns True if dismissed."""
+        # Try Escape first — works on both authenticated and public view modals
+        self.page.keyboard.press("Escape")
+        human_delay(500, 1000)
+
         login_modal = self.page.locator(SELECTORS.login_popup)
-        if login_modal.count() > 0:
-            close_btn = login_modal.locator(SELECTORS.login_popup_close)
-            if close_btn.count() > 0:
-                close_btn.first.click()
-                human_delay(500, 1000)
-                log.info("login_popup_dismissed")
-                return True
-            # If no close button, try pressing Escape
-            self.page.keyboard.press("Escape")
-            human_delay(500, 1000)
-            if login_modal.count() == 0:
-                log.info("login_popup_dismissed_via_escape")
-                return True
+        if login_modal.count() == 0:
+            return True
+
+        # Public view uses a contextual-sign-in-modal with a visible dismiss button
+        close_btn = self.page.locator(
+            'button[aria-label="Dismiss"], '
+            'button.contextual-sign-in-modal__modal-dismiss, '
+            'button.modal__dismiss'
+        )
+        for i in range(close_btn.count()):
+            try:
+                if close_btn.nth(i).is_visible():
+                    close_btn.nth(i).click(timeout=5000)
+                    human_delay(500, 1000)
+                    log.info("login_popup_dismissed")
+                    return True
+            except Exception:
+                continue
+
+        # Final fallback
+        self.page.keyboard.press("Escape")
+        human_delay(500, 1000)
+        if login_modal.count() == 0:
+            log.info("login_popup_dismissed_via_escape")
+            return True
         return False
 
     def _verify_logged_in(self) -> bool:
-        """Check if still logged into LinkedIn, re-auth if session expired."""
-        # Look for signs we're logged out
-        login_indicators = self.page.locator(SELECTORS.login_indicators)
+        """Check if still logged into LinkedIn."""
         logged_in_indicators = self.page.locator(SELECTORS.logged_in_indicators)
         if logged_in_indicators.count() > 0:
             return True
+        # Public view: top-right shows "Sign in" / "Join now" buttons
+        public_nav = self.page.locator(
+            'a.nav__button-secondary:has-text("Sign in"), '
+            'a:has-text("Join now"), '
+            'button:has-text("Sign in")'
+        )
+        if public_nav.count() > 0:
+            log.warning("linkedin_session_expired_during_apply")
+            return False
+        login_indicators = self.page.locator(SELECTORS.login_indicators)
         if login_indicators.count() > 0:
             log.warning("linkedin_session_expired_during_apply")
             return False

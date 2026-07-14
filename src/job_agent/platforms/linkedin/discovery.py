@@ -100,21 +100,29 @@ class LinkedInDiscovery:
             )
         human_delay(1000, 2000)
 
+        # Detect which view we're in: public (base-search-card) vs authenticated
+        is_public_view = (
+            self.page.locator("div.base-search-card.job-search-card").count() > 0
+        )
+
         cards = self.page.locator(SELECTORS.job_card).all()
 
         for card in cards:
             try:
                 job = self._parse_card(card)
                 if job:
-                    # Click card to load description in side panel
-                    try:
-                        card.click()
-                        human_delay(1500, 2500)
-                        desc_el = self.page.locator(SELECTORS.detail_description).first
-                        if desc_el.count() > 0:
-                            job.description = desc_el.inner_text().strip()
-                    except Exception:
-                        pass
+                    if not is_public_view:
+                        # Authenticated view: click card to load side panel
+                        try:
+                            card.click()
+                            human_delay(1500, 2500)
+                            desc_el = self.page.locator(
+                                SELECTORS.detail_description
+                            ).first
+                            if desc_el.count() > 0:
+                                job.description = desc_el.inner_text().strip()
+                        except Exception:
+                            pass
                     jobs.append(job)
             except Exception as e:
                 log.warning("linkedin_card_parse_error", error=str(e))
@@ -148,13 +156,24 @@ class LinkedInDiscovery:
                 url = (
                     f"https://www.linkedin.com{href}" if href.startswith("/") else href
                 )
-                # Extract job ID from URL
-                match = re.search(r"/jobs/view/(\d+)", url)
+                # Extract job ID: /jobs/view/1234 or /jobs/view/slug-title-1234
+                match = re.search(r"/jobs/view/(?:.*?-)?(\d+)", url)
                 if match:
                     external_id = match.group(1)
 
+            # Fallback: data-entity-urn="urn:li:jobPosting:1234"
+            if not external_id:
+                urn = card.get_attribute("data-entity-urn") or ""
+                urn_match = re.search(r"jobPosting:(\d+)", urn)
+                if urn_match:
+                    external_id = urn_match.group(1)
+
             if not external_id or not title:
                 return None
+
+            # Normalize URL to canonical form for the applicator
+            if not url.startswith("https://www.linkedin.com/jobs/view/"):
+                url = f"https://www.linkedin.com/jobs/view/{external_id}/"
 
             # Check for Easy Apply badge (multiple selector strategies)
             easy_apply = (
@@ -188,9 +207,15 @@ class LinkedInDiscovery:
             return None
 
     def _next_page(self) -> bool:
-        """Navigate to the next page of results."""
+        """Navigate to the next page of results.
+
+        Handles both authenticated view (pagination buttons) and public view
+        (infinite scroll with "See more jobs" button).
+        """
         try:
             self.rate_limiter.wait()
+
+            # Try pagination buttons first (authenticated view)
             next_btn = self.page.locator(SELECTORS.pagination_next)
             if next_btn.count() > 0 and next_btn.is_enabled():
                 human_scroll(self.page, "down", 500)
@@ -202,6 +227,24 @@ class LinkedInDiscovery:
                 self.page.wait_for_load_state("domcontentloaded")
                 human_delay(2000, 4000)
                 return True
+
+            # Public view: scroll down to trigger infinite scroll / "See more" button
+            count_before = self.page.locator(SELECTORS.job_card).count()
+            human_scroll(self.page, "down", 2000)
+            human_delay(1500, 2500)
+
+            see_more = self.page.locator(
+                'button:has-text("See more jobs"), '
+                'button[aria-label="See more jobs"]'
+            )
+            if see_more.count() > 0:
+                see_more.first.click()
+                human_delay(2000, 4000)
+
+            count_after = self.page.locator(SELECTORS.job_card).count()
+            if count_after > count_before:
+                return True
+
         except Exception as e:
             log.debug("linkedin_next_page_failed", error=str(e))
         return False
@@ -219,8 +262,8 @@ class LinkedInDiscovery:
         # Get full description
         description = safe_text(self.page, SELECTORS.detail_description)
 
-        # Extract job ID from URL
-        match = re.search(r"/jobs/view/(\d+)", job_url)
+        # Extract job ID: /jobs/view/1234 or /jobs/view/slug-title-1234
+        match = re.search(r"/jobs/view/(?:.*?-)?(\d+)", job_url)
         external_id = match.group(1) if match else ""
 
         # Check for Easy Apply (button text or badge)

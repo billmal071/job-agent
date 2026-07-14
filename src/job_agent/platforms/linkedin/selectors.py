@@ -17,28 +17,33 @@ class LinkedInSelectors(PlatformSelectors):
     """CSS selectors for LinkedIn job search and Easy Apply flows."""
 
     # -- Discovery: job card list --
+    # Authenticated view uses scaffold-layout; public/guest view uses base-search-card
     job_card: str = (
         ".scaffold-layout__list-item, "
         ".jobs-search-results-list__list-item, "
         ".jobs-search-results__list-item, "
-        ".job-card-container"
+        ".job-card-container, "
+        "div.base-search-card.job-search-card"
     )
     job_title: str = (
         ".job-card-list__title, "
         ".job-card-container__link, "
-        ".artdeco-entity-lockup__title"
+        ".artdeco-entity-lockup__title, "
+        "h3.base-search-card__title"
     )
     job_company: str = (
         ".job-card-container__primary-description, "
         ".job-card-container__company-name, "
-        ".artdeco-entity-lockup__subtitle"
+        ".artdeco-entity-lockup__subtitle, "
+        "h4.base-search-card__subtitle"
     )
     job_location: str = (
         ".job-card-container__metadata-item, "
         ".job-card-container__metadata-wrapper, "
-        ".artdeco-entity-lockup__caption"
+        ".artdeco-entity-lockup__caption, "
+        ".job-search-card__location"
     )
-    job_url: str = "a[href*='/jobs/view/']"
+    job_url: str = "a[href*='/jobs/view/'], a.base-card__full-link"
     job_salary: str = (
         ".job-card-container__salary-info, .artdeco-entity-lockup__metadata"
     )
@@ -54,31 +59,38 @@ class LinkedInSelectors(PlatformSelectors):
         "button.artdeco-pagination__button--next, "
         'button[aria-label="View next page"]'
     )
+    # Public view job list container (for infinite scroll detection)
+    job_list_public: str = "ul.jobs-search__results-list"
 
     # -- Discovery: job detail page --
     detail_title: str = (
         ".t-24.job-details-jobs-unified-top-card__job-title, "
         ".job-details-jobs-unified-top-card__job-title, "
         ".jobs-unified-top-card__job-title, "
+        ".top-card-layout__title, "
         "h1.t-24, "
         "h1"
     )
     detail_company: str = (
         ".job-details-jobs-unified-top-card__company-name, "
         ".jobs-unified-top-card__company-name, "
-        ".artdeco-entity-lockup__subtitle"
+        ".artdeco-entity-lockup__subtitle, "
+        ".topcard__org-name-link"
     )
     detail_location: str = (
         ".job-details-jobs-unified-top-card__primary-description-container span, "
         ".jobs-unified-top-card__bullet, "
-        ".artdeco-entity-lockup__caption"
+        ".artdeco-entity-lockup__caption, "
+        ".topcard__flavor--bullet"
     )
     detail_description: str = (
         ".jobs-description__content, "
         ".jobs-box__html-content, "
         ".jobs-description-content__text, "
         ".jobs-description, "
-        "#job-details"
+        "#job-details, "
+        ".decorated-job-posting__details, "
+        ".description__text"
     )
     detail_easy_apply: str = (
         ".jobs-apply-button, "

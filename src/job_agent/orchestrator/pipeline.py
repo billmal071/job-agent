@@ -86,6 +86,7 @@ def _discover_postings(
 ) -> list[tuple[JobPosting, bool]]:
     """Discover job postings for all keywords/locations. Returns list of (posting, needs_detail)."""
     results: list[tuple[JobPosting, bool]] = []
+    seen_ids: set = set()
     consecutive_search_failures = 0
 
     for kw in search.get("keywords", []):
@@ -113,8 +114,10 @@ def _discover_postings(
                 continue
 
             for posting in postings:
-                if job_repo.exists(posting.external_id, posting.platform):
+                key = (posting.external_id, posting.platform)
+                if key in seen_ids or job_repo.exists(posting.external_id, posting.platform):
                     continue
+                seen_ids.add(key)
                 results.append((posting, not posting.description))
 
     return results
