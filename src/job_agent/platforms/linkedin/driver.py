@@ -87,6 +87,11 @@ class LinkedInDriver(PlatformDriver):
             raise RuntimeError("Not logged in.")
         return self._applicator.apply(job, resume_path, cover_letter_path, answers)
 
+    def is_job_open(self, job: JobPosting) -> bool:
+        if not self._applicator:
+            raise RuntimeError("Not logged in.")
+        return self._applicator.is_job_open(job)
+
     def is_already_applied(self, job: JobPosting) -> bool:
         page = self._ensure_page()
         if not self._discovery:

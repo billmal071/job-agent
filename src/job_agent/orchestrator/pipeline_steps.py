@@ -83,6 +83,17 @@ def apply_to_job(
     matched_skills: list[str],
 ) -> bool:
     """Tailor resume, generate cover letter, and apply. Returns True on success."""
+    if not driver.is_job_open(posting):
+        job.status = JobStatus.APPLY_FAILED
+        app_repo.create_or_update(
+            job_id=job.id,
+            resume_path="",
+            cover_letter_path="",
+            status=ApplicationStatus.FAILED,
+            error_message="Job closed before applying",
+        )
+        return False
+
     resume_path = resume_tailor.tailor_and_save(posting, matched_skills)
 
     cl_path = ""

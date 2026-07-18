@@ -30,6 +30,26 @@ class LinkedInApplicator(BaseApplicator):
         self._answerer = ScreeningAnswerer(self._ai_client, summary, salary)
         return self._answerer
 
+    def is_job_open(self, job: JobPosting) -> bool:
+        """Navigate to the job page and check if it's still open before generating documents."""
+        self._navigate_to_job(job)
+
+        if self.page.locator(':text("No longer accepting")').count() > 0:
+            log.info("job_closed_skipping", job_id=job.external_id)
+            return False
+
+        # Check for Easy Apply or external apply — if neither, job is likely closed
+        has_apply = (
+            self.page.locator('[aria-label*="Easy Apply"]').count() > 0
+            or self.page.locator(".jobs-apply-button").count() > 0
+            or self.page.locator(SELECTORS.external_apply_link).count() > 0
+        )
+        if not has_apply:
+            log.info("job_closed_skipping", job_id=job.external_id)
+            return False
+
+        return True
+
     def _navigate_to_job(self, job: JobPosting) -> None:
         """Navigate to LinkedIn job page, ensuring authenticated view."""
         import re

@@ -95,6 +95,14 @@ class PlatformDriver(ABC):
     def is_already_applied(self, job: JobPosting) -> bool:
         """Check if already applied to this job."""
 
+    def is_job_open(self, job: JobPosting) -> bool:
+        """Navigate to the job page and check if it's still accepting applications.
+
+        Returns True if the job appears open (default). Subclasses override to
+        perform platform-specific checks.
+        """
+        return True
+
     @abstractmethod
     def close(self) -> None:
         """Clean up resources."""
