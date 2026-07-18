@@ -61,6 +61,7 @@ class AIClient:
         )
         self._http = httpx.Client(timeout=60)
         self._last_call_time: float = 0
+        self.call_count: int = 0
         # Groq free tier: 30 req/min + daily token limits. Space calls to avoid 429s.
         self._base_call_interval: float = 4.0 if self.provider == PROVIDER_GROQ else 0.0
         self._min_call_interval: float = self._base_call_interval
@@ -178,6 +179,7 @@ class AIClient:
                 else:
                     raise ValueError(f"Unknown provider: {self.provider}")
                 self._last_call_time = time.time()
+                self.call_count += 1
                 self._consecutive_429s = 0
                 if self._min_call_interval > self._base_call_interval:
                     self._min_call_interval = max(

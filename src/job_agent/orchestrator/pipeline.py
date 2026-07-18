@@ -367,6 +367,9 @@ def run_pipeline(
                 # Discover postings
                 postings_with_flags = _discover_postings(driver, search, job_repo)
 
+                match_cap = settings.matching.max_ai_calls_per_run
+                match_calls_at_start = ai_client.call_count
+
                 for posting, needs_detail in postings_with_flags:
                     if needs_detail:
                         try:
@@ -394,6 +397,17 @@ def run_pipeline(
                     )
                     stats["discovered"] += 1
                     bind_contextvars(job_id=job.id)
+
+                    # Check if AI match budget is exhausted
+                    if ai_client.call_count - match_calls_at_start >= match_cap:
+                        log.info(
+                            "match_quota_reached",
+                            limit=match_cap,
+                            remaining_jobs=len(postings_with_flags) - stats["discovered"],
+                        )
+                        job.status = JobStatus.DISCOVERED
+                        session.commit()
+                        continue
 
                     # Match
                     score = match_job(

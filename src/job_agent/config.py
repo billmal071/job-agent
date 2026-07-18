@@ -23,6 +23,7 @@ class MatchingConfig(BaseModel):
     auto_apply_threshold: float = 0.80
     review_threshold: float = 0.70
     model: str = ""
+    max_ai_calls_per_run: int = 20
 
 
 class ResumeConfig(BaseModel):
