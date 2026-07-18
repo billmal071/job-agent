@@ -157,7 +157,8 @@ class LinkedInDiscovery:
                     f"https://www.linkedin.com{href}" if href.startswith("/") else href
                 )
                 # Extract job ID: /jobs/view/1234 or /jobs/view/slug-title-1234
-                match = re.search(r"/jobs/view/(?:.*?-)?(\d+)", url)
+                # Require 7+ digits to skip small numbers in URL slugs
+                match = re.search(r"/jobs/view/.*?(\d{7,})", url)
                 if match:
                     external_id = match.group(1)
 
@@ -261,7 +262,8 @@ class LinkedInDiscovery:
         description = safe_text(self.page, SELECTORS.detail_description)
 
         # Extract job ID: /jobs/view/1234 or /jobs/view/slug-title-1234
-        match = re.search(r"/jobs/view/(?:.*?-)?(\d+)", job_url)
+        # Require 7+ digits to skip small numbers in URL slugs
+        match = re.search(r"/jobs/view/.*?(\d{7,})", job_url)
         external_id = match.group(1) if match else ""
 
         # Check for Easy Apply (button text or badge)

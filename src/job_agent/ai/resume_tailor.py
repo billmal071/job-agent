@@ -93,7 +93,8 @@ class ResumeTailor:
 
             pdf_generated = Path(tmpdir) / "resume.pdf"
             if not pdf_generated.exists():
-                raise OSError(f"pdflatex failed: {result.stderr.decode()[:500]}")
+                output = result.stdout.decode()[:500] + result.stderr.decode()[:500]
+                raise OSError(f"pdflatex failed: {output}")
 
             shutil.copy2(pdf_generated, output_path)
 

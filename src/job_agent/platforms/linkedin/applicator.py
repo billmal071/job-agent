@@ -37,8 +37,10 @@ class LinkedInApplicator(BaseApplicator):
         from job_agent.platforms.base import safe_goto
 
         # Extract numeric job ID and use clean /jobs/view/ID/ URL
+        # Require 7+ digits to skip small numbers embedded in URL slugs
+        # (e.g. "/jobs/view/devops-engineer-k8s-0-downtime-4384228814")
         url = job.url or ""
-        match = re.search(r"/jobs/view/(?:.*?-)?(\d+)", url)
+        match = re.search(r"/jobs/view/.*?(\d{7,})", url)
         if match:
             url = f"https://www.linkedin.com/jobs/view/{match.group(1)}/"
 
