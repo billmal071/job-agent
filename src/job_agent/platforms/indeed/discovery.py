@@ -45,6 +45,8 @@ class IndeedDiscovery:
         self.page.wait_for_load_state("domcontentloaded")
         human_delay(2000, 4000)
 
+        self._handle_challenge()
+
         jobs: list[JobPosting] = []
         page_num = 0
 
@@ -142,6 +144,30 @@ class IndeedDiscovery:
         except Exception as e:
             log.debug("indeed_next_page_failed", error=str(e))
         return False
+
+    def _handle_challenge(self) -> None:
+        """Wait for bot-detection challenges (CAPTCHA, Cloudflare) to be solved manually."""
+        challenge_selectors = (
+            'iframe[title*="challenge"], '
+            'iframe[src*="captcha"], '
+            '#challenge-running, '
+            '#cf-challenge-running, '
+            ':text("verify you are human"), '
+            ':text("are not a robot")'
+        )
+        challenge = self.page.locator(challenge_selectors)
+        if challenge.count() == 0:
+            return
+
+        log.warning("indeed_challenge_detected")
+        try:
+            self.page.wait_for_selector(
+                SELECTORS.job_card, timeout=120000
+            )
+            log.info("indeed_challenge_resolved")
+            human_delay(1000, 2000)
+        except Exception:
+            log.error("indeed_challenge_timeout")
 
     def get_details(self, job_url: str) -> JobPosting:
         """Get full job details from Indeed."""
