@@ -37,12 +37,14 @@ platforms:
     max_applications_per_day: 40
     session_duration_minutes: 60
     cooldown_minutes: 20
+    use_camoufox: false
   glassdoor:
     enabled: true
     max_requests_per_minute: 4
     max_applications_per_day: 30
     session_duration_minutes: 60
     cooldown_minutes: 20
+    use_camoufox: false
   ziprecruiter:
     enabled: false
     max_requests_per_minute: 5
