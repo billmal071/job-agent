@@ -38,8 +38,10 @@ class IndeedDriver(PlatformDriver):
     def login(self, username: str, password: str) -> None:
         context = self.browser.get_context("indeed")
         if self.browser.is_cdp:
-            self._page = context.new_page()
-            self._page.goto("https://www.indeed.com", wait_until="domcontentloaded")
+            self._page = self.browser.find_cdp_page("indeed.com")
+            if not self._page:
+                self._page = context.new_page()
+                self._page.goto("https://www.indeed.com", wait_until="domcontentloaded")
             log.info("indeed_cdp_session")
         else:
             auth = AuthManager(context)
@@ -96,8 +98,9 @@ class IndeedDriver(PlatformDriver):
             self._applicator._profile = profile
 
     def close(self) -> None:
-        self.browser.save_state("indeed")
-        if self._page and not self._page.is_closed():
-            self._page.close()
+        if not self.browser.is_cdp:
+            self.browser.save_state("indeed")
+            if self._page and not self._page.is_closed():
+                self._page.close()
         self._page = None
         log.info("indeed_driver_closed")

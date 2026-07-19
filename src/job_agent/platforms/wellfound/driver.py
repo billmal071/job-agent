@@ -38,8 +38,10 @@ class WellfoundDriver(PlatformDriver):
     def login(self, username: str, password: str) -> None:
         context = self.browser.get_context("wellfound")
         if self.browser.is_cdp:
-            self._page = context.new_page()
-            self._page.goto("https://wellfound.com", wait_until="domcontentloaded")
+            self._page = self.browser.find_cdp_page("wellfound.com")
+            if not self._page:
+                self._page = context.new_page()
+                self._page.goto("https://wellfound.com", wait_until="domcontentloaded")
             log.info("wellfound_cdp_session")
         else:
             auth = AuthManager(context)
@@ -90,8 +92,9 @@ class WellfoundDriver(PlatformDriver):
         return False
 
     def close(self) -> None:
-        self.browser.save_state("wellfound")
-        if self._page and not self._page.is_closed():
-            self._page.close()
+        if not self.browser.is_cdp:
+            self.browser.save_state("wellfound")
+            if self._page and not self._page.is_closed():
+                self._page.close()
         self._page = None
         log.info("wellfound_driver_closed")

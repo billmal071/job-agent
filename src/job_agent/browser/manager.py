@@ -200,6 +200,17 @@ class BrowserManager:
     def is_cdp(self) -> bool:
         return self._use_cdp
 
+    def find_cdp_page(self, domain: str):
+        """Find an existing CDP page whose URL contains the given domain."""
+        if not self._use_cdp or not self._browser:
+            return None
+        for ctx in self._browser.contexts:
+            for page in ctx.pages:
+                if domain in page.url:
+                    log.info("cdp_reusing_page", domain=domain, url=page.url[:80])
+                    return page
+        return None
+
     def __enter__(self) -> BrowserManager:
         self.start()
         return self
