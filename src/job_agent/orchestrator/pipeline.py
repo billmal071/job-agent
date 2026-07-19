@@ -37,6 +37,14 @@ from job_agent.utils.logging import bind_contextvars, get_logger
 log = get_logger(__name__)
 
 
+def _resolve_use_camoufox(platform_name: str, settings: Settings) -> bool | None:
+    """Resolve per-platform use_camoufox override (None = use global default)."""
+    plat_cfg = getattr(settings.platforms, platform_name, None)
+    if plat_cfg and plat_cfg.use_camoufox is not None:
+        return plat_cfg.use_camoufox
+    return None
+
+
 def get_platform_driver(
     platform_name: str, settings: Settings, browser_manager: BrowserManager
 ) -> PlatformDriver:
@@ -129,7 +137,6 @@ def _process_approved_queue(
     *,
     approved_jobs: list[Job],
     settings: Settings,
-    browser: BrowserManager,
     session,
     app_repo: ApplicationRepository,
     ai_client: AIClient,
@@ -139,7 +146,7 @@ def _process_approved_queue(
     profile: dict,
     stats: dict,
 ) -> None:
-    """Process all APPROVED jobs grouped by platform inside an existing browser session."""
+    """Process all APPROVED jobs grouped by platform, each with its own browser."""
     if not approved_jobs:
         return
 
@@ -156,90 +163,92 @@ def _process_approved_queue(
             log.warning("no_credentials_for_approved")
             continue
 
+        use_camo = _resolve_use_camoufox(plat, settings)
         try:
-            driver = get_platform_driver(plat, settings, browser)
-            driver.login(cred.username, decrypt(cred.encrypted_password))
-            if hasattr(driver, "set_ai_context"):
-                driver.set_ai_context(ai_client, profile)
+            with BrowserManager(settings, use_camoufox=use_camo) as browser:
+                driver = get_platform_driver(plat, settings, browser)
+                driver.login(cred.username, decrypt(cred.encrypted_password))
+                if hasattr(driver, "set_ai_context"):
+                    driver.set_ai_context(ai_client, profile)
 
-            for job in jobs:
-                bind_contextvars(job_id=job.id)
-                if settings.agent.dry_run:
-                    log.info("dry_run_approved", title=job.title)
-                    job.status = JobStatus.APPLIED
-                    app_repo.create_or_update(job_id=job.id, resume_path="")
-                    stats["applied"] += 1
-                    session.commit()
-                    continue
-
-                try:
-                    posting = JobPosting(
-                        external_id=job.external_id,
-                        platform=job.platform,
-                        title=job.title,
-                        company=job.company,
-                        location=job.location,
-                        description=job.description or "",
-                        url=job.url,
-                        easy_apply=True,  # User explicitly approved
-                        remote=job.remote,
-                        salary=job.salary,
-                    )
-                    matched_skills = get_matched_skills_for_job(job)
-                    success = apply_to_job(
-                        job=job,
-                        posting=posting,
-                        driver=driver,
-                        resume_tailor=resume_tailor,
-                        cover_letter_gen=cover_letter_gen,
-                        app_repo=app_repo,
-                        candidate_summary=candidate_summary,
-                        matched_skills=matched_skills,
-                    )
-                    if success:
+                for job in jobs:
+                    bind_contextvars(job_id=job.id)
+                    if settings.agent.dry_run:
+                        log.info("dry_run_approved", title=job.title)
+                        job.status = JobStatus.APPLIED
+                        app_repo.create_or_update(job_id=job.id, resume_path="")
                         stats["applied"] += 1
-                        log.info(
-                            "approved_job_applied",
-                            job_id=job.id,
+                        session.commit()
+                        continue
+
+                    try:
+                        posting = JobPosting(
+                            external_id=job.external_id,
+                            platform=job.platform,
                             title=job.title,
                             company=job.company,
+                            location=job.location,
+                            description=job.description or "",
+                            url=job.url,
+                            easy_apply=True,
+                            remote=job.remote,
+                            salary=job.salary,
                         )
-                        generate_cold_email_draft(
+                        matched_skills = get_matched_skills_for_job(job)
+                        success = apply_to_job(
                             job=job,
-                            ai_client=ai_client,
-                            settings=settings,
-                            profile=profile,
-                            session=session,
+                            posting=posting,
+                            driver=driver,
+                            resume_tailor=resume_tailor,
+                            cover_letter_gen=cover_letter_gen,
+                            app_repo=app_repo,
+                            candidate_summary=candidate_summary,
+                            matched_skills=matched_skills,
                         )
-                    else:
-                        log.warning(
-                            "approved_job_apply_failed",
+                        if success:
+                            stats["applied"] += 1
+                            log.info(
+                                "approved_job_applied",
+                                job_id=job.id,
+                                title=job.title,
+                                company=job.company,
+                            )
+                            generate_cold_email_draft(
+                                job=job,
+                                ai_client=ai_client,
+                                settings=settings,
+                                profile=profile,
+                                session=session,
+                            )
+                        else:
+                            log.warning(
+                                "approved_job_apply_failed",
+                                job_id=job.id,
+                                title=job.title,
+                                company=job.company,
+                                platform=plat,
+                            )
+                    except Exception as e:
+                        log.error(
+                            "approved_job_error",
                             job_id=job.id,
                             title=job.title,
                             company=job.company,
                             platform=plat,
+                            error=str(e),
                         )
-                except Exception as e:
-                    log.error(
-                        "approved_job_error",
-                        job_id=job.id,
-                        title=job.title,
-                        company=job.company,
-                        platform=plat,
-                        error=str(e),
-                    )
-                    job.status = JobStatus.APPLY_FAILED
-                    app_repo.create_or_update(
-                        job_id=job.id,
-                        resume_path="",
-                        cover_letter_path="",
-                        status=ApplicationStatus.FAILED,
-                        error_message=str(e)[:500],
-                    )
+                        job.status = JobStatus.APPLY_FAILED
+                        app_repo.create_or_update(
+                            job_id=job.id,
+                            resume_path="",
+                            cover_letter_path="",
+                            status=ApplicationStatus.FAILED,
+                            error_message=str(e)[:500],
+                        )
 
-                session.commit()
+                    session.commit()
 
-            driver.close()
+                driver.close()
         except Exception as e:
             log.error("approved_platform_error", platform=plat, error=str(e))
 
@@ -256,7 +265,8 @@ def discover_jobs(
     job_repo = JobRepository(session)
 
     try:
-        with BrowserManager(settings) as browser:
+        use_camo = _resolve_use_camoufox(platform_name, settings)
+        with BrowserManager(settings, use_camoufox=use_camo) as browser:
             driver = get_platform_driver(platform_name, settings, browser)
 
             cred = CredentialRepository(session).get(Platform(platform_name))
@@ -356,8 +366,9 @@ def run_pipeline(
     candidate_summary = build_candidate_summary(profile)
 
     try:
-        with BrowserManager(settings) as browser:
-            for plat in platforms_to_run:
+        for plat in platforms_to_run:
+            use_camo = _resolve_use_camoufox(plat, settings)
+            with BrowserManager(settings, use_camoufox=use_camo) as browser:
                 bind_contextvars(platform=plat)
                 driver = get_platform_driver(plat, settings, browser)
 
@@ -475,15 +486,15 @@ def run_pipeline(
 
                 driver.close()
 
-            # Process approved jobs from the review queue (skip in discover-only mode)
-            if discover_only:
-                log.info("discover_only_skipping_apply_queue")
-            else:
-                approved_jobs = job_repo.list_by_status(JobStatus.APPROVED)
+        # Process approved jobs from the review queue (skip in discover-only mode)
+        if discover_only:
+            log.info("discover_only_skipping_apply_queue")
+        else:
+            approved_jobs = job_repo.list_by_status(JobStatus.APPROVED)
+            if approved_jobs:
                 _process_approved_queue(
                     approved_jobs=approved_jobs,
                     settings=settings,
-                    browser=browser,
                     session=session,
                     app_repo=app_repo,
                     ai_client=ai_client,
@@ -531,15 +542,16 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
         for job in approved_jobs:
             by_platform.setdefault(job.platform.value, []).append(job)
 
-        with BrowserManager(settings) as browser:
-            for plat, jobs in by_platform.items():
-                bind_contextvars(platform=plat)
-                cred = CredentialRepository(session).get(Platform(plat))
-                if not cred:
-                    log.warning("no_credentials_for_approved", platform=plat)
-                    continue
+        for plat, jobs in by_platform.items():
+            bind_contextvars(platform=plat)
+            cred = CredentialRepository(session).get(Platform(plat))
+            if not cred:
+                log.warning("no_credentials_for_approved", platform=plat)
+                continue
 
-                try:
+            use_camo = _resolve_use_camoufox(plat, settings)
+            try:
+                with BrowserManager(settings, use_camoufox=use_camo) as browser:
                     driver = get_platform_driver(plat, settings, browser)
                     driver.login(cred.username, decrypt(cred.encrypted_password))
 
@@ -557,7 +569,7 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
                                 location=job.location,
                                 description=job.description or "",
                                 url=job.url,
-                                easy_apply=True,  # User explicitly approved
+                                easy_apply=True,
                                 remote=job.remote,
                                 salary=job.salary,
                             )
@@ -612,8 +624,8 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
                         session.commit()
 
                     driver.close()
-                except Exception as e:
-                    log.error("approved_platform_error", platform=plat, error=str(e))
+            except Exception as e:
+                log.error("approved_platform_error", platform=plat, error=str(e))
 
         log.info("apply_approved_complete", **stats)
         return stats

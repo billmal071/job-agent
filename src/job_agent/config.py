@@ -43,6 +43,7 @@ class PlatformConfig(BaseModel):
     session_duration_minutes: int = 45
     cooldown_minutes: int = 20
     max_connections_per_day: int = 0
+    use_camoufox: bool | None = None
 
 
 class PlatformsConfig(BaseModel):
@@ -58,11 +59,13 @@ class PlatformsConfig(BaseModel):
         max_requests_per_minute=5,
         max_applications_per_day=40,
         session_duration_minutes=60,
+        use_camoufox=False,
     )
     glassdoor: PlatformConfig = PlatformConfig(
         max_requests_per_minute=4,
         max_applications_per_day=30,
         session_duration_minutes=60,
+        use_camoufox=False,
     )
     ziprecruiter: PlatformConfig = PlatformConfig(
         max_requests_per_minute=5,

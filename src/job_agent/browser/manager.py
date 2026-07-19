@@ -16,8 +16,12 @@ log = get_logger(__name__)
 class BrowserManager:
     """Manages Playwright browser instances with persistent state."""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, *, use_camoufox: bool | None = None):
         self.settings = settings
+        self._use_camoufox = (
+            use_camoufox if use_camoufox is not None
+            else settings.browser.use_camoufox
+        )
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
         self._camoufox_ctx = None  # Camoufox context manager
@@ -27,7 +31,7 @@ class BrowserManager:
 
     def start(self) -> None:
         """Launch the browser instance."""
-        if self.settings.browser.use_camoufox:
+        if self._use_camoufox:
             self._start_camoufox()
         else:
             self._start_playwright()
@@ -95,7 +99,7 @@ class BrowserManager:
             "timezone_id": "America/New_York",
         }
         # Camoufox manages its own fingerprint — don't override user_agent
-        if not self.settings.browser.use_camoufox:
+        if not self._use_camoufox:
             kwargs["user_agent"] = (
                 "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                 "(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
@@ -106,7 +110,7 @@ class BrowserManager:
             log.info("browser_context_restored", name=name)
 
         context = self._browser.new_context(**kwargs)  # type: ignore[union-attr]
-        if not self.settings.browser.use_camoufox:
+        if not self._use_camoufox:
             apply_stealth(context)
 
         self._contexts[name] = context
