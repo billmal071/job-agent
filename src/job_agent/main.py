@@ -172,6 +172,49 @@ def cmd_dashboard(ctx: click.Context) -> None:
     )
 
 
+@cli.command("launch-browser")
+@click.option("--port", default=9222, help="CDP debugging port.")
+@click.pass_context
+def cmd_launch_browser(ctx: click.Context, port: int) -> None:
+    """Launch Chrome with remote debugging for CDP-based platforms (Indeed, Glassdoor).
+
+    Log into Indeed/Glassdoor in the opened browser, then run job-agent
+    commands in another terminal. The agent will connect to this browser
+    instead of launching its own, bypassing Cloudflare bot detection.
+    """
+    import shutil
+    import subprocess
+    import sys
+
+    settings = ctx.obj["settings"]
+    profile_dir = Path(settings.browser.state_dir).expanduser() / "cdp_profile"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+
+    chrome = shutil.which("google-chrome") or shutil.which("google-chrome-stable")
+    if not chrome:
+        click.echo("Chrome not found. Install Google Chrome first.", err=True)
+        sys.exit(1)
+
+    cmd = [
+        chrome,
+        f"--remote-debugging-port={port}",
+        f"--user-data-dir={profile_dir}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "https://www.indeed.com",
+        "https://www.glassdoor.com",
+        "https://www.dice.com",
+        "https://wellfound.com",
+    ]
+    click.echo(f"Launching Chrome with CDP on port {port}...")
+    click.echo("Log into each site, then run job-agent in another terminal.")
+    click.echo(f"CDP URL: http://localhost:{port}")
+    try:
+        subprocess.run(cmd, check=True)
+    except KeyboardInterrupt:
+        click.echo("\nBrowser closed.")
+
+
 @cli.group("bot")
 @click.pass_context
 def cmd_bot(ctx: click.Context) -> None:

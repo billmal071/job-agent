@@ -44,6 +44,7 @@ class PlatformConfig(BaseModel):
     cooldown_minutes: int = 20
     max_connections_per_day: int = 0
     use_camoufox: bool | None = None
+    use_cdp: bool | None = None
 
 
 class PlatformsConfig(BaseModel):
@@ -60,12 +61,14 @@ class PlatformsConfig(BaseModel):
         max_applications_per_day=40,
         session_duration_minutes=60,
         use_camoufox=False,
+        use_cdp=True,
     )
     glassdoor: PlatformConfig = PlatformConfig(
         max_requests_per_minute=4,
         max_applications_per_day=30,
         session_duration_minutes=60,
         use_camoufox=False,
+        use_cdp=True,
     )
     ziprecruiter: PlatformConfig = PlatformConfig(
         max_requests_per_minute=5,
@@ -92,6 +95,7 @@ class BrowserConfig(BaseModel):
     state_dir: str = "~/.job-agent/browser_state"
     proxy: str | None = None
     use_camoufox: bool = True
+    cdp_url: str = "http://localhost:9222"
     viewport_width: int = 1920
     viewport_height: int = 1080
 

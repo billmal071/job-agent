@@ -38,6 +38,7 @@ platforms:
     session_duration_minutes: 60
     cooldown_minutes: 20
     use_camoufox: false
+    use_cdp: true
   glassdoor:
     enabled: true
     max_requests_per_minute: 4
@@ -45,12 +46,25 @@ platforms:
     session_duration_minutes: 60
     cooldown_minutes: 20
     use_camoufox: false
+    use_cdp: true
   ziprecruiter:
     enabled: false
     max_requests_per_minute: 5
     max_applications_per_day: 40
     session_duration_minutes: 60
     cooldown_minutes: 20
+  dice:
+    enabled: true
+    max_requests_per_minute: 4
+    max_applications_per_day: 35
+    session_duration_minutes: 60
+    cooldown_minutes: 20
+  wellfound:
+    enabled: true
+    max_requests_per_minute: 3
+    max_applications_per_day: 20
+    session_duration_minutes: 45
+    cooldown_minutes: 25
 
 browser:
   headless: false

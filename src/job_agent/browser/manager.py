@@ -16,12 +16,19 @@ log = get_logger(__name__)
 class BrowserManager:
     """Manages Playwright browser instances with persistent state."""
 
-    def __init__(self, settings: Settings, *, use_camoufox: bool | None = None):
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        use_camoufox: bool | None = None,
+        use_cdp: bool = False,
+    ):
         self.settings = settings
+        self._use_cdp = use_cdp
         self._use_camoufox = (
             use_camoufox if use_camoufox is not None
             else settings.browser.use_camoufox
-        )
+        ) if not use_cdp else False
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
         self._camoufox_ctx = None  # Camoufox context manager
@@ -30,11 +37,30 @@ class BrowserManager:
         self._state_dir.mkdir(parents=True, exist_ok=True)
 
     def start(self) -> None:
-        """Launch the browser instance."""
-        if self._use_camoufox:
+        """Launch or connect to a browser instance."""
+        if self._use_cdp:
+            self._start_cdp()
+        elif self._use_camoufox:
             self._start_camoufox()
         else:
             self._start_playwright()
+
+    def _start_cdp(self) -> None:
+        """Connect to an existing Chrome instance via CDP."""
+        cdp_url = self.settings.browser.cdp_url
+        self._playwright = sync_playwright().start()
+        try:
+            self._browser = self._playwright.chromium.connect_over_cdp(cdp_url)
+        except Exception as e:
+            self._playwright.stop()
+            self._playwright = None
+            raise RuntimeError(
+                f"Cannot connect to Chrome at {cdp_url}. "
+                "Launch Chrome with remote debugging:\n"
+                "  google-chrome --remote-debugging-port=9222\n"
+                "Then retry the job-agent command."
+            ) from e
+        log.info("cdp_connected", url=cdp_url)
 
     def _start_camoufox(self) -> None:
         """Launch Camoufox anti-detection browser."""
@@ -89,6 +115,17 @@ class BrowserManager:
         if not self._browser:
             self.start()
 
+        if self._use_cdp:
+            contexts = self._browser.contexts  # type: ignore[union-attr]
+            if contexts:
+                ctx = contexts[0]
+                log.info("cdp_using_default_context", name=name)
+            else:
+                ctx = self._browser.new_context()  # type: ignore[union-attr]
+                log.info("cdp_created_context", name=name)
+            self._contexts[name] = ctx
+            return ctx
+
         state_file = self._state_dir / f"{name}_state.json"
         kwargs: dict = {
             "viewport": {
@@ -118,6 +155,8 @@ class BrowserManager:
 
     def save_state(self, name: str = "default") -> None:
         """Save browser state (cookies, localStorage) for a context."""
+        if self._use_cdp:
+            return
         if name in self._contexts:
             state_file = self._state_dir / f"{name}_state.json"
             try:
@@ -130,7 +169,8 @@ class BrowserManager:
         """Save state and close a named context."""
         if name in self._contexts:
             self.save_state(name)
-            self._contexts[name].close()
+            if not self._use_cdp:
+                self._contexts[name].close()
             del self._contexts[name]
 
     def close(self) -> None:
@@ -141,13 +181,24 @@ class BrowserManager:
             self._camoufox_ctx.__exit__(None, None, None)
             self._camoufox_ctx = None
             self._browser = None
+        elif self._use_cdp:
+            # Disconnect without closing the user's browser
+            if self._browser:
+                self._browser.close()
+                self._browser = None
+            log.info("cdp_disconnected")
         elif self._browser:
             self._browser.close()
             self._browser = None
         if self._playwright:
             self._playwright.stop()
             self._playwright = None
-        log.info("browser_closed")
+        if not self._use_cdp:
+            log.info("browser_closed")
+
+    @property
+    def is_cdp(self) -> bool:
+        return self._use_cdp
 
     def __enter__(self) -> BrowserManager:
         self.start()

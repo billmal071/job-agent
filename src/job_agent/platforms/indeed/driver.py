@@ -37,13 +37,18 @@ class IndeedDriver(PlatformDriver):
 
     def login(self, username: str, password: str) -> None:
         context = self.browser.get_context("indeed")
-        auth = AuthManager(context)
-        self._page = auth.login(Platform.INDEED, username, password)
+        if self.browser.is_cdp:
+            self._page = context.new_page()
+            self._page.goto("https://www.indeed.com", wait_until="domcontentloaded")
+            log.info("indeed_cdp_session")
+        else:
+            auth = AuthManager(context)
+            self._page = auth.login(Platform.INDEED, username, password)
+            self.browser.save_state("indeed")
         self._discovery = IndeedDiscovery(self._page, self.rate_limiter)
         self._applicator = IndeedApplicator(
             self._page, self.rate_limiter, self.settings
         )
-        self.browser.save_state("indeed")
         log.info("indeed_driver_ready")
 
     def _ensure_page(self) -> Page:

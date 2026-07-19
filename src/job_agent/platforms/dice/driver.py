@@ -37,11 +37,16 @@ class DiceDriver(PlatformDriver):
 
     def login(self, username: str, password: str) -> None:
         context = self.browser.get_context("dice")
-        auth = AuthManager(context)
-        self._page = auth.login(Platform.DICE, username, password)
+        if self.browser.is_cdp:
+            self._page = context.new_page()
+            self._page.goto("https://www.dice.com", wait_until="domcontentloaded")
+            log.info("dice_cdp_session")
+        else:
+            auth = AuthManager(context)
+            self._page = auth.login(Platform.DICE, username, password)
+            self.browser.save_state("dice")
         self._discovery = DiceDiscovery(self._page, self.rate_limiter)
         self._applicator = DiceApplicator(self._page, self.rate_limiter, self.settings)
-        self.browser.save_state("dice")
         log.info("dice_driver_ready")
 
     def _ensure_page(self) -> Page:

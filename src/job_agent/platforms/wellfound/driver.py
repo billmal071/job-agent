@@ -37,13 +37,18 @@ class WellfoundDriver(PlatformDriver):
 
     def login(self, username: str, password: str) -> None:
         context = self.browser.get_context("wellfound")
-        auth = AuthManager(context)
-        self._page = auth.login(Platform.WELLFOUND, username, password)
+        if self.browser.is_cdp:
+            self._page = context.new_page()
+            self._page.goto("https://wellfound.com", wait_until="domcontentloaded")
+            log.info("wellfound_cdp_session")
+        else:
+            auth = AuthManager(context)
+            self._page = auth.login(Platform.WELLFOUND, username, password)
+            self.browser.save_state("wellfound")
         self._discovery = WellfoundDiscovery(self._page, self.rate_limiter)
         self._applicator = WellfoundApplicator(
             self._page, self.rate_limiter, self.settings
         )
-        self.browser.save_state("wellfound")
         log.info("wellfound_driver_ready")
 
     def _ensure_page(self) -> Page:

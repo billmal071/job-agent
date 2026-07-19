@@ -37,12 +37,18 @@ from job_agent.utils.logging import bind_contextvars, get_logger
 log = get_logger(__name__)
 
 
-def _resolve_use_camoufox(platform_name: str, settings: Settings) -> bool | None:
-    """Resolve per-platform use_camoufox override (None = use global default)."""
+def _resolve_browser_opts(
+    platform_name: str, settings: Settings
+) -> dict:
+    """Resolve per-platform browser options (use_camoufox, use_cdp)."""
     plat_cfg = getattr(settings.platforms, platform_name, None)
-    if plat_cfg and plat_cfg.use_camoufox is not None:
-        return plat_cfg.use_camoufox
-    return None
+    opts: dict = {}
+    if plat_cfg:
+        if plat_cfg.use_cdp:
+            opts["use_cdp"] = True
+        if plat_cfg.use_camoufox is not None:
+            opts["use_camoufox"] = plat_cfg.use_camoufox
+    return opts
 
 
 def get_platform_driver(
@@ -163,9 +169,9 @@ def _process_approved_queue(
             log.warning("no_credentials_for_approved")
             continue
 
-        use_camo = _resolve_use_camoufox(plat, settings)
+        browser_opts = _resolve_browser_opts(plat, settings)
         try:
-            with BrowserManager(settings, use_camoufox=use_camo) as browser:
+            with BrowserManager(settings, **browser_opts) as browser:
                 driver = get_platform_driver(plat, settings, browser)
                 driver.login(cred.username, decrypt(cred.encrypted_password))
                 if hasattr(driver, "set_ai_context"):
@@ -265,8 +271,8 @@ def discover_jobs(
     job_repo = JobRepository(session)
 
     try:
-        use_camo = _resolve_use_camoufox(platform_name, settings)
-        with BrowserManager(settings, use_camoufox=use_camo) as browser:
+        browser_opts = _resolve_browser_opts(platform_name, settings)
+        with BrowserManager(settings, **browser_opts) as browser:
             driver = get_platform_driver(platform_name, settings, browser)
 
             cred = CredentialRepository(session).get(Platform(platform_name))
@@ -367,8 +373,8 @@ def run_pipeline(
 
     try:
         for plat in platforms_to_run:
-            use_camo = _resolve_use_camoufox(plat, settings)
-            with BrowserManager(settings, use_camoufox=use_camo) as browser:
+            browser_opts = _resolve_browser_opts(plat, settings)
+            with BrowserManager(settings, **browser_opts) as browser:
                 bind_contextvars(platform=plat)
                 driver = get_platform_driver(plat, settings, browser)
 
@@ -549,9 +555,9 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
                 log.warning("no_credentials_for_approved", platform=plat)
                 continue
 
-            use_camo = _resolve_use_camoufox(plat, settings)
+            browser_opts = _resolve_browser_opts(plat, settings)
             try:
-                with BrowserManager(settings, use_camoufox=use_camo) as browser:
+                with BrowserManager(settings, **browser_opts) as browser:
                     driver = get_platform_driver(plat, settings, browser)
                     driver.login(cred.username, decrypt(cred.encrypted_password))
 

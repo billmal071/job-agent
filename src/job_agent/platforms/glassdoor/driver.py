@@ -36,12 +36,17 @@ class GlassdoorDriver(PlatformDriver):
 
     def login(self, username: str, password: str) -> None:
         context = self.browser.get_context("glassdoor")
-        auth = AuthManager(context)
-        self._page = auth.login(Platform.GLASSDOOR, username, password)
+        if self.browser.is_cdp:
+            self._page = context.new_page()
+            self._page.goto("https://www.glassdoor.com", wait_until="domcontentloaded")
+            log.info("glassdoor_cdp_session")
+        else:
+            auth = AuthManager(context)
+            self._page = auth.login(Platform.GLASSDOOR, username, password)
+            self.browser.save_state("glassdoor")
         self._applicator = GlassdoorApplicator(
             self._page, self.rate_limiter, self.settings
         )
-        self.browser.save_state("glassdoor")
         log.info("glassdoor_driver_ready")
 
     def _ensure_page(self) -> Page:
