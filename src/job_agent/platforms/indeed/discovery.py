@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from urllib.parse import urlencode
 
 from playwright.sync_api import Page
@@ -69,7 +70,20 @@ class IndeedDiscovery:
     def _extract_job_cards(self) -> list[JobPosting]:
         """Extract job cards from current page."""
         jobs: list[JobPosting] = []
-        self.page.wait_for_selector(SELECTORS.job_card, timeout=10000)
+        try:
+            self.page.wait_for_selector(SELECTORS.job_card, timeout=10000)
+        except Exception:
+            screenshot_path = Path("~/.job-agent/screenshots").expanduser()
+            screenshot_path.mkdir(parents=True, exist_ok=True)
+            self.page.screenshot(
+                path=str(screenshot_path / "indeed_no_results.png")
+            )
+            log.warning(
+                "indeed_no_job_cards",
+                url=self.page.url,
+                title=self.page.title(),
+            )
+            raise
         human_delay(1000, 2000)
 
         cards = self.page.locator(SELECTORS.job_card).all()
@@ -146,26 +160,24 @@ class IndeedDiscovery:
         return False
 
     def _handle_challenge(self) -> None:
-        """Wait for bot-detection challenges (CAPTCHA, Cloudflare) to be solved manually."""
-        challenge_selectors = (
-            'iframe[title*="challenge"], '
-            'iframe[src*="captcha"], '
-            '#challenge-running, '
-            '#cf-challenge-running, '
-            ':text("verify you are human"), '
-            ':text("are not a robot")'
+        """Wait for Cloudflare/CAPTCHA challenges to be solved manually."""
+        challenge_detected = (
+            self.page.locator('iframe[src*="challenges.cloudflare"]').count() > 0
+            or self.page.locator(':text("Additional Verification Required")').count() > 0
+            or self.page.locator(':text("Verify you are human")').count() > 0
+            or self.page.locator(':text("just a moment")').count() > 0
+            or "challenge" in self.page.url
         )
-        challenge = self.page.locator(challenge_selectors)
-        if challenge.count() == 0:
+        if not challenge_detected:
             return
 
-        log.warning("indeed_challenge_detected")
+        log.warning("indeed_challenge_detected", url=self.page.url)
         try:
             self.page.wait_for_selector(
                 SELECTORS.job_card, timeout=120000
             )
             log.info("indeed_challenge_resolved")
-            human_delay(1000, 2000)
+            human_delay(2000, 4000)
         except Exception:
             log.error("indeed_challenge_timeout")
 
