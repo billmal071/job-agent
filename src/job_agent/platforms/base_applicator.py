@@ -189,11 +189,15 @@ class BaseApplicator(ABC):
         armed first so the popup is never missed. Silently continues when no
         popup opens (same-tab redirects and native flows).
         """
+        clicked = False
         try:
             with self.page.context.expect_page(timeout=timeout_ms):
                 button.click()
+                clicked = True
         except PlaywrightTimeoutError:
-            pass  # No popup opened — same-tab redirect or native flow
+            if not clicked:
+                raise  # The click itself timed out — surface it for retry
+            # No popup opened — same-tab redirect or native flow
 
     @staticmethod
     def _wait_for_page_url(page: Page, timeout_ms: int = 10000) -> str:

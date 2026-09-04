@@ -10,6 +10,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting
@@ -201,6 +202,42 @@ class TestExternalATSDelegation:
             with pytest.raises(RuntimeError):
                 applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
         popup.close.assert_called_once()
+
+    def test_click_timeout_propagates_and_is_retryable(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        """A timeout from the click itself must surface for retry handling."""
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        err = PlaywrightTimeoutError("Timeout 30000ms exceeded")
+        page.locator.return_value.first.click.side_effect = err
+        applicator = cls(page, mock_rate_limiter, settings)
+        job = _make_job(platform)
+        with patch(f"{module}.human_delay"):
+            with pytest.raises(PlaywrightTimeoutError):
+                applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
+        assert applicator._is_retryable_error(err) is True
+
+    def test_popup_wait_timeout_alone_continues_native_flow(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        """expect_page timing out (no popup) is not an error — native flow runs."""
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        waiter = MagicMock()
+        waiter.__enter__ = MagicMock(return_value=waiter)
+        waiter.__exit__ = MagicMock(
+            side_effect=PlaywrightTimeoutError("Timeout 5000ms exceeded")
+        )
+        page.context.expect_page.return_value = waiter
+        applicator = cls(page, mock_rate_limiter, settings)
+        job = _make_job(platform)
+        with (
+            patch(f"{module}.human_delay"),
+            patch(
+                "job_agent.platforms.external_ats.ExternalATSApplicator"
+            ) as mock_ats_cls,
+        ):
+            applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
+        mock_ats_cls.assert_not_called()
 
     def test_delegates_when_popup_opens_after_click_returns(
         self, cls, platform, module, settings, mock_rate_limiter
