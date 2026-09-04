@@ -7,7 +7,6 @@ import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from job_agent.config import Settings, _strip_env_overridden_keys, load_settings
 

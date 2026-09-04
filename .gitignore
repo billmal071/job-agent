@@ -44,3 +44,4 @@ htmlcov/
 .pytest_cache/
 Downloads/
 .gitignore
+CLAUDE.local.md

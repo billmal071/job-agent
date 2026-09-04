@@ -39,7 +39,12 @@ def cmd_init_db(ctx: click.Context) -> None:
 
 
 @cli.command("add-credential")
-@click.argument("platform", type=click.Choice(["linkedin", "indeed", "glassdoor"]))
+@click.argument(
+    "platform",
+    type=click.Choice(
+        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound"]
+    ),
+)
 @click.option("--username", "-u", prompt=True, help="Platform username/email.")
 @click.pass_context
 def cmd_add_credential(ctx: click.Context, platform: str, username: str) -> None:
@@ -67,7 +72,12 @@ def cmd_add_credential(ctx: click.Context, platform: str, username: str) -> None
 
 @cli.command("run")
 @click.option("--profile", "-p", required=True, help="Path to profile YAML.")
-@click.option("--platform", type=click.Choice(["linkedin", "indeed", "glassdoor"]))
+@click.option(
+    "--platform",
+    type=click.Choice(
+        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound"]
+    ),
+)
 @click.option("--dry-run", is_flag=True, help="Discover and match only, don't apply.")
 @click.option("--once", is_flag=True, help="Run once instead of on schedule.")
 @click.pass_context
@@ -112,7 +122,9 @@ def cmd_apply_approved(ctx: click.Context) -> None:
     "--platform",
     "-P",
     default="linkedin",
-    type=click.Choice(["linkedin", "indeed", "glassdoor"]),
+    type=click.Choice(
+        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound"]
+    ),
 )
 @click.option("--query", "-q", required=True, help="Search query.")
 @click.option("--location", "-l", default="", help="Location filter.")
