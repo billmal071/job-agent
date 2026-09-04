@@ -132,6 +132,30 @@ class TestExternalATSDelegation:
         assert mock_ats_cls.call_args.args[0] is popup
         popup.close.assert_called_once()
 
+    def test_delegates_when_external_popup_is_not_newest_tab(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        """The external tab is found even when an on-platform tab is newer."""
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        popup = MagicMock()
+        popup.url = EXTERNAL_URL
+        newer_platform_tab = MagicMock()
+        newer_platform_tab.url = f"https://www.{platform.value}.com/other"
+        page.context.pages = [page, popup, newer_platform_tab]
+        applicator = cls(page, mock_rate_limiter, settings)
+        job = _make_job(platform)
+        with (
+            patch(f"{module}.human_delay"),
+            patch(
+                "job_agent.platforms.external_ats.ExternalATSApplicator"
+            ) as mock_ats_cls,
+        ):
+            mock_ats_cls.return_value.apply.return_value = True
+            result = applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
+        assert result is True
+        assert mock_ats_cls.call_args.args[0] is popup
+        popup.close.assert_called_once()
+
     def test_popup_closed_when_delegation_raises(
         self, cls, platform, module, settings, mock_rate_limiter
     ):

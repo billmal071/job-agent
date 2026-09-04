@@ -158,9 +158,9 @@ class BaseApplicator(ABC):
         company ATS in a popup), then the current page. Callers should close
         the returned page after use when it is not ``self.page``.
         """
-        pages = self.page.context.pages
-        if pages and pages[-1] is not self.page:
-            candidate = pages[-1]
+        for candidate in reversed(self.page.context.pages):
+            if candidate is self.page:
+                continue
             if not self._is_on_domain(candidate.url, platform_domain):
                 return candidate
         if not self._is_on_domain(self.page.url, platform_domain):
