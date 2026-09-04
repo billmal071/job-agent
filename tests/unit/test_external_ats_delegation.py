@@ -132,6 +132,26 @@ class TestExternalATSDelegation:
         assert mock_ats_cls.call_args.args[0] is popup
         popup.close.assert_called_once()
 
+    def test_popup_closed_when_delegation_raises(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        popup = MagicMock()
+        popup.url = EXTERNAL_URL
+        page.context.pages = [page, popup]
+        applicator = cls(page, mock_rate_limiter, settings)
+        job = _make_job(platform)
+        with (
+            patch(f"{module}.human_delay"),
+            patch(
+                "job_agent.platforms.external_ats.ExternalATSApplicator"
+            ) as mock_ats_cls,
+        ):
+            mock_ats_cls.return_value.apply.side_effect = RuntimeError("ats blew up")
+            with pytest.raises(RuntimeError):
+                applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
+        popup.close.assert_called_once()
+
     def test_no_delegation_when_still_on_platform(
         self, cls, platform, module, settings, mock_rate_limiter
     ):

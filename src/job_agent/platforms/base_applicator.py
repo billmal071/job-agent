@@ -183,12 +183,13 @@ class BaseApplicator(ABC):
         if redirect_page is None:
             return None
         log.info("external_ats_redirect", url=redirect_page.url)
-        result = self._apply_via_external_ats(
-            job, resume_path, cover_letter_path, page=redirect_page
-        )
-        if redirect_page is not self.page:
-            redirect_page.close()
-        return result
+        try:
+            return self._apply_via_external_ats(
+                job, resume_path, cover_letter_path, page=redirect_page
+            )
+        finally:
+            if redirect_page is not self.page:
+                redirect_page.close()
 
     def _apply_via_external_ats(
         self,
