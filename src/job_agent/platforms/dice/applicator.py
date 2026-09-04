@@ -34,12 +34,13 @@ class DiceApplicator(BaseApplicator):
             log.warning("no_apply_button", job_id=job.external_id)
             return False
 
+        pages_before = list(self.page.context.pages)
         apply_btn.click()
         human_delay(2000, 4000)
 
         # Many Dice jobs redirect to external ATS — hand off to external handler
         delegated = self._delegate_external_redirect(
-            "dice.com", job, resume_path, cover_letter_path
+            "dice.com", job, resume_path, cover_letter_path, pages_before
         )
         if delegated is not None:
             return delegated

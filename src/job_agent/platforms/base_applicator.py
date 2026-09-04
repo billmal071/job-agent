@@ -151,15 +151,22 @@ class BaseApplicator(ABC):
         host = (urlparse(url).hostname or "").rstrip(".").lower()
         return host == domain or host.endswith(f".{domain}")
 
-    def _find_external_redirect(self, platform_domain: str) -> Page | None:
+    def _find_external_redirect(
+        self, platform_domain: str, pages_before: list[Page]
+    ) -> Page | None:
         """Return the page showing an external-ATS redirect, or None.
 
-        Checks the newest tab in the context first (some boards open the
-        company ATS in a popup), then the current page. Callers should close
-        the returned page after use when it is not ``self.page``.
+        Checks tabs opened since *pages_before* (a snapshot taken before
+        clicking Apply — some boards open the company ATS in a popup),
+        newest first, then the current page. Pre-existing tabs are ignored
+        so a stale external tab from an earlier application is never picked
+        up. Callers should close the returned page after use when it is not
+        ``self.page``.
         """
         for candidate in reversed(self.page.context.pages):
             if candidate is self.page:
+                continue
+            if any(candidate is known for known in pages_before):
                 continue
             if not self._is_on_domain(candidate.url, platform_domain):
                 return candidate
@@ -173,13 +180,16 @@ class BaseApplicator(ABC):
         job: JobPosting,
         resume_path: str,
         cover_letter_path: str,
+        pages_before: list[Page],
     ) -> bool | None:
         """Delegate to the external ATS handler if a redirect is detected.
 
-        Returns the delegation result, or ``None`` when no redirect off
-        *platform_domain* is detected (caller should run its native flow).
+        *pages_before* is a snapshot of ``page.context.pages`` taken before
+        clicking Apply. Returns the delegation result, or ``None`` when no
+        redirect off *platform_domain* is detected (caller should run its
+        native flow).
         """
-        redirect_page = self._find_external_redirect(platform_domain)
+        redirect_page = self._find_external_redirect(platform_domain, pages_before)
         if redirect_page is None:
             return None
         log.info("external_ats_redirect", url=redirect_page.url)

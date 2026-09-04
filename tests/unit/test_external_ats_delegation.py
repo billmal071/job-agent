@@ -65,6 +65,19 @@ def _page_redirected_to(url: str) -> MagicMock:
     return page
 
 
+def _external_tab(url: str = EXTERNAL_URL) -> MagicMock:
+    tab = MagicMock()
+    tab.url = url
+    return tab
+
+
+def _click_opens(page: MagicMock, *tabs: MagicMock) -> None:
+    """Make clicking the apply button add *tabs* to the context, like a popup."""
+    page.locator.return_value.first.click.side_effect = lambda *a, **kw: (
+        page.context.pages.extend(tabs)
+    )
+
+
 @pytest.mark.parametrize("cls,platform,module", _CASES)
 class TestExternalATSDelegation:
     def _run_do_apply(self, cls, platform, module, settings, mock_rate_limiter):
@@ -115,9 +128,8 @@ class TestExternalATSDelegation:
     ):
         """A new tab showing the external ATS is used for delegation, then closed."""
         page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
-        popup = MagicMock()
-        popup.url = EXTERNAL_URL
-        page.context.pages = [page, popup]
+        popup = _external_tab()
+        _click_opens(page, popup)
         applicator = cls(page, mock_rate_limiter, settings)
         job = _make_job(platform)
         with (
@@ -137,11 +149,9 @@ class TestExternalATSDelegation:
     ):
         """The external tab is found even when an on-platform tab is newer."""
         page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
-        popup = MagicMock()
-        popup.url = EXTERNAL_URL
-        newer_platform_tab = MagicMock()
-        newer_platform_tab.url = f"https://www.{platform.value}.com/other"
-        page.context.pages = [page, popup, newer_platform_tab]
+        popup = _external_tab()
+        newer_platform_tab = _external_tab(f"https://www.{platform.value}.com/other")
+        _click_opens(page, popup, newer_platform_tab)
         applicator = cls(page, mock_rate_limiter, settings)
         job = _make_job(platform)
         with (
@@ -160,9 +170,8 @@ class TestExternalATSDelegation:
         self, cls, platform, module, settings, mock_rate_limiter
     ):
         page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
-        popup = MagicMock()
-        popup.url = EXTERNAL_URL
-        page.context.pages = [page, popup]
+        popup = _external_tab()
+        _click_opens(page, popup)
         applicator = cls(page, mock_rate_limiter, settings)
         job = _make_job(platform)
         with (
@@ -175,6 +184,49 @@ class TestExternalATSDelegation:
             with pytest.raises(RuntimeError):
                 applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
         popup.close.assert_called_once()
+
+    def test_ignores_stale_external_tab_when_no_redirect(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        """A pre-existing external tab from an earlier apply is never picked up."""
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        stale = _external_tab("https://jobs.lever.co/other-co/999")
+        page.context.pages = [page, stale]
+        applicator = cls(page, mock_rate_limiter, settings)
+        job = _make_job(platform)
+        with (
+            patch(f"{module}.human_delay"),
+            patch(
+                "job_agent.platforms.external_ats.ExternalATSApplicator"
+            ) as mock_ats_cls,
+        ):
+            applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
+        mock_ats_cls.assert_not_called()
+        stale.close.assert_not_called()
+
+    def test_new_popup_chosen_over_stale_external_tab(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        """With a stale external tab open, delegation targets only the new popup."""
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        stale = _external_tab("https://jobs.lever.co/other-co/999")
+        page.context.pages = [page, stale]
+        popup = _external_tab()
+        _click_opens(page, popup)
+        applicator = cls(page, mock_rate_limiter, settings)
+        job = _make_job(platform)
+        with (
+            patch(f"{module}.human_delay"),
+            patch(
+                "job_agent.platforms.external_ats.ExternalATSApplicator"
+            ) as mock_ats_cls,
+        ):
+            mock_ats_cls.return_value.apply.return_value = True
+            result = applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
+        assert result is True
+        assert mock_ats_cls.call_args.args[0] is popup
+        popup.close.assert_called_once()
+        stale.close.assert_not_called()
 
     def test_no_delegation_when_still_on_platform(
         self, cls, platform, module, settings, mock_rate_limiter
