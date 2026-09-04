@@ -37,9 +37,7 @@ class GlassdoorSelectors(PlatformSelectors):
         '[data-test="jobDescriptionContent"], .jobDescriptionContent'
     )
     detail_easy_apply: str = (
-        '[data-test="applyButton"], '
-        'button:has-text("Apply"), '
-        'a:has-text("Apply")'
+        '[data-test="applyButton"], button:has-text("Apply"), a:has-text("Apply")'
     )
 
     # -- Applicator --

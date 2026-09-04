@@ -62,11 +62,7 @@ class IndeedSelectors(PlatformSelectors):
         'button:has-text("Submit"), '
         'button:has-text("Apply")'
     )
-    validation_errors: str = (
-        ".ia-Questions-errorMessage, "
-        '[role="alert"], '
-        ".css-1s1r2hr"
-    )
+    validation_errors: str = '.ia-Questions-errorMessage, [role="alert"], .css-1s1r2hr'
 
     # -- Indeed apply form field groups --
     field_group_question_item: str = ".ia-Questions-item"

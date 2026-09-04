@@ -58,7 +58,7 @@ class AuthManager:
         if "login" not in page.url and "checkpoint" not in page.url:
             public_nav = page.locator(
                 'a:has-text("Join now"), '
-                'a.nav__button-secondary, '
+                "a.nav__button-secondary, "
                 'button:has-text("Sign in")'
             )
             if public_nav.count() == 0:
@@ -114,7 +114,7 @@ class AuthManager:
             current = page.url
             public_nav = page.locator(
                 'a:has-text("Join now"), '
-                'a.nav__button-secondary, '
+                "a.nav__button-secondary, "
                 'button:has-text("Sign in")'
             )
             if (

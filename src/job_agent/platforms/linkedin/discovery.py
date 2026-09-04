@@ -177,8 +177,7 @@ class LinkedInDiscovery:
 
             # Check for Easy Apply badge (multiple selector strategies)
             easy_apply = (
-                card.locator(SELECTORS.easy_apply_badge).count()
-                > 0
+                card.locator(SELECTORS.easy_apply_badge).count() > 0
                 or "easy apply" in card.inner_text().lower()
             )
 
@@ -234,8 +233,7 @@ class LinkedInDiscovery:
             human_delay(1500, 2500)
 
             see_more = self.page.locator(
-                'button:has-text("See more jobs"), '
-                'button[aria-label="See more jobs"]'
+                'button:has-text("See more jobs"), button[aria-label="See more jobs"]'
             )
             if see_more.count() > 0:
                 see_more.first.click()
@@ -268,8 +266,7 @@ class LinkedInDiscovery:
 
         # Check for Easy Apply (button text or badge)
         easy_apply = (
-            self.page.locator(SELECTORS.detail_easy_apply).count()
-            > 0
+            self.page.locator(SELECTORS.detail_easy_apply).count() > 0
             or "easy apply"
             in (safe_text(self.page, SELECTORS.apply_button) or "").lower()
         )

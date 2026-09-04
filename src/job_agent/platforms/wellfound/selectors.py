@@ -30,15 +30,11 @@ class WellfoundSelectors(PlatformSelectors):
     )
 
     # -- Navigate to job (wait selector) --
-    detail_ready: str = (
-        '[data-test="job-description"], .job-description, .description'
-    )
+    detail_ready: str = '[data-test="job-description"], .job-description, .description'
 
     # -- Applicator --
     apply_button: str = (
-        'button:has-text("Apply"), '
-        'a:has-text("Apply Now"), '
-        '[data-test="apply-button"]'
+        'button:has-text("Apply"), a:has-text("Apply Now"), [data-test="apply-button"]'
     )
     submit_button: str = (
         'button:has-text("Submit Application"), '

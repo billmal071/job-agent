@@ -14,12 +14,48 @@ from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
 
-_NOISE_WORDS = frozenset({
-    "a", "an", "the", "and", "or", "of", "in", "to", "for", "with", "at",
-    "on", "is", "are", "was", "we", "our", "you", "your", "i", "ii", "iii",
-    "iv", "v", "sr", "jr", "level", "role", "position", "job", "remote",
-    "hybrid", "onsite", "full", "time", "part", "contract", "temporary",
-})
+_NOISE_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "of",
+        "in",
+        "to",
+        "for",
+        "with",
+        "at",
+        "on",
+        "is",
+        "are",
+        "was",
+        "we",
+        "our",
+        "you",
+        "your",
+        "i",
+        "ii",
+        "iii",
+        "iv",
+        "v",
+        "sr",
+        "jr",
+        "level",
+        "role",
+        "position",
+        "job",
+        "remote",
+        "hybrid",
+        "onsite",
+        "full",
+        "time",
+        "part",
+        "contract",
+        "temporary",
+    }
+)
 
 
 @dataclass
@@ -114,8 +150,10 @@ class JobMatcher:
         all_skills = skills_config.get("required", []) + skills_config.get(
             "preferred", []
         )
-        if all_skills and job.description and not self._has_skill_overlap(
-            job.description, all_skills
+        if (
+            all_skills
+            and job.description
+            and not self._has_skill_overlap(job.description, all_skills)
         ):
             log.info(
                 "prefilter_skill_skip",
