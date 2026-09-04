@@ -30,10 +30,10 @@ class ZipRecruiterApplicator(BaseApplicator):
         apply_btn.click()
         human_delay(2000, 4000)
 
-        # Check for external ATS redirect
+        # ZipRecruiter may redirect to a company ATS — hand off to external handler
         if "ziprecruiter.com" not in self.page.url:
             log.info("external_ats_redirect", url=self.page.url)
-            return False
+            return self._apply_via_external_ats(job, resume_path, cover_letter_path)
 
         return self._process_apply(resume_path)
 

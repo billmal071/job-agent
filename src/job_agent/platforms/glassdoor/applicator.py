@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from job_agent.ai.screening import ScreeningAnswerer
 from job_agent.browser.humanizer import human_delay
 from job_agent.platforms.base import JobPosting
 from job_agent.platforms.base_applicator import BaseApplicator
-from job_agent.platforms.external_ats import ExternalATSApplicator
 from job_agent.platforms.glassdoor.selectors import SELECTORS
 from job_agent.utils.logging import get_logger
 
@@ -15,18 +13,6 @@ log = get_logger(__name__)
 
 class GlassdoorApplicator(BaseApplicator):
     """Handles Glassdoor job application submission."""
-
-    _answerer: ScreeningAnswerer | None = None
-
-    def _get_answerer(self) -> ScreeningAnswerer | None:
-        if self._answerer:
-            return self._answerer
-        if not self._ai_client or not self._profile:
-            return None
-        summary = self._build_candidate_summary(self._profile)
-        salary = str(self._profile.get("search", {}).get("salary_minimum", ""))
-        self._answerer = ScreeningAnswerer(self._ai_client, summary, salary)
-        return self._answerer
 
     def _do_apply(
         self,
@@ -47,8 +33,7 @@ class GlassdoorApplicator(BaseApplicator):
         # Glassdoor redirects to company ATS — hand off to external handler
         if "glassdoor.com" not in self.page.url:
             log.info("external_ats_redirect", url=self.page.url)
-            ats_applicator = ExternalATSApplicator(self.page, self._get_answerer())
-            return ats_applicator.apply(job, resume_path, cover_letter_path)
+            return self._apply_via_external_ats(job, resume_path, cover_letter_path)
 
         # Handle Glassdoor's native apply flow
         self._upload_resume(resume_path)

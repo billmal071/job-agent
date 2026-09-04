@@ -17,7 +17,7 @@ from job_agent.utils.rate_limiter import RateLimiter
 
 if TYPE_CHECKING:
     from job_agent.ai.client import AIClient
-    from job_agent.ai.screening import FieldAnswer, FormField
+    from job_agent.ai.screening import FieldAnswer, FormField, ScreeningAnswerer
 
 log = get_logger(__name__)
 
@@ -52,6 +52,7 @@ class BaseApplicator(ABC):
         self.settings = settings
         self._ai_client = ai_client
         self._profile = profile
+        self._answerer: "ScreeningAnswerer | None" = None
 
     # ------------------------------------------------------------------
     # Public entry point (template method)
@@ -128,6 +129,36 @@ class BaseApplicator(ABC):
     # ------------------------------------------------------------------
     # Shared helpers
     # ------------------------------------------------------------------
+
+    def _get_answerer(self) -> "ScreeningAnswerer | None":
+        """Create a ScreeningAnswerer from AI client and profile, if available."""
+        if self._answerer:
+            return self._answerer
+        if not self._ai_client or not self._profile:
+            return None
+        from job_agent.ai.screening import ScreeningAnswerer
+
+        summary = self._build_candidate_summary(self._profile)
+        salary = str(self._profile.get("search", {}).get("salary_minimum", ""))
+        self._answerer = ScreeningAnswerer(self._ai_client, summary, salary)
+        return self._answerer
+
+    def _apply_via_external_ats(
+        self,
+        job: JobPosting,
+        resume_path: str,
+        cover_letter_path: str = "",
+        page: Page | None = None,
+    ) -> bool:
+        """Delegate an external-ATS redirect to :class:`ExternalATSApplicator`.
+
+        *page* defaults to ``self.page``; pass a different page when the
+        redirect opened a new tab.
+        """
+        from job_agent.platforms.external_ats import ExternalATSApplicator
+
+        ats = ExternalATSApplicator(page or self.page, self._get_answerer())
+        return ats.apply(job, resume_path, cover_letter_path)
 
     def _upload_resume(self, resume_path: str) -> None:
         """Upload a resume via the first visible file input."""

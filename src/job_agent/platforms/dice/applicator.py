@@ -37,10 +37,10 @@ class DiceApplicator(BaseApplicator):
         apply_btn.click()
         human_delay(2000, 4000)
 
-        # Many Dice jobs redirect to external ATS
+        # Many Dice jobs redirect to external ATS — hand off to external handler
         if "dice.com" not in self.page.url:
             log.info("external_ats_redirect", url=self.page.url)
-            return False
+            return self._apply_via_external_ats(job, resume_path, cover_letter_path)
 
         return self._process_dice_apply(resume_path)
 
