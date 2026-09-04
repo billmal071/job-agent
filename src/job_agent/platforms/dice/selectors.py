@@ -21,9 +21,7 @@ class DiceSelectors(PlatformSelectors):
         "[data-cy='search-result-location'], .card-location, .job-location"
     )
     job_url: str = "a.card-title-link, [data-cy='card-title'] a, .card-title a"
-    job_salary: str = (
-        "[data-cy='search-result-salary'], .card-salary, .compensation"
-    )
+    job_salary: str = "[data-cy='search-result-salary'], .card-salary, .compensation"
     easy_apply_badge: str = (
         "[data-cy='easy-apply-badge'], .easy-apply-badge, :text('Easy Apply')"
     )
@@ -32,9 +30,7 @@ class DiceSelectors(PlatformSelectors):
     )
 
     # -- Discovery: job detail page --
-    detail_title: str = (
-        "h1[data-cy='jobTitle'], h1.job-title, [data-testid='jobTitle']"
-    )
+    detail_title: str = "h1[data-cy='jobTitle'], h1.job-title, [data-testid='jobTitle']"
     detail_company: str = (
         "a[data-cy='companyNameLink'], .company-name, [data-testid='companyName']"
     )

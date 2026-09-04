@@ -67,8 +67,8 @@ class LinkedInApplicator(BaseApplicator):
         # Public view uses a contextual-sign-in-modal with a visible dismiss button
         close_btn = self.page.locator(
             'button[aria-label="Dismiss"], '
-            'button.contextual-sign-in-modal__modal-dismiss, '
-            'button.modal__dismiss'
+            "button.contextual-sign-in-modal__modal-dismiss, "
+            "button.modal__dismiss"
         )
         for i in range(close_btn.count()):
             try:

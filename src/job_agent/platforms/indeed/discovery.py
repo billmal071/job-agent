@@ -109,9 +109,7 @@ class IndeedDiscovery:
                 )
 
                 # Check for Easy Apply / Indeed Apply badge
-                easy_apply = (
-                    card.locator(SELECTORS.easy_apply_badge).count() > 0
-                )
+                easy_apply = card.locator(SELECTORS.easy_apply_badge).count() > 0
 
                 jobs.append(
                     JobPosting(
