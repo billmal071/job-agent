@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 
 from flask import Flask, jsonify
 
@@ -68,7 +69,11 @@ def create_app(settings: Settings | None = None) -> Flask:
     # Health check
     @app.route("/health")
     def health():
-        return jsonify({"status": "ok", "version": "0.2.0"})
+        try:
+            app_version = version("job-agent")
+        except PackageNotFoundError:
+            app_version = "unknown"
+        return jsonify({"status": "ok", "version": app_version})
 
     # Teardown session
     @app.teardown_appcontext

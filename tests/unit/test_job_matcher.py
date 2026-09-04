@@ -127,6 +127,7 @@ def test_prefilter_no_keywords_skips_title_check():
     result = matcher.match(posting, profile)
 
     assert mock_ai.complete.called
+    assert result.score == 0.6
 
 
 def test_match_calls_ai():
