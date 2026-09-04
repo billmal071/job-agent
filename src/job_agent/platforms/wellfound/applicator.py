@@ -34,8 +34,16 @@ class WellfoundApplicator(BaseApplicator):
             log.warning("no_apply_button", job_id=job.external_id)
             return False
 
-        apply_btn.click()
+        pages_before = list(self.page.context.pages)
+        self._click_and_wait_for_popup(apply_btn)
         human_delay(2000, 4000)
+
+        # Some Wellfound jobs redirect to a company ATS — hand off to external handler
+        delegated = self._delegate_external_redirect(
+            "wellfound.com", job, resume_path, cover_letter_path, pages_before
+        )
+        if delegated is not None:
+            return delegated
 
         return self._process_wellfound_apply(resume_path)
 

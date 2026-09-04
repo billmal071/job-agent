@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from job_agent.ai.screening import FormField, ScreeningAnswerer
+from job_agent.ai.screening import FormField
 from job_agent.browser.humanizer import human_delay
 from job_agent.platforms.base import JobPosting
 from job_agent.platforms.base_applicator import BaseApplicator
@@ -14,19 +14,6 @@ log = get_logger(__name__)
 
 class IndeedApplicator(BaseApplicator):
     """Handles Indeed job application submission."""
-
-    _answerer: ScreeningAnswerer | None = None
-
-    def _get_answerer(self) -> ScreeningAnswerer | None:
-        """Create a ScreeningAnswerer from AI client and profile, if available."""
-        if self._answerer:
-            return self._answerer
-        if not self._ai_client or not self._profile:
-            return None
-        summary = self._build_candidate_summary(self._profile)
-        salary = str(self._profile.get("search", {}).get("salary_minimum", ""))
-        self._answerer = ScreeningAnswerer(self._ai_client, summary, salary)
-        return self._answerer
 
     def _do_apply(
         self,

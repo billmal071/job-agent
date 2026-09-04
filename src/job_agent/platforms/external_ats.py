@@ -15,6 +15,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from urllib.parse import urlparse
 
 from playwright.sync_api import Page
 
@@ -98,10 +99,26 @@ class ExternalATSApplicator:
         """Attempt to fill and submit the external ATS application."""
         url = self.page.url
         # If still on the job board (not redirected), skip
+        job_board_domains = (
+            "indeed.com",
+            "glassdoor.com",
+            "linkedin.com",
+            "ziprecruiter.com",
+            "dice.com",
+            "wellfound.com",
+        )
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").rstrip(".").lower()
         if any(
-            domain in url for domain in ("indeed.com", "glassdoor.com", "linkedin.com")
+            host == domain or host.endswith(f".{domain}")
+            for domain in job_board_domains
         ):
             log.warning("still_on_job_board", url=url)
+            return False
+
+        # Never submit application data over an unencrypted connection
+        if parsed.scheme != "https":
+            log.warning("external_ats_insecure_url", url=url)
             return False
 
         # Check for email-only apply page first

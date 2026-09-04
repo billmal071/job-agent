@@ -34,13 +34,16 @@ class DiceApplicator(BaseApplicator):
             log.warning("no_apply_button", job_id=job.external_id)
             return False
 
-        apply_btn.click()
+        pages_before = list(self.page.context.pages)
+        self._click_and_wait_for_popup(apply_btn)
         human_delay(2000, 4000)
 
-        # Many Dice jobs redirect to external ATS
-        if "dice.com" not in self.page.url:
-            log.info("external_ats_redirect", url=self.page.url)
-            return False
+        # Many Dice jobs redirect to external ATS — hand off to external handler
+        delegated = self._delegate_external_redirect(
+            "dice.com", job, resume_path, cover_letter_path, pages_before
+        )
+        if delegated is not None:
+            return delegated
 
         return self._process_dice_apply(resume_path)
 

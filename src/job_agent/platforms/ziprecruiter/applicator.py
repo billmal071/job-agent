@@ -27,13 +27,16 @@ class ZipRecruiterApplicator(BaseApplicator):
             log.warning("no_apply_button", job_id=job.external_id)
             return False
 
-        apply_btn.click()
+        pages_before = list(self.page.context.pages)
+        self._click_and_wait_for_popup(apply_btn)
         human_delay(2000, 4000)
 
-        # Check for external ATS redirect
-        if "ziprecruiter.com" not in self.page.url:
-            log.info("external_ats_redirect", url=self.page.url)
-            return False
+        # ZipRecruiter may redirect to a company ATS — hand off to external handler
+        delegated = self._delegate_external_redirect(
+            "ziprecruiter.com", job, resume_path, cover_letter_path, pages_before
+        )
+        if delegated is not None:
+            return delegated
 
         return self._process_apply(resume_path)
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting
@@ -99,6 +99,30 @@ def test_apply_still_on_job_board():
     applicator = ExternalATSApplicator(page=page, answerer=None)
     job = _make_job()
     result = applicator.apply(job, resume_path="/tmp/resume.pdf")
+    assert result is False
+
+
+def test_apply_still_on_job_board_trailing_dot_hostname():
+    """A trailing-dot FQDN must still be recognised as the job board."""
+    page = _make_page(url="https://www.indeed.com./viewjob?jk=abc123")
+    applicator = ExternalATSApplicator(page=page, answerer=None)
+    result = applicator.apply(_make_job(), resume_path="/tmp/resume.pdf")
+    assert result is False
+
+
+def test_apply_ignores_job_board_domain_in_query_string():
+    """A board domain in a tracking param must not trip the job-board guard."""
+    page = _make_page(url="https://careers.example.com/apply?source=indeed.com")
+    applicator = ExternalATSApplicator(page=page, answerer=None)
+    with patch.object(applicator, "_apply_generic", return_value=True):
+        result = applicator.apply(_make_job(), resume_path="/tmp/resume.pdf")
+    assert result is True
+
+
+def test_apply_rejects_insecure_http_page():
+    page = _make_page(url="http://careers.example.com/apply")
+    applicator = ExternalATSApplicator(page=page, answerer=None)
+    result = applicator.apply(_make_job(), resume_path="/tmp/resume.pdf")
     assert result is False
 
 
