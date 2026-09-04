@@ -217,6 +217,35 @@ class TestExternalATSDelegation:
                 applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
         assert applicator._is_retryable_error(err) is True
 
+    def test_click_does_not_wait_for_navigation(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        """The Apply click must not wait for navigation, so a TimeoutError can
+        only mean the click was never dispatched (no double-submit on retry)."""
+        _, _, _, _, page = self._run_do_apply(
+            cls, platform, module, settings, mock_rate_limiter
+        )
+        page.locator.return_value.first.click.assert_called_once_with(
+            no_wait_after=True
+        )
+
+    def test_navigation_timeout_after_dispatch_does_not_raise(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        """A timeout AFTER the click was dispatched (popup/navigation wait) must
+        not propagate — re-raising would retry the click and double-submit."""
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        waiter = MagicMock()
+        waiter.__enter__ = MagicMock(return_value=waiter)
+        waiter.__exit__ = MagicMock(
+            side_effect=PlaywrightTimeoutError("Timeout 5000ms exceeded")
+        )
+        page.context.expect_page.return_value = waiter
+        applicator = cls(page, mock_rate_limiter, settings)
+        button = MagicMock()
+        applicator._click_and_wait_for_popup(button)  # must not raise
+        button.click.assert_called_once()
+
     def test_popup_wait_timeout_alone_continues_native_flow(
         self, cls, platform, module, settings, mock_rate_limiter
     ):
@@ -232,12 +261,16 @@ class TestExternalATSDelegation:
         job = _make_job(platform)
         with (
             patch(f"{module}.human_delay"),
+            patch.object(cls, "_upload_resume") as mock_upload,
             patch(
                 "job_agent.platforms.external_ats.ExternalATSApplicator"
             ) as mock_ats_cls,
         ):
             applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
         mock_ats_cls.assert_not_called()
+        # The platform's native flow actually ran (every native flow uploads
+        # the resume), rather than silently doing nothing.
+        mock_upload.assert_called_once_with("/r.pdf")
 
     def test_delegates_when_popup_opens_after_click_returns(
         self, cls, platform, module, settings, mock_rate_limiter

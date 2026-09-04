@@ -192,11 +192,16 @@ class BaseApplicator(ABC):
         clicked = False
         try:
             with self.page.context.expect_page(timeout=timeout_ms):
-                button.click()
+                # no_wait_after: do not wait for any navigation the click
+                # starts, so a TimeoutError here can only mean the click was
+                # never dispatched — re-raising it for retry cannot cause a
+                # double submission. Navigation settling is handled by the
+                # page waiter, the post-click delay, and _wait_for_page_url.
+                button.click(no_wait_after=True)
                 clicked = True
         except PlaywrightTimeoutError:
             if not clicked:
-                raise  # The click itself timed out — surface it for retry
+                raise  # The click was never dispatched — surface it for retry
             # No popup opened — same-tab redirect or native flow
 
     @staticmethod
