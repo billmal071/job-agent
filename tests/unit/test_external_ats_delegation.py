@@ -7,7 +7,7 @@ ExternalATSApplicator instead of failing the application.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -76,6 +76,23 @@ def _click_opens(page: MagicMock, *tabs: MagicMock) -> None:
     page.locator.return_value.first.click.side_effect = lambda *a, **kw: (
         page.context.pages.extend(tabs)
     )
+
+
+def _popup_arrives_during_wait(page: MagicMock, *tabs: MagicMock) -> None:
+    """Deliver *tabs* only when the pre-click page waiter completes.
+
+    Simulates a popup that opens after ``click()`` returns: the click itself
+    adds nothing; the ``context.expect_page`` waiter picks it up.
+    """
+    waiter = MagicMock()
+
+    def _exit(*args, **kwargs):
+        page.context.pages.extend(tabs)
+        return False
+
+    waiter.__enter__ = MagicMock(return_value=waiter)
+    waiter.__exit__ = MagicMock(side_effect=_exit)
+    page.context.expect_page.return_value = waiter
 
 
 @pytest.mark.parametrize("cls,platform,module", _CASES)
@@ -184,6 +201,68 @@ class TestExternalATSDelegation:
             with pytest.raises(RuntimeError):
                 applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
         popup.close.assert_called_once()
+
+    def test_delegates_when_popup_opens_after_click_returns(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        """The pre-click waiter catches a popup created after click() returns."""
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        popup = _external_tab()
+        _popup_arrives_during_wait(page, popup)
+        applicator = cls(page, mock_rate_limiter, settings)
+        job = _make_job(platform)
+        with (
+            patch(f"{module}.human_delay"),
+            patch(
+                "job_agent.platforms.external_ats.ExternalATSApplicator"
+            ) as mock_ats_cls,
+        ):
+            mock_ats_cls.return_value.apply.return_value = True
+            result = applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
+        assert result is True
+        assert mock_ats_cls.call_args.args[0] is popup
+        popup.close.assert_called_once()
+
+    def test_waits_for_blank_popup_to_navigate(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        """A popup still at about:blank is given time to reach its real URL."""
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        popup = _external_tab()
+        urls = iter(["about:blank", "about:blank", EXTERNAL_URL])
+        type(popup).url = PropertyMock(side_effect=lambda: next(urls, EXTERNAL_URL))
+        _click_opens(page, popup)
+        applicator = cls(page, mock_rate_limiter, settings)
+        job = _make_job(platform)
+        with (
+            patch(f"{module}.human_delay"),
+            patch(
+                "job_agent.platforms.external_ats.ExternalATSApplicator"
+            ) as mock_ats_cls,
+        ):
+            mock_ats_cls.return_value.apply.return_value = True
+            result = applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
+        assert result is True
+        assert mock_ats_cls.call_args.args[0] is popup
+        popup.close.assert_called_once()
+
+    def test_blank_popup_that_never_navigates_falls_back_to_native_flow(
+        self, cls, platform, module, settings, mock_rate_limiter
+    ):
+        page = _page_redirected_to(f"https://www.{platform.value}.com/job/1")
+        popup = _external_tab("about:blank")
+        _click_opens(page, popup)
+        applicator = cls(page, mock_rate_limiter, settings)
+        job = _make_job(platform)
+        with (
+            patch(f"{module}.human_delay"),
+            patch.object(cls, "_wait_for_page_url", return_value="about:blank"),
+            patch(
+                "job_agent.platforms.external_ats.ExternalATSApplicator"
+            ) as mock_ats_cls,
+        ):
+            applicator._do_apply(job, "/r.pdf", "/cl.pdf", None)
+        mock_ats_cls.assert_not_called()
 
     def test_ignores_stale_external_tab_when_no_redirect(
         self, cls, platform, module, settings, mock_rate_limiter

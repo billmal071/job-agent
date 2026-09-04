@@ -35,7 +35,7 @@ class DiceApplicator(BaseApplicator):
             return False
 
         pages_before = list(self.page.context.pages)
-        apply_btn.click()
+        self._click_and_wait_for_popup(apply_btn)
         human_delay(2000, 4000)
 
         # Many Dice jobs redirect to external ATS — hand off to external handler

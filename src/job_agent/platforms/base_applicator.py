@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from job_agent.browser.humanizer import human_delay
 from job_agent.config import Settings
@@ -21,6 +22,9 @@ if TYPE_CHECKING:
     from job_agent.ai.screening import FieldAnswer, FormField, ScreeningAnswerer
 
 log = get_logger(__name__)
+
+# URLs of pages that have not navigated anywhere yet
+_BLANK_URLS = ("", "about:blank")
 
 # Error patterns that are worth retrying (transient)
 _RETRYABLE_PATTERNS = (
@@ -168,11 +172,43 @@ class BaseApplicator(ABC):
                 continue
             if any(candidate is known for known in pages_before):
                 continue
-            if not self._is_on_domain(candidate.url, platform_domain):
+            url = self._wait_for_page_url(candidate)
+            if url in _BLANK_URLS:
+                continue  # Popup never navigated — not a usable redirect
+            if not self._is_on_domain(url, platform_domain):
                 return candidate
         if not self._is_on_domain(self.page.url, platform_domain):
             return self.page
         return None
+
+    def _click_and_wait_for_popup(self, button, timeout_ms: int = 5000) -> None:
+        """Click *button* with a page waiter registered before the click.
+
+        Some boards open the company ATS in a popup shortly after the click;
+        a fixed post-click delay can expire before it appears. The waiter is
+        armed first so the popup is never missed. Silently continues when no
+        popup opens (same-tab redirects and native flows).
+        """
+        try:
+            with self.page.context.expect_page(timeout=timeout_ms):
+                button.click()
+        except PlaywrightTimeoutError:
+            pass  # No popup opened — same-tab redirect or native flow
+
+    @staticmethod
+    def _wait_for_page_url(page: Page, timeout_ms: int = 10000) -> str:
+        """Wait for a newly opened page to navigate away from about:blank.
+
+        A popup created by clicking Apply may still be loading when we
+        inspect it; classifying it while blank would misroute the flow.
+        Returns the page's URL (possibly still blank after the timeout).
+        """
+        deadline = time.monotonic() + timeout_ms / 1000
+        url = page.url
+        while url in _BLANK_URLS and time.monotonic() < deadline:
+            time.sleep(0.25)
+            url = page.url
+        return url
 
     def _delegate_external_redirect(
         self,
