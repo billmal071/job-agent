@@ -98,7 +98,9 @@ def cmd_run(
     init_db(settings)
     engine = OrchestratorEngine(settings)
     if once:
-        engine.run_once(profile_path=profile, platform=platform, skip_activity_check=True)
+        engine.run_once(
+            profile_path=profile, platform=platform, skip_activity_check=True
+        )
     else:
         engine.start(profile_path=profile, platform=platform)
 

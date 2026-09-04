@@ -26,9 +26,14 @@ class BrowserManager:
         self.settings = settings
         self._use_cdp = use_cdp
         self._use_camoufox = (
-            use_camoufox if use_camoufox is not None
-            else settings.browser.use_camoufox
-        ) if not use_cdp else False
+            (
+                use_camoufox
+                if use_camoufox is not None
+                else settings.browser.use_camoufox
+            )
+            if not use_cdp
+            else False
+        )
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
         self._camoufox_ctx = None  # Camoufox context manager

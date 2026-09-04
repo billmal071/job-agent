@@ -40,7 +40,9 @@ class GlassdoorDriver(PlatformDriver):
             self._page = self.browser.find_cdp_page("glassdoor.com")
             if not self._page:
                 self._page = context.new_page()
-                self._page.goto("https://www.glassdoor.com", wait_until="domcontentloaded")
+                self._page.goto(
+                    "https://www.glassdoor.com", wait_until="domcontentloaded"
+                )
             log.info("glassdoor_cdp_session")
         else:
             auth = AuthManager(context)

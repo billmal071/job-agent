@@ -37,9 +37,7 @@ from job_agent.utils.logging import bind_contextvars, get_logger
 log = get_logger(__name__)
 
 
-def _resolve_browser_opts(
-    platform_name: str, settings: Settings
-) -> dict:
+def _resolve_browser_opts(platform_name: str, settings: Settings) -> dict:
     """Resolve per-platform browser options (use_camoufox, use_cdp)."""
     plat_cfg = getattr(settings.platforms, platform_name, None)
     opts: dict = {}
@@ -420,7 +418,8 @@ def run_pipeline(
                         log.info(
                             "match_quota_reached",
                             limit=match_cap,
-                            remaining_jobs=len(postings_with_flags) - stats["discovered"],
+                            remaining_jobs=len(postings_with_flags)
+                            - stats["discovered"],
                         )
                         job.status = JobStatus.DISCOVERED
                         session.commit()

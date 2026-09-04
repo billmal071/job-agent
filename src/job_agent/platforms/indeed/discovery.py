@@ -75,9 +75,7 @@ class IndeedDiscovery:
         except Exception:
             screenshot_path = Path("~/.job-agent/screenshots").expanduser()
             screenshot_path.mkdir(parents=True, exist_ok=True)
-            self.page.screenshot(
-                path=str(screenshot_path / "indeed_no_results.png")
-            )
+            self.page.screenshot(path=str(screenshot_path / "indeed_no_results.png"))
             log.warning(
                 "indeed_no_job_cards",
                 url=self.page.url,
@@ -163,7 +161,8 @@ class IndeedDiscovery:
         """Wait for Cloudflare/CAPTCHA challenges to be solved manually."""
         challenge_detected = (
             self.page.locator('iframe[src*="challenges.cloudflare"]').count() > 0
-            or self.page.locator(':text("Additional Verification Required")').count() > 0
+            or self.page.locator(':text("Additional Verification Required")').count()
+            > 0
             or self.page.locator(':text("Verify you are human")').count() > 0
             or self.page.locator(':text("just a moment")').count() > 0
             or "challenge" in self.page.url
@@ -173,9 +172,7 @@ class IndeedDiscovery:
 
         log.warning("indeed_challenge_detected", url=self.page.url)
         try:
-            self.page.wait_for_selector(
-                SELECTORS.job_card, timeout=120000
-            )
+            self.page.wait_for_selector(SELECTORS.job_card, timeout=120000)
             log.info("indeed_challenge_resolved")
             human_delay(2000, 4000)
         except Exception:
