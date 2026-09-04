@@ -34,9 +34,15 @@
                 <tbody>
                     {% for app in applications %}
                     <tr id="app-row-{{ app.id }}">
+                        {% if app.job %}
                         <td><a href="/jobs/{{ app.job.id }}" style="font-weight: 600;">{{ app.job.title }}</a></td>
                         <td>{{ app.job.company }}</td>
                         <td><span class="badge badge-neutral">{{ app.job.platform.value }}</span></td>
+                        {% else %}
+                        <td class="text-muted">(job deleted)</td>
+                        <td class="text-muted">--</td>
+                        <td class="text-muted">--</td>
+                        {% endif %}
                         <td>
                             {% set status_map = {
                                 'pending': 'badge-amber',

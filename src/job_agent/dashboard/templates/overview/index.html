@@ -110,7 +110,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for app in followups %}
+                    {% for app in followups if app.job %}
                     <tr class="row-link" onclick="window.location='/jobs/{{ app.job.id }}'">
                         <td style="font-weight: 600;">{{ app.job.title }}</td>
                         <td>{{ app.job.company }}</td>
