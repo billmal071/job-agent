@@ -6,6 +6,7 @@ import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from playwright.sync_api import Page
 
@@ -139,9 +140,55 @@ class BaseApplicator(ABC):
         from job_agent.ai.screening import ScreeningAnswerer
 
         summary = self._build_candidate_summary(self._profile)
-        salary = str(self._profile.get("search", {}).get("salary_minimum", ""))
+        search = self._profile.get("search") or {}
+        salary = str(search.get("salary_minimum", ""))
         self._answerer = ScreeningAnswerer(self._ai_client, summary, salary)
         return self._answerer
+
+    @staticmethod
+    def _is_on_domain(url: str, domain: str) -> bool:
+        """Return True if *url*'s hostname is *domain* or a subdomain of it."""
+        host = (urlparse(url).hostname or "").rstrip(".").lower()
+        return host == domain or host.endswith(f".{domain}")
+
+    def _find_external_redirect(self, platform_domain: str) -> Page | None:
+        """Return the page showing an external-ATS redirect, or None.
+
+        Checks the newest tab in the context first (some boards open the
+        company ATS in a popup), then the current page. Callers should close
+        the returned page after use when it is not ``self.page``.
+        """
+        pages = self.page.context.pages
+        if pages and pages[-1] is not self.page:
+            candidate = pages[-1]
+            if not self._is_on_domain(candidate.url, platform_domain):
+                return candidate
+        if not self._is_on_domain(self.page.url, platform_domain):
+            return self.page
+        return None
+
+    def _delegate_external_redirect(
+        self,
+        platform_domain: str,
+        job: JobPosting,
+        resume_path: str,
+        cover_letter_path: str,
+    ) -> bool | None:
+        """Delegate to the external ATS handler if a redirect is detected.
+
+        Returns the delegation result, or ``None`` when no redirect off
+        *platform_domain* is detected (caller should run its native flow).
+        """
+        redirect_page = self._find_external_redirect(platform_domain)
+        if redirect_page is None:
+            return None
+        log.info("external_ats_redirect", url=redirect_page.url)
+        result = self._apply_via_external_ats(
+            job, resume_path, cover_letter_path, page=redirect_page
+        )
+        if redirect_page is not self.page:
+            redirect_page.close()
+        return result
 
     def _apply_via_external_ats(
         self,
@@ -197,14 +244,14 @@ class BaseApplicator(ABC):
         parts: list[str] = []
         if name := profile.get("name"):
             parts.append(f"Target Role: {name}")
-        search = profile.get("search", {})
+        search = profile.get("search") or {}
         if exp := search.get("experience_level"):
             parts.append(f"Experience Level: {exp}")
         if locs := search.get("locations"):
             parts.append(f"Locations: {', '.join(locs)}")
         if remote := search.get("remote_preference"):
             parts.append(f"Remote Preference: {remote}")
-        skills = profile.get("skills", {})
+        skills = profile.get("skills") or {}
         if req := skills.get("required"):
             parts.append(f"Required Skills: {', '.join(req)}")
         if pref := skills.get("preferred"):

@@ -107,12 +107,18 @@ class ExternalATSApplicator:
             "dice.com",
             "wellfound.com",
         )
-        host = (urlparse(url).hostname or "").lower()
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").rstrip(".").lower()
         if any(
             host == domain or host.endswith(f".{domain}")
             for domain in job_board_domains
         ):
             log.warning("still_on_job_board", url=url)
+            return False
+
+        # Never submit application data over an unencrypted connection
+        if parsed.scheme != "https":
+            log.warning("external_ats_insecure_url", url=url)
             return False
 
         # Check for email-only apply page first

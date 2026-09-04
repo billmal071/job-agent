@@ -31,9 +31,11 @@ class GlassdoorApplicator(BaseApplicator):
         human_delay(2000, 4000)
 
         # Glassdoor redirects to company ATS — hand off to external handler
-        if "glassdoor.com" not in self.page.url:
-            log.info("external_ats_redirect", url=self.page.url)
-            return self._apply_via_external_ats(job, resume_path, cover_letter_path)
+        delegated = self._delegate_external_redirect(
+            "glassdoor.com", job, resume_path, cover_letter_path
+        )
+        if delegated is not None:
+            return delegated
 
         # Handle Glassdoor's native apply flow
         self._upload_resume(resume_path)
