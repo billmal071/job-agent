@@ -159,7 +159,7 @@ class LinkedInSelectors(PlatformSelectors):
         ".artdeco-modal__dismiss"
     )
     logged_in_indicators: str = (
-        ".global-nav__me, nav[aria-label=\"Primary\"], .feed-identity-module"
+        '.global-nav__me, nav[aria-label="Primary"], .feed-identity-module'
     )
     login_indicators: str = (
         'a[href*="/login"], '

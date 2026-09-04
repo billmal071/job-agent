@@ -66,9 +66,9 @@ class TestMatchJob:
         mock_score.score = 85.0
         mock_score.reasoning = "Good fit"
         mock_score.matched_skills = '["Python"]'
-        mock_score.missing_skills = '[]'
+        mock_score.missing_skills = "[]"
         mock_score.role_fit = "strong"
-        mock_score.red_flags = '[]'
+        mock_score.red_flags = "[]"
         mock_matcher.match.return_value = mock_score
 
         profile = {"name": "Backend Engineer"}

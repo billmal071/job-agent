@@ -197,8 +197,7 @@ class AIClient:
                     if self._base_call_interval > 0:
                         self._min_call_interval = min(
                             15.0,
-                            self._base_call_interval
-                            + self._consecutive_429s * 2.0,
+                            self._base_call_interval + self._consecutive_429s * 2.0,
                         )
                     wait = 2 ** (attempt + 1)
                     log.warning(

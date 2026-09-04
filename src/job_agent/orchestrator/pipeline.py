@@ -115,7 +115,9 @@ def _discover_postings(
 
             for posting in postings:
                 key = (posting.external_id, posting.platform)
-                if key in seen_ids or job_repo.exists(posting.external_id, posting.platform):
+                if key in seen_ids or job_repo.exists(
+                    posting.external_id, posting.platform
+                ):
                     continue
                 seen_ids.add(key)
                 results.append((posting, not posting.description))
