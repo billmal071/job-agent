@@ -223,25 +223,46 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
+def _env_override_keys() -> set[str]:
+    """Collect env var names that should override YAML values.
+
+    Includes both the process environment and the ``.env`` file (which
+    pydantic-settings loads via ``env_file`` but which never reaches
+    ``os.environ``). Precedence between the two is left to pydantic,
+    which prefers the process environment over the dotenv source.
+    """
+    import os
+
+    from dotenv import dotenv_values
+
+    keys = {k for k, v in dotenv_values(".env").items() if v is not None}
+    keys.update(os.environ)
+    return keys
+
+
 def _strip_env_overridden_keys(
-    yaml_data: dict[str, Any], prefix: str = "JOB_AGENT_"
+    yaml_data: dict[str, Any],
+    prefix: str = "JOB_AGENT_",
+    env_keys: set[str] | None = None,
 ) -> dict[str, Any]:
     """Remove YAML keys that have a corresponding environment variable set.
 
-    This ensures env vars always take precedence over YAML values, since
-    Pydantic treats explicit kwargs as higher priority than env sources.
+    This ensures env vars (process environment or ``.env`` file) always take
+    precedence over YAML values, since Pydantic treats explicit kwargs as
+    higher priority than env sources.
     """
-    import os
+    if env_keys is None:
+        env_keys = _env_override_keys()
 
     result = {}
     for key, value in yaml_data.items():
         env_key = f"{prefix}{key.upper()}"
         if isinstance(value, dict):
             # Recurse into nested dicts with nested delimiter
-            nested = _strip_env_overridden_keys(value, f"{env_key}__")
+            nested = _strip_env_overridden_keys(value, f"{env_key}__", env_keys)
             if nested:
                 result[key] = nested
-        elif env_key not in os.environ:
+        elif env_key not in env_keys:
             result[key] = value
     return result
 

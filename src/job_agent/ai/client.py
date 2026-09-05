@@ -26,7 +26,7 @@ PROVIDER_OLLAMA = "ollama"
 DEFAULT_MODELS = {
     PROVIDER_ANTHROPIC: "claude-sonnet-4-20250514",
     PROVIDER_GEMINI: "gemini-2.0-flash",
-    PROVIDER_GROQ: "llama-3.3-70b-versatile",
+    PROVIDER_GROQ: "openai/gpt-oss-120b",
     PROVIDER_OPENROUTER: "google/gemini-2.0-flash-exp:free",
     PROVIDER_OLLAMA: "llama3.1",
 }
