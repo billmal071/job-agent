@@ -77,6 +77,70 @@ class TestLoadSettingsEnvOverride:
         assert settings.agent.activity_end_hour == 23
 
 
+class TestDotenvOverride:
+    """Values defined only in .env must override YAML, like process env vars."""
+
+    def _write_config(self, tmp_path):
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        (config_dir / "default.yaml").write_text(
+            textwrap.dedent("""\
+            matching:
+              model: ""
+            """)
+        )
+
+    def test_dotenv_only_value_overrides_yaml(self, tmp_path, monkeypatch):
+        self._write_config(tmp_path)
+        (tmp_path / ".env").write_text("JOB_AGENT_MATCHING__MODEL=from-dotenv\n")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("JOB_AGENT_MATCHING__MODEL", raising=False)
+
+        settings = load_settings()
+        assert settings.matching.model == "from-dotenv"
+
+    def test_process_env_wins_over_dotenv_and_yaml(self, tmp_path, monkeypatch):
+        self._write_config(tmp_path)
+        (tmp_path / ".env").write_text("JOB_AGENT_MATCHING__MODEL=from-dotenv\n")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("JOB_AGENT_MATCHING__MODEL", "from-process-env")
+
+        settings = load_settings()
+        assert settings.matching.model == "from-process-env"
+
+    def test_lowercase_dotenv_key_overrides_yaml(self, tmp_path, monkeypatch):
+        self._write_config(tmp_path)
+        (tmp_path / ".env").write_text("job_agent_matching__model=from-dotenv\n")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("JOB_AGENT_MATCHING__MODEL", raising=False)
+
+        settings = load_settings()
+        assert settings.matching.model == "from-dotenv"
+
+    def test_parent_json_env_overrides_yaml_section(self, tmp_path, monkeypatch):
+        self._write_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("JOB_AGENT_MATCHING", '{"model": "from-json-env"}')
+
+        settings = load_settings()
+        assert settings.matching.model == "from-json-env"
+
+    def test_missing_dotenv_file_keeps_yaml_value(self, tmp_path, monkeypatch):
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        (config_dir / "default.yaml").write_text(
+            textwrap.dedent("""\
+            matching:
+              model: "from-yaml"
+            """)
+        )
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("JOB_AGENT_MATCHING__MODEL", raising=False)
+
+        settings = load_settings()
+        assert settings.matching.model == "from-yaml"
+
+
 class TestNewConfigFields:
     def test_ollama_url_default(self):
         s = Settings()
