@@ -235,8 +235,8 @@ def _env_override_keys() -> set[str]:
 
     from dotenv import dotenv_values
 
-    keys = {k for k, v in dotenv_values(".env").items() if v is not None}
-    keys.update(os.environ)
+    keys = {k.upper() for k, v in dotenv_values(".env").items() if v is not None}
+    keys.update(k.upper() for k in os.environ)
     return keys
 
 
@@ -257,12 +257,15 @@ def _strip_env_overridden_keys(
     result = {}
     for key, value in yaml_data.items():
         env_key = f"{prefix}{key.upper()}"
+        if env_key in env_keys:
+            # Whole section overridden (e.g. JSON value for a nested model)
+            continue
         if isinstance(value, dict):
             # Recurse into nested dicts with nested delimiter
             nested = _strip_env_overridden_keys(value, f"{env_key}__", env_keys)
             if nested:
                 result[key] = nested
-        elif env_key not in env_keys:
+        else:
             result[key] = value
     return result
 

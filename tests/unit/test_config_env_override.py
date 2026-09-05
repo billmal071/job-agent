@@ -108,6 +108,23 @@ class TestDotenvOverride:
         settings = load_settings()
         assert settings.matching.model == "from-process-env"
 
+    def test_lowercase_dotenv_key_overrides_yaml(self, tmp_path, monkeypatch):
+        self._write_config(tmp_path)
+        (tmp_path / ".env").write_text("job_agent_matching__model=from-dotenv\n")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("JOB_AGENT_MATCHING__MODEL", raising=False)
+
+        settings = load_settings()
+        assert settings.matching.model == "from-dotenv"
+
+    def test_parent_json_env_overrides_yaml_section(self, tmp_path, monkeypatch):
+        self._write_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("JOB_AGENT_MATCHING", '{"model": "from-json-env"}')
+
+        settings = load_settings()
+        assert settings.matching.model == "from-json-env"
+
     def test_missing_dotenv_file_keeps_yaml_value(self, tmp_path, monkeypatch):
         config_dir = tmp_path / "config"
         config_dir.mkdir()
