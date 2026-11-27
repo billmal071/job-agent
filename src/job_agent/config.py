@@ -225,30 +225,40 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
 
 def _strip_env_overridden_keys(
-    yaml_data: dict[str, Any], prefix: str = "JOB_AGENT_"
+    yaml_data: dict[str, Any],
+    override_keys: set[str] | None = None,
+    prefix: str = "JOB_AGENT_",
 ) -> dict[str, Any]:
-    """Remove YAML keys that have a corresponding environment variable set.
+    """Remove YAML keys that have a corresponding env var or .env entry set.
 
-    This ensures env vars always take precedence over YAML values, since
-    Pydantic treats explicit kwargs as higher priority than env sources.
+    This ensures env vars and .env file values always take precedence over
+    YAML values, since Pydantic treats explicit kwargs as higher priority
+    than its env/.env sources.
     """
     import os
+
+    if override_keys is None:
+        override_keys = set(os.environ)
 
     result = {}
     for key, value in yaml_data.items():
         env_key = f"{prefix}{key.upper()}"
         if isinstance(value, dict):
             # Recurse into nested dicts with nested delimiter
-            nested = _strip_env_overridden_keys(value, f"{env_key}__")
+            nested = _strip_env_overridden_keys(value, override_keys, f"{env_key}__")
             if nested:
                 result[key] = nested
-        elif env_key not in os.environ:
+        elif env_key not in override_keys:
             result[key] = value
     return result
 
 
 def load_settings(config_path: str | Path | None = None) -> Settings:
     """Load settings from YAML config file, with env vars taking precedence."""
+    import os
+
+    from dotenv import dotenv_values
+
     yaml_data: dict[str, Any] = {}
 
     # Load default YAML
@@ -265,8 +275,10 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
                 override = yaml.safe_load(f) or {}
             yaml_data = _deep_merge(yaml_data, override)
 
-    # Strip keys that have env var overrides so Pydantic uses the env value
-    yaml_data = _strip_env_overridden_keys(yaml_data)
+    # Strip keys that have process env or .env overrides so Pydantic uses
+    # those values (which already take precedence over YAML in that order)
+    override_keys = set(os.environ) | set(dotenv_values(".env"))
+    yaml_data = _strip_env_overridden_keys(yaml_data, override_keys)
 
     return Settings(**yaml_data)
 

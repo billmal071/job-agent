@@ -205,8 +205,9 @@ def test_bulk_reject_selected_jobs():
     reset_engine()
 
 
-def test_create_app_generates_random_secret_for_default_key():
+def test_create_app_generates_random_secret_for_default_key(monkeypatch):
     """A 'change-me' flask_secret_key must not be used as-is in production."""
+    monkeypatch.delenv("JOB_AGENT_FLASK_SECRET_KEY", raising=False)
     settings = Settings(
         _env_file=None,
         anthropic_api_key="test-key",
