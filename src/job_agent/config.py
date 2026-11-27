@@ -239,6 +239,7 @@ def _strip_env_overridden_keys(
 
     if override_keys is None:
         override_keys = set(os.environ)
+    override_keys = {k.upper() for k in override_keys}
 
     result = {}
     for key, value in yaml_data.items():
@@ -277,7 +278,8 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
 
     # Strip keys that have process env or .env overrides so Pydantic uses
     # those values (which already take precedence over YAML in that order)
-    override_keys = set(os.environ) | set(dotenv_values(".env"))
+    dotenv_overrides = {k for k, v in dotenv_values(".env").items() if v is not None}
+    override_keys = set(os.environ) | dotenv_overrides
     yaml_data = _strip_env_overridden_keys(yaml_data, override_keys)
 
     return Settings(**yaml_data)
