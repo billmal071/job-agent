@@ -170,7 +170,7 @@ def cmd_dashboard(ctx: click.Context) -> None:
     app.run(
         host=settings.dashboard.host,
         port=settings.dashboard.port,
-        debug=True,
+        debug=settings.dashboard.debug,
     )
 
 

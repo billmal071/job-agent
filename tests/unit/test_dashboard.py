@@ -205,6 +205,25 @@ def test_bulk_reject_selected_jobs():
     reset_engine()
 
 
+def test_create_app_generates_random_secret_for_default_key():
+    """A 'change-me' flask_secret_key must not be used as-is in production."""
+    settings = Settings(
+        _env_file=None,
+        anthropic_api_key="test-key",
+        database_url="sqlite:///:memory:",
+    )
+    assert settings.flask_secret_key == "change-me"
+    reset_engine()
+    get_engine(settings)
+    Base.metadata.create_all(get_engine(settings))
+
+    app = create_app(settings)
+    assert app.config["SECRET_KEY"] != "change-me"
+    assert len(app.config["SECRET_KEY"]) >= 32
+
+    reset_engine()
+
+
 def test_bulk_action_invalid_action():
     """Bulk action with invalid action returns 400."""
     reset_engine()

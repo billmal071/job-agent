@@ -136,6 +136,7 @@ class NotificationsConfig(BaseModel):
 class DashboardConfig(BaseModel):
     host: str = "127.0.0.1"
     port: int = 5000
+    debug: bool = False
 
 
 class Settings(BaseSettings):
