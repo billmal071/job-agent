@@ -67,7 +67,9 @@ class TestLoadSettingsDotenvNoneValues:
                 return_value={"JOB_AGENT_FLASK_SECRET_KEY": None},
             ),
         ):
-            env = {k: v for k, v in os.environ.items() if k != "JOB_AGENT_FLASK_SECRET_KEY"}
+            env = {
+                k: v for k, v in os.environ.items() if k != "JOB_AGENT_FLASK_SECRET_KEY"
+            }
             with patch.dict(os.environ, env, clear=True):
                 mock_default = mock_path_cls.return_value
                 mock_default.exists.return_value = False
