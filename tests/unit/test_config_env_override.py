@@ -46,6 +46,38 @@ class TestStripEnvOverriddenKeys:
         assert "headless" not in result["browser"]
         assert result["browser"]["use_camoufox"] is True
 
+    def test_lowercase_override_key_still_strips_yaml_value(self):
+        yaml_data = {"dashboard": {"port": 5000, "host": "127.0.0.1"}}
+        result = _strip_env_overridden_keys(
+            yaml_data, override_keys={"job_agent_dashboard__port"}
+        )
+        assert "port" not in result["dashboard"]
+        assert result["dashboard"]["host"] == "127.0.0.1"
+
+
+class TestLoadSettingsDotenvNoneValues:
+    def test_bare_dotenv_key_without_value_does_not_strip_yaml(self, tmp_path):
+        yaml_file = tmp_path / "config.yaml"
+        yaml_file.write_text("flask_secret_key: from-yaml\n")
+        with (
+            patch.dict(os.environ, {}, clear=False),
+            patch("job_agent.config.Path") as mock_path_cls,
+            patch(
+                "dotenv.dotenv_values",
+                return_value={"JOB_AGENT_FLASK_SECRET_KEY": None},
+            ),
+        ):
+            env = {
+                k: v for k, v in os.environ.items() if k != "JOB_AGENT_FLASK_SECRET_KEY"
+            }
+            with patch.dict(os.environ, env, clear=True):
+                mock_default = mock_path_cls.return_value
+                mock_default.exists.return_value = False
+                mock_path_cls.side_effect = lambda x: Path(x)
+
+                settings = load_settings(str(yaml_file))
+        assert settings.flask_secret_key == "from-yaml"
+
 
 class TestLoadSettingsEnvOverride:
     def test_env_var_overrides_yaml(self, tmp_path):

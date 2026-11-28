@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+import secrets
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
 
 from flask import Flask, jsonify
 
 from job_agent.config import Settings
+from job_agent.utils.logging import get_logger
+
+log = get_logger(__name__)
 
 
 def create_app(settings: Settings | None = None) -> Flask:
@@ -23,7 +27,16 @@ def create_app(settings: Settings | None = None) -> Flask:
         template_folder="templates",
         static_folder="static",
     )
-    app.config["SECRET_KEY"] = settings.flask_secret_key
+    if settings.flask_secret_key == "change-me":
+        log.warning(
+            "flask_secret_key is the default 'change-me' value; generating a "
+            "random key for this process. Sessions will not survive restarts. "
+            "Set JOB_AGENT_FLASK_SECRET_KEY (or flask_secret_key in config) "
+            "for production use."
+        )
+        app.config["SECRET_KEY"] = secrets.token_hex(32)
+    else:
+        app.config["SECRET_KEY"] = settings.flask_secret_key
     app.config["SETTINGS"] = settings
 
     # Custom Jinja2 filters
